@@ -1,0 +1,404 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Binding of Isaac</title>
+
+<script>
+window.RufflePlayer = window.RufflePlayer || {};
+window.RufflePlayer.config = {
+    autoplay: "on",
+    unmuteOverlay: "hidden",
+    splashScreen: false,
+    backgroundColor: "#101014",
+    letterbox: "on",
+    warnOnUnsupportedContent: false
+};
+</script>
+
+<script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+
+<style>
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: #101014;
+    color: white;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+}
+
+header {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 10px;
+    background: #1b1b24;
+}
+
+header strong { flex: 1; }
+
+button {
+    padding: 8px 13px;
+    color: white;
+    background: #333342;
+    border: 1px solid #555;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#game {
+    width: 100%;
+    height: calc(100% - 48px);
+}
+
+ruffle-player {
+    width: 100%;
+    height: 100%;
+}
+
+#overlay {
+    position: fixed;
+    inset: 48px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #101014;
+    z-index: 10;
+    padding: 20px;
+}
+
+.panel {
+    width: min(500px, 100%);
+    background: #20202b;
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #444;
+}
+
+#message {
+    color: #ccc;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+#bar {
+    width: 100%;
+    height: 12px;
+    background: #444;
+    border-radius: 20px;
+    overflow: hidden;
+    margin-top: 20px;
+}
+
+#progress {
+    width: 0%;
+    height: 100%;
+    background: #9168e8;
+}
+
+#details {
+    font-size: 12px;
+    color: #aaa;
+    margin-top: 8px;
+}
+
+#error {
+    color: #ff9999;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+
+<body>
+
+<header>
+    <strong>The Binding of Isaac</strong>
+    <button id="fullscreen">Fullscreen</button>
+    <button id="reload">Reload</button>
+</header>
+
+<div id="game"></div>
+
+<div id="overlay">
+    <div class="panel">
+        <h2 id="heading">Loading game...</h2>
+        <p id="message">Preparing game data.</p>
+
+        <div id="bar">
+            <div id="progress"></div>
+        </div>
+
+        <p id="details">Initializing...</p>
+        <p id="error" class="hidden"></p>
+
+        <button id="retry" class="hidden">Retry</button>
+        <button id="close" class="hidden">Close error</button>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+// ============================================
+// DOWNLOAD SOURCES
+// ============================================
+
+const SOURCES = [
+    "https://api.github.com/repos/AMoldyWaffle/Ocarina-of-Time/contents/TBoI/The%20Binding%20of%20Isaac.swf?ref=main",
+    "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/TBoI/The%20Binding%20of%20Isaac.swf"
+];
+
+// ============================================
+// ELEMENTS
+// ============================================
+
+const game = document.getElementById("game");
+const overlay = document.getElementById("overlay");
+const heading = document.getElementById("heading");
+const message = document.getElementById("message");
+const progress = document.getElementById("progress");
+const details = document.getElementById("details");
+const errorBox = document.getElementById("error");
+
+let objectURL = null;
+let loading = false;
+
+// ============================================
+// UI
+// ============================================
+
+function update(percent, text) {
+    progress.style.width = percent + "%";
+    details.textContent = text;
+}
+
+function status(title, text) {
+    overlay.classList.remove("hidden");
+    heading.textContent = title;
+    message.textContent = text;
+
+    errorBox.classList.add("hidden");
+    document.getElementById("retry").classList.add("hidden");
+    document.getElementById("close").classList.add("hidden");
+}
+
+function fail(error) {
+    status("Loading failed", "Unable to retrieve or run the game.");
+
+    errorBox.textContent = error.message || String(error);
+    errorBox.classList.remove("hidden");
+
+    document.getElementById("retry").classList.remove("hidden");
+    document.getElementById("close").classList.remove("hidden");
+}
+
+function formatSize(bytes) {
+    return (bytes / 1048576).toFixed(2) + " MB";
+}
+
+// ============================================
+// STREAM DOWNLOAD
+// ============================================
+
+async function downloadSource(url, sourceNumber) {
+
+    status(
+        "Downloading game...",
+        sourceNumber === 1
+            ? "Connecting to primary source."
+            : "Primary source unavailable. Trying backup."
+    );
+
+    update(0, "Connecting...");
+
+    const response = await fetch(url, {
+        method: "GET",
+        headers: sourceNumber === 1 ? {
+            "Accept": "application/vnd.github.raw+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        } : {},
+        cache: "no-store"
+    });
+
+    if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+    }
+
+    if (!response.body) {
+        throw new Error("Streaming is not supported.");
+    }
+
+    const reader = response.body.getReader();
+    const chunks = [];
+
+    let received = 0;
+
+    while (true) {
+        const result = await reader.read();
+
+        if (result.done) break;
+
+        chunks.push(result.value);
+        received += result.value.byteLength;
+
+        update(
+            Math.min(99, received / (38 * 1048576) * 100),
+            formatSize(received) + " downloaded"
+        );
+    }
+
+    if (received < 1000000) {
+        throw new Error("Downloaded file is unexpectedly small.");
+    }
+
+    return new Blob(chunks, {
+        type: "application/x-shockwave-flash"
+    });
+}
+
+// ============================================
+// AUTOMATIC FALLBACK
+// ============================================
+
+async function downloadGame() {
+
+    if (loading) return;
+
+    loading = true;
+
+    try {
+        let blob = null;
+        let lastError = null;
+
+        for (let i = 0; i < SOURCES.length; i++) {
+
+            try {
+                blob = await downloadSource(SOURCES[i], i + 1);
+                break;
+
+            } catch (error) {
+                console.warn("Download source " + (i + 1) + " failed:", error);
+                lastError = error;
+
+                if (i === 0) {
+                    status(
+                        "Switching source...",
+                        "Trying the backup download source."
+                    );
+                }
+            }
+        }
+
+        if (!blob) {
+            throw lastError || new Error("All sources failed.");
+        }
+
+        update(100, "Downloaded " + formatSize(blob.size));
+
+        await launchRuffle(blob);
+
+    } catch (error) {
+        console.error(error);
+        fail(error);
+
+    } finally {
+        loading = false;
+    }
+}
+
+// ============================================
+// RUFFLE PLAYER
+// ============================================
+
+async function launchRuffle(blob) {
+
+    status("Starting game...", "Initializing Flash emulator.");
+
+    if (!window.RufflePlayer ||
+        !window.RufflePlayer.newest) {
+        throw new Error("Flash emulator failed to initialize.");
+    }
+
+    if (objectURL) {
+        URL.revokeObjectURL(objectURL);
+        objectURL = null;
+    }
+
+    objectURL = URL.createObjectURL(blob);
+
+    game.replaceChildren();
+
+    const ruffle = window.RufflePlayer.newest();
+    const player = ruffle.createPlayer();
+
+    player.style.width = "100%";
+    player.style.height = "100%";
+
+    game.appendChild(player);
+
+    await player.ruffle().load({
+        url: objectURL,
+        autoplay: "on",
+        allowScriptAccess: false
+    });
+
+    overlay.classList.add("hidden");
+}
+
+// ============================================
+// BUTTONS
+// ============================================
+
+document.getElementById("fullscreen")
+.addEventListener("click", () => {
+
+    if (!document.fullscreenElement) {
+        document.getElementById("game").requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+});
+
+document.getElementById("reload")
+.addEventListener("click", () => {
+
+    if (objectURL) {
+        URL.revokeObjectURL(objectURL);
+        objectURL = null;
+    }
+
+    game.replaceChildren();
+    downloadGame();
+});
+
+document.getElementById("retry")
+.addEventListener("click", downloadGame);
+
+document.getElementById("close")
+.addEventListener("click", () => {
+    overlay.classList.add("hidden");
+});
+
+window.addEventListener("beforeunload", () => {
+    if (objectURL) URL.revokeObjectURL(objectURL);
+});
+
+// ============================================
+// START
+// ============================================
+
+downloadGame();
+
+</script>
+</body>
+</html>
