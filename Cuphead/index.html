@@ -1,0 +1,856 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <base href="https://raw.githubusercontent.com/AMoldyWaffle/Cuphead/main/">
+
+  <title>Cuphead - Chromebook Diagnostics</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #080808;
+      color: #eee;
+      font: 14px Arial, sans-serif;
+    }
+
+    #gameContainer {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #gameContainer canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-content: center;
+      gap: 14px;
+      padding: 24px;
+      background: #080808;
+      text-align: center;
+    }
+
+    #loading h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 2px;
+    }
+
+    #status { color: #bbb; }
+
+    .track {
+      width: min(78vw, 420px);
+      height: 8px;
+      overflow: hidden;
+      border-radius: 20px;
+      background: #292929;
+    }
+
+    #bar {
+      width: 0%;
+      height: 100%;
+      background: #eee;
+      transition: width .12s linear;
+    }
+
+    #detail {
+      color: #888;
+      font-size: 12px;
+    }
+
+    #error {
+      display: none;
+      max-width: 560px;
+      color: #ff8585;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    #diagnostics {
+      display: block;
+      width: min(92vw, 760px);
+      max-height: 34vh;
+      overflow: auto;
+      padding: 10px;
+      border: 1px solid #454545;
+      border-radius: 6px;
+      background: #111;
+      color: #cfcfcf;
+      text-align: left;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: 11px/1.45 monospace;
+    }
+
+    #retry {
+      display: none;
+      justify-self: center;
+      padding: 9px 16px;
+      border: 0;
+      border-radius: 5px;
+      background: #eee;
+      color: #111;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="loading" role="status" aria-live="polite">
+    <h1>CUPHEAD</h1>
+    <div id="status">Preparing game files…</div>
+    <div class="track">
+      <div id="bar"></div>
+    </div>
+    <div id="detail">Starting downloads</div>
+    <div id="error"></div>
+    <pre id="diagnostics">Diagnostics will appear here.
+Launcher starting…</pre>
+    <button id="retry" type="button" onclick="location.reload()">
+      Try again
+    </button>
+  </div>
+
+  <div id="gameContainer"></div>
+
+  <script>
+  (() => {
+    "use strict";
+
+    const loading = document.getElementById("loading");
+    const status = document.getElementById("status");
+    const detail = document.getElementById("detail");
+    const bar = document.getElementById("bar");
+    const errorBox = document.getElementById("error");
+    const retry = document.getElementById("retry");
+    const diagnosticsBox = document.getElementById("diagnostics");
+
+    // Startup state is shared by all diagnostic handlers. Keep it outside
+    // load() so early browser errors cannot hit uninitialized variables.
+    let unityReady = false;
+    let lastProgress = 0;
+    let startupTimer = null;
+    let startupStartedAt = 0;
+
+    // Adaptive download settings.
+    // Use a smaller download pool on memory-constrained devices.
+    // Chromebook models commonly expose 4 GB or less through deviceMemory.
+    const deviceMemory = Number(navigator.deviceMemory || 0);
+    const isLowMemory = deviceMemory > 0 && deviceMemory <= 4;
+    const isMidMemory = deviceMemory > 4 && deviceMemory <= 8;
+
+    const MIN_DOWNLOADS = 2;
+    const START_DOWNLOADS = isLowMemory ? 4 : isMidMemory ? 6 : 10;
+    const MAX_DOWNLOADS = isLowMemory ? 4 : isMidMemory ? 6 : 12;
+
+    let currentDownloads = START_DOWNLOADS;
+    let fastCompletions = 0;
+    let throttleEvents = 0;
+
+    // Download sources.
+    const CDN_ROOT =
+      "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Cuphead@main/";
+
+    const FALLBACK_CDN_ROOT =
+      "https://cdn.jsdelivr.net/gh/web-ports/cuphead@c9ff1b6b16f9d402b78a42fc2200e1c076c0ab6e/";
+
+    const RAW_ROOT =
+      "https://raw.githubusercontent.com/AMoldyWaffle/Cuphead/main/";
+
+    const API_ROOT =
+      "https://api.github.com/repos/AMoldyWaffle/Cuphead/contents/";
+
+    // Original Unity asset files.
+    const assets = [
+      { name: "CupheadPort.data.unityweb", count: 103 },
+      { name: "CupheadPort.wasm.code.unityweb", count: 2 },
+      { name: "CupheadPort.asm.code.unityweb", count: 3 }
+    ];
+
+    function showError(error) {
+      status.textContent = "The game could not be loaded.";
+      detail.textContent = "";
+      bar.style.background = "#e45b5b";
+
+      errorBox.style.display = "block";
+
+      const message = error && error.message
+        ? error.message
+        : String(error);
+
+      errorBox.textContent = message;
+      note("FATAL: " + message);
+      diagnosticsBox.textContent = browserDiagnostics("Startup failure");
+      retry.style.display = "inline-block";
+    }
+
+    const diagnosticEvents = [];
+    function note(message) {
+      const stamp = new Date().toLocaleTimeString();
+      diagnosticEvents.push("[" + stamp + "] " + String(message));
+      if (diagnosticEvents.length > 60) diagnosticEvents.shift();
+      if (diagnosticsBox) {
+        diagnosticsBox.textContent = diagnosticEvents.join("\n");
+        diagnosticsBox.scrollTop = diagnosticsBox.scrollHeight;
+      }
+    }
+
+    function browserDiagnostics(reason) {
+      let webgl = "unavailable";
+      try {
+        const canvas = document.createElement("canvas");
+        const gl = canvas.getContext("webgl2") || canvas.getContext("webgl") ||
+                   canvas.getContext("experimental-webgl");
+        webgl = gl ? "available" : "NOT available";
+        if (gl && gl.getParameter) {
+          const renderer = gl.getParameter(gl.RENDERER);
+          if (renderer) webgl += " (" + renderer + ")";
+        }
+      } catch (e) { webgl = "error: " + e.message; }
+      return reason + "\nWebAssembly: " +
+        (typeof WebAssembly !== "undefined" ? "available" : "NOT available") +
+        "\nWebGL: " + webgl +
+        "\nLast Unity progress: " + Math.round(lastProgress * 100) + "%" +
+        "\nEvents:\n- " + diagnosticEvents.slice(-12).join("\n- ");
+    }
+
+    function reportStartupProblem(reason) {
+      if (unityReady) return;
+      status.textContent = "Cuphead startup is stuck or failed.";
+      detail.textContent = "Diagnostic information is shown below.";
+      errorBox.style.display = "block";
+      errorBox.textContent = reason;
+      diagnosticsBox.textContent = browserDiagnostics(reason);
+      retry.style.display = "inline-block";
+    }
+
+    // Install global error handlers BEFORE Unity is started so early failures
+    // are not missed.
+    window.addEventListener("error", function (event) {
+      const msg = event.message || (event.target && event.target.src) || "Unknown browser error";
+      note("Browser error: " + msg + (event.filename ? " | " + event.filename + ":" + event.lineno + ":" + event.colno : ""));
+      if (startupStartedAt && !unityReady) {
+        reportStartupProblem("JavaScript/resource error: " + msg);
+      }
+    }, true);
+
+    window.addEventListener("unhandledrejection", function (event) {
+      const msg = event.reason && (event.reason.stack || event.reason.message) || String(event.reason);
+      note("Unhandled promise rejection: " + msg);
+      if (startupStartedAt && !unityReady) reportStartupProblem("Unhandled promise rejection: " + msg);
+    });
+
+    function sourceUrls(path) {
+      const safePath = path
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/");
+
+      return [
+        RAW_ROOT + safePath,
+        CDN_ROOT + path,
+        FALLBACK_CDN_ROOT + path,
+        API_ROOT + safePath + "?ref=main"
+      ];
+    }
+
+    async function fetchWithFallback(path) {
+      const urls = sourceUrls(path);
+      const failures = [];
+
+      for (let i = 0; i < urls.length; i++) {
+        try {
+          const headers = i === 2 ? {
+            "Accept": "application/vnd.github.raw+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+          } : {};
+
+          const response = await fetch(urls[i], {
+            method: "GET",
+            headers,
+            cache: "default"
+          });
+
+          if (!response.ok) {
+            const err = new Error("HTTP " + response.status);
+            err.httpStatus = response.status;
+
+            if ([408, 425, 429, 500, 502, 503, 504].includes(response.status)) {
+              err.throttled = true;
+            }
+
+            throw err;
+          }
+
+          return response;
+
+        } catch (error) {
+          failures.push(
+            "Source " + (i + 1) + " " + urls[i] +
+            " — " + (error.message || error)
+          );
+        }
+      }
+
+      throw new Error(
+        "All download sources failed for " +
+        path + ".\n" + failures.join("\n")
+      );
+    }
+
+    // Stream downloaded parts into memory.
+    async function responseToBlob(response, path, onChunk) {
+      if (!response.body || !response.body.getReader) {
+        throw new Error(
+          "Streaming is not supported by this browser for " + path
+        );
+      }
+
+      const reader = response.body.getReader();
+      const chunks = [];
+      let received = 0;
+
+      while (true) {
+        const result = await reader.read();
+
+        if (result.done) break;
+
+        chunks.push(result.value);
+        received += result.value.byteLength;
+
+        if (onChunk) {
+          onChunk(received);
+        }
+      }
+
+      if (received === 0) {
+        throw new Error("The downloaded file was empty: " + path);
+      }
+
+      return new Blob(chunks);
+    }
+
+    // Fetch UnityLoader.js and inject it as a classic inline script.
+    async function loadScriptWithFallback(path) {
+      const urls = sourceUrls(path);
+      const failures = [];
+
+      for (let i = 0; i < urls.length; i++) {
+        try {
+          const headers = i === 2 ? {
+            "Accept": "application/vnd.github.raw+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+          } : {};
+
+          const response = await fetch(urls[i], {
+            method: "GET",
+            headers,
+            cache: "default"
+          });
+
+          if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+          }
+
+          const source = await response.text();
+
+          if (
+            !source ||
+            source.trim().length < 20 ||
+            source.trim().startsWith("{") ||
+            source.toLowerCase().includes("404: not found")
+          ) {
+            throw new Error("The server did not return valid JavaScript.");
+          }
+
+          const script = document.createElement("script");
+          script.text = source;
+          document.head.appendChild(script);
+          script.remove();
+
+          if (
+            window.UnityLoader &&
+            typeof window.UnityLoader.instantiate === "function"
+          ) {
+            return;
+          }
+
+          throw new Error(
+            "JavaScript loaded, but UnityLoader.instantiate was not defined."
+          );
+
+        } catch (error) {
+          failures.push(
+            "Source " + (i + 1) + " " + urls[i] +
+            " — " + (error.message || error)
+          );
+        }
+      }
+
+      throw new Error(
+        "UnityLoader.js could not be fetched from any source.\n" +
+        failures.join("\n")
+      );
+    }
+
+    function partUrl(name, number) {
+      return "Build/" + name + ".part" + number;
+    }
+
+    // Adjust the download pool based on connection performance.
+    function adaptConcurrency(event) {
+      if (event && event.throttled) {
+        throttleEvents++;
+        fastCompletions = 0;
+
+        const next = Math.max(
+          MIN_DOWNLOADS,
+          Math.floor(currentDownloads * 0.6)
+        );
+
+        if (next < currentDownloads) {
+          currentDownloads = next;
+
+          detail.textContent =
+            "Server throttling detected — reducing to " +
+            currentDownloads + " connections";
+        }
+
+        return;
+      }
+
+      if (event && event.slow) {
+        fastCompletions = 0;
+
+        const next = Math.max(
+          MIN_DOWNLOADS,
+          currentDownloads - 2
+        );
+
+        if (next < currentDownloads) {
+          currentDownloads = next;
+
+          detail.textContent =
+            "Slow responses detected — reducing to " +
+            currentDownloads + " connections";
+        }
+
+        return;
+      }
+
+      fastCompletions++;
+
+      if (
+        fastCompletions >= 4 &&
+        currentDownloads < MAX_DOWNLOADS
+      ) {
+        currentDownloads = Math.min(
+          MAX_DOWNLOADS,
+          currentDownloads + 2
+        );
+
+        fastCompletions = 0;
+      }
+    }
+
+    async function downloadPart(path, onChunk, onComplete) {
+      const started = performance.now();
+
+      try {
+        const response = await fetchWithFallback(path);
+
+        const blob = await responseToBlob(
+          response,
+          path,
+          onChunk
+        );
+
+        const seconds = Math.max(
+          0.1,
+          (performance.now() - started) / 1000
+        );
+
+        const rate = blob.size / seconds;
+
+        const isSlow =
+          seconds > 8 &&
+          rate < 180 * 1024;
+
+        if (isSlow) {
+          adaptConcurrency({ slow: true });
+        } else {
+          adaptConcurrency({});
+        }
+
+        onComplete(blob.size);
+
+        return blob;
+
+      } catch (error) {
+        adaptConcurrency({
+          throttled:
+            !!error.throttled ||
+            /Failed to fetch|NetworkError|HTTP (408|425|429|500|502|503|504)/i
+              .test(error.message || "")
+        });
+
+        throw error;
+      }
+    }
+
+    // Adaptive concurrent download pool.
+    async function runAdaptivePool(tasks, worker) {
+      const results = new Array(tasks.length);
+
+      let next = 0;
+      let active = 0;
+      let finished = 0;
+
+      return new Promise((resolve, reject) => {
+        let failed = false;
+
+        function pump() {
+          if (failed) return;
+
+          while (
+            active < currentDownloads &&
+            next < tasks.length
+          ) {
+            const index = next++;
+
+            active++;
+
+            Promise.resolve(
+              worker(tasks[index], index)
+            ).then(result => {
+              results[index] = result;
+              active--;
+              finished++;
+
+              if (finished === tasks.length) {
+                resolve(results);
+              } else {
+                pump();
+              }
+
+            }).catch(error => {
+              failed = true;
+              reject(error);
+            });
+          }
+        }
+
+        pump();
+      });
+    }
+
+    // Log all XHR requests and failures directly in the page. Unity's older
+    // loader uses XHR for the JSON, framework, memory, and data files.
+    const xhrOpenOriginal = XMLHttpRequest.prototype.open;
+    const xhrSendOriginal = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+      this.__cupheadUrl = String(url);
+      return xhrOpenOriginal.call(this, method, url, ...rest);
+    };
+    XMLHttpRequest.prototype.send = function(...args) {
+      const xhr = this;
+      const url = xhr.__cupheadUrl || "(unknown URL)";
+      if (startupStartedAt) note("XHR started: " + url);
+      xhr.addEventListener("loadend", function() {
+        note("XHR finished: HTTP " + xhr.status + " | " + url);
+        if (xhr.status === 0 || xhr.status >= 400) {
+          reportStartupProblem("XHR failed (HTTP " + xhr.status + "): " + url);
+        }
+      }, { once: true });
+      return xhrSendOriginal.apply(this, args);
+    };
+
+    async function load() {
+      startupStartedAt = Date.now();
+      note("Launcher initialized");
+      note("Browser: " + navigator.userAgent);
+      note("WebAssembly: " + (typeof WebAssembly !== "undefined"));
+      try {
+        const glCanvas = document.createElement("canvas");
+        const gl2 = glCanvas.getContext("webgl2");
+        note("WebGL 2: " + (gl2 ? "available" : "NOT available"));
+        if (gl2) {
+          const debugInfo = gl2.getExtension("WEBGL_debug_renderer_info");
+          if (debugInfo) note("Graphics renderer: " + gl2.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL));
+      }
+      } catch (glError) {
+        note("WebGL 2 check failed: " + glError.message);
+      }
+      note("Base URL: " + document.baseURI);
+      note("Device memory: " + (navigator.deviceMemory || "not exposed"));
+      try {
+        status.textContent = "Loading game engine…";
+        detail.textContent = "Preparing downloads";
+
+        // Load UnityLoader using the working Chromebook-compatible method.
+        await loadScriptWithFallback("Build/UnityLoader.js");
+
+        if (
+          !window.UnityLoader ||
+          typeof UnityLoader.instantiate !== "function"
+        ) {
+          throw new Error(
+            "UnityLoader.js loaded, but UnityLoader.instantiate is unavailable."
+          );
+        }
+
+        const totalParts = assets.reduce(
+          (sum, asset) => sum + asset.count,
+          0
+        );
+
+        let completedParts = 0;
+        let downloadedBytes = 0;
+
+        const activePartBytes = new Map();
+
+        function formatSize(bytes) {
+          return (bytes / 1048576).toFixed(1) + " MB";
+        }
+
+        function renderProgress(assetName) {
+          let inFlightBytes = 0;
+
+          for (const value of activePartBytes.values()) {
+            inFlightBytes += value;
+          }
+
+          const percent = Math.round(
+            completedParts / totalParts * 100
+          );
+
+          bar.style.width = percent + "%";
+
+          status.textContent =
+            "Downloading game files… " + percent + "%";
+
+          detail.textContent =
+            formatSize(downloadedBytes + inFlightBytes) +
+            " received · " +
+            completedParts + " / " + totalParts +
+            " parts · " + assetName;
+        }
+
+        function updateChunkProgress(
+          partKey,
+          assetName,
+          partBytes
+        ) {
+          activePartBytes.set(partKey, partBytes);
+          renderProgress(assetName);
+        }
+
+        function updateProgress(
+          partKey,
+          assetName,
+          partSize
+        ) {
+          activePartBytes.delete(partKey);
+
+          completedParts++;
+          downloadedBytes += partSize;
+
+          renderProgress(assetName);
+        }
+
+        detail.textContent =
+          "Adaptive mode: starting with " +
+          currentDownloads +
+          " connections (max " +
+          MAX_DOWNLOADS + ")";
+
+        // Download and merge each original Unity asset.
+        for (const asset of assets) {
+          const tasks = Array.from(
+            { length: asset.count },
+            (_, index) => ({
+              path: partUrl(asset.name, index + 1),
+              order: index
+            })
+          );
+
+          const parts = await runAdaptivePool(
+            tasks,
+            async task => {
+              const blob = await downloadPart(
+                task.path,
+
+                partBytes => {
+                  updateChunkProgress(
+                    task.path,
+                    asset.name,
+                    partBytes
+                  );
+                },
+
+                partSize => {
+                  updateProgress(
+                    task.path,
+                    asset.name,
+                    partSize
+                  );
+                }
+              );
+
+              return {
+                order: task.order,
+                blob
+              };
+            }
+          );
+
+          parts.sort((a, b) => a.order - b.order);
+
+          asset.blob = new Blob(
+            parts.map(part => part.blob)
+          );
+
+          // Drop references to the individual downloaded parts immediately.
+          for (let i = 0; i < parts.length; i++) {
+            parts[i].blob = null;
+          }
+          parts.length = 0;
+        }
+
+        // Create one Blob URL for each merged asset.
+        const objectUrls = {};
+
+        for (const asset of assets) {
+          objectUrls[asset.name] =
+            URL.createObjectURL(asset.blob);
+
+          // The object URL retains the Blob; the extra JS reference is
+          // unnecessary and can increase memory pressure on Chromebooks.
+          asset.blob = null;
+        }
+
+        // Intercept only the original Unity asset requests.
+        // Never rewrite an existing Blob URL.
+        const originalOpen = XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open = function(
+          method,
+          url,
+          ...rest
+        ) {
+          const text = String(url);
+
+          if (!text.startsWith("blob:")) {
+            for (const asset of assets) {
+              if (text.includes(asset.name)) {
+                url = objectUrls[asset.name];
+                break;
+              }
+            }
+          }
+
+          return originalOpen.call(
+            this,
+            method,
+            url,
+            ...rest
+          );
+        };
+
+        // IMPORTANT:
+        // Do not fetch CupheadPort.json and do not turn it into a Blob URL.
+        // Unity must receive the original configuration path so it can
+        // resolve its framework and other resources correctly.
+        status.textContent = "Loading game configuration…";
+        detail.textContent = "Using original Unity configuration path";
+
+        status.textContent = "Starting Cuphead…";
+        detail.textContent =
+          "Downloads complete · initializing Unity WebGL";
+
+        bar.style.width = "0%";
+        bar.style.background = "#eee";
+
+        // Unity downloads and runtime initialization are separate stages.
+        // onProgress reaching 1 means the build assets downloaded; it does not
+        // guarantee that WebAssembly has initialized. Use Module callback too.
+
+        note("Calling UnityLoader.instantiate with Build/CupheadPort.json");
+        const gameInstance = UnityLoader.instantiate(
+          "gameContainer",
+          "Build/CupheadPort.json",
+          {
+            onProgress: function (instance, progress) {
+              if (!Number.isFinite(progress)) return;
+              lastProgress = Math.max(0, Math.min(1, progress));
+              const percent = Math.round(lastProgress * 100);
+              note("Unity download progress: " + percent + "%");
+              status.textContent = "Loading Cuphead… " + percent + "%";
+              detail.textContent = "Unity is downloading its build configuration and assets";
+              bar.style.width = percent + "%";
+            },
+            Module: {
+              onRuntimeInitialized: function () {
+                unityReady = true;
+                if (startupTimer) clearTimeout(startupTimer);
+                note("Unity runtime initialized successfully");
+                status.textContent = "Cuphead loaded";
+                detail.textContent = "Starting game…";
+                bar.style.width = "100%";
+                setTimeout(function () { loading.style.display = "none"; }, 300);
+              },
+              onAbort: function (reason) {
+                note("Unity Module.onAbort: " + reason);
+                reportStartupProblem("Unity aborted: " + reason);
+              }
+            }
+          }
+        );
+
+        if (!gameInstance) {
+          throw new Error("UnityLoader.instantiate did not return a game instance.");
+        }
+
+        note("UnityLoader.instantiate returned a game instance");
+        detail.textContent = "Unity instance created · waiting for WebAssembly runtime";
+
+        // If no callback arrives, show the collected evidence instead of
+        // leaving a blank, motionless progress bar indefinitely.
+        startupTimer = setTimeout(function () {
+          reportStartupProblem("No Unity runtime initialization callback after 45 seconds.");
+        }, 45000);
+
+        // Do not hide the loading screen here: instantiate() only starts Unity.
+        detail.textContent =
+          "Unity instance created · waiting for WebAssembly runtime";
+
+      } catch (error) {
+        const full = error && (error.stack || error.message) ? (error.stack || error.message) : String(error);
+        note("Caught exception: " + full);
+        showError(full);
+      }
+    }
+
+    load();
+
+  })();
+  </script>
+
+</body>
+</html>
