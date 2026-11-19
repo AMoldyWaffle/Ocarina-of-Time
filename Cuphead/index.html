@@ -7,7 +7,7 @@
 
   <base href="https://raw.githubusercontent.com/AMoldyWaffle/Cuphead/main/">
 
-  <title>Cuphead - Chromebook Diagnostics</title>
+  <title>Cuphead - Chromebook Diagnostics (Clean Cache)</title>
 
   <style>
     * { box-sizing: border-box; }
@@ -97,6 +97,26 @@
       font: 11px/1.45 monospace;
     }
 
+    #runtimeErrors {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      max-height: 42vh;
+      overflow: auto;
+      padding: 12px;
+      border: 2px solid #ff6262;
+      border-radius: 6px;
+      background: rgba(20, 0, 0, .96);
+      color: #fff;
+      text-align: left;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: 12px/1.45 monospace;
+    }
+
     #retry {
       display: none;
       justify-self: center;
@@ -128,6 +148,7 @@ Launcher starting…</pre>
   </div>
 
   <div id="gameContainer"></div>
+  <pre id="runtimeErrors" aria-live="assertive"></pre>
 
   <script>
   (() => {
@@ -139,6 +160,11 @@ Launcher starting…</pre>
     const bar = document.getElementById("bar");
     const errorBox = document.getElementById("error");
     const retry = document.getElementById("retry");
+    const runtimeErrors = document.getElementById("runtimeErrors");
+
+    // Keep gameplay-time JavaScript errors visible on screen. The earlier
+    // diagnostic only watched errors during startup, so runtime failures
+    // after the intro book were invisible without DevTools.
     const diagnosticsBox = document.getElementById("diagnostics");
 
     // Startup state is shared by all diagnostic handlers. Keep it outside
@@ -242,19 +268,73 @@ Launcher starting…</pre>
 
     // Install global error handlers BEFORE Unity is started so early failures
     // are not missed.
+    const runtimeErrorLines = [];
+    function showRuntimeError(kind, details) {
+      const entry = "\n\n" + kind + "\n" + String(details || "No additional details");
+      runtimeErrorLines.push(entry);
+      if (runtimeErrorLines.length > 5) runtimeErrorLines.shift();
+      runtimeErrors.textContent = "CUPHEAD JAVASCRIPT ERROR (on-screen diagnostic)" + runtimeErrorLines.join("");
+      runtimeErrors.style.display = "block";
+      note(kind + ": " + String(details || "No additional details"));
+    }
+
     window.addEventListener("error", function (event) {
-      const msg = event.message || (event.target && event.target.src) || "Unknown browser error";
-      note("Browser error: " + msg + (event.filename ? " | " + event.filename + ":" + event.lineno + ":" + event.colno : ""));
+      const target = event.target;
+      const msg = event.message || (target && (target.src || target.href)) || "Unknown browser/resource error";
+      const stack = event.error && event.error.stack ? "\n\nStack:\n" + event.error.stack : "";
+      const location = event.filename ? "\nAt: " + event.filename + ":" + event.lineno + ":" + event.colno : "";
+      showRuntimeError("Uncaught error", msg + location + stack);
       if (startupStartedAt && !unityReady) {
-        reportStartupProblem("JavaScript/resource error: " + msg);
+        reportStartupProblem("JavaScript/resource error: " + msg + location + stack);
       }
     }, true);
 
     window.addEventListener("unhandledrejection", function (event) {
-      const msg = event.reason && (event.reason.stack || event.reason.message) || String(event.reason);
-      note("Unhandled promise rejection: " + msg);
-      if (startupStartedAt && !unityReady) reportStartupProblem("Unhandled promise rejection: " + msg);
+      const reason = event.reason;
+      const details = reason && (reason.stack || reason.message) || String(reason);
+      showRuntimeError("Unhandled promise rejection", details);
+      if (startupStartedAt && !unityReady) reportStartupProblem("Unhandled promise rejection: " + details);
     });
+
+    // Remove only Cache Storage entries belonging to this Cuphead repository.
+    // This does not clear unrelated sites or the browser's entire HTTP cache.
+    async function cleanupCupheadCache() {
+      if (!('caches' in window)) {
+        note("Cache Storage API unavailable; continuing with fresh network requests");
+        return;
+      }
+
+      try {
+        const cacheNames = await caches.keys();
+        let removed = 0;
+
+        for (const cacheName of cacheNames) {
+          const cache = await caches.open(cacheName);
+          const requests = await cache.keys();
+
+          for (const request of requests) {
+            let url;
+            try { url = new URL(request.url); } catch (_) { continue; }
+
+            const isCupheadAsset =
+              (url.hostname === "raw.githubusercontent.com" &&
+               url.pathname.startsWith("/AMoldyWaffle/Cuphead/")) ||
+              (url.hostname === "cdn.jsdelivr.net" &&
+               url.pathname.includes("/AMoldyWaffle/Cuphead@")) ||
+              (url.hostname === "api.github.com" &&
+               url.pathname.startsWith("/repos/AMoldyWaffle/Cuphead/"));
+
+            if (isCupheadAsset && await cache.delete(request)) {
+              removed++;
+            }
+          }
+        }
+
+        note("Cuphead Cache Storage cleanup finished · " + removed + " old entries removed");
+      } catch (error) {
+        note("Cache cleanup warning: " + (error.message || error));
+      }
+    }
 
     function sourceUrls(path) {
       const safePath = path
@@ -276,7 +356,7 @@ Launcher starting…</pre>
 
       for (let i = 0; i < urls.length; i++) {
         try {
-          const headers = i === 2 ? {
+          const headers = i === 3 ? {
             "Accept": "application/vnd.github.raw+json",
             "X-GitHub-Api-Version": "2022-11-28"
           } : {};
@@ -284,7 +364,7 @@ Launcher starting…</pre>
           const response = await fetch(urls[i], {
             method: "GET",
             headers,
-            cache: "default"
+            cache: "no-store"
           });
 
           if (!response.ok) {
@@ -353,7 +433,7 @@ Launcher starting…</pre>
 
       for (let i = 0; i < urls.length; i++) {
         try {
-          const headers = i === 2 ? {
+          const headers = i === 3 ? {
             "Accept": "application/vnd.github.raw+json",
             "X-GitHub-Api-Version": "2022-11-28"
           } : {};
@@ -361,7 +441,7 @@ Launcher starting…</pre>
           const response = await fetch(urls[i], {
             method: "GET",
             headers,
-            cache: "default"
+            cache: "no-store"
           });
 
           if (!response.ok) {
@@ -584,6 +664,7 @@ Launcher starting…</pre>
     async function load() {
       startupStartedAt = Date.now();
       note("Launcher initialized");
+      await cleanupCupheadCache();
       note("Browser: " + navigator.userAgent);
       note("WebAssembly: " + (typeof WebAssembly !== "undefined"));
       try {
@@ -744,6 +825,14 @@ Launcher starting…</pre>
           // unnecessary and can increase memory pressure on Chromebooks.
           asset.blob = null;
         }
+
+        // Release merged asset Blob URLs when this launcher is closed or reloaded.
+        // Keep them alive for the entire Unity session.
+        window.addEventListener("pagehide", function () {
+          for (const url of Object.values(objectUrls)) {
+            try { URL.revokeObjectURL(url); } catch (_) {}
+          }
+        }, { once: true });
 
         // Intercept only the original Unity asset requests.
         // Never rewrite an existing Blob URL.
