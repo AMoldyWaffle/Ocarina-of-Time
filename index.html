@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ocarina of Time – Games</title>
+  <title>Fun Math Puzzles</title>
+
+  <!-- Favicon placeholder — JS fills the href once it finds the image
+       inside the root-level Cover folder. -->
+  <link id="favicon" rel="icon">
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -201,6 +206,7 @@
       const viewerFrame  = document.getElementById('viewerFrame');
       const viewerTitle  = document.getElementById('viewerTitle');
       const closeBtn     = document.getElementById('closeViewer');
+      const faviconEl    = document.getElementById('favicon');
 
       // ---------- helpers ----------
       const encPath = (p) => p.split('/').map(encodeURIComponent).join('/');
@@ -213,7 +219,6 @@
         `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/${encPath(p)}`;
 
       const isImage = (name) => /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
-      // a direct file whose name starts with "beta" marks the folder as beta
       const isBetaMarker = (name) => /^beta/i.test(name);
 
       // ---------- viewer controls ----------
@@ -313,10 +318,37 @@
         childrenOf.get(parent).push(item);
       }
 
+      // ---------- root-level Cover folder → favicon ----------
+      // This folder lives at the repository root (a sibling of the game
+      // folders), NOT inside any game folder. We use its first image as the
+      // page icon, preferring names like favicon.* or icon.*.
+      const rootChildren = childrenOf.get('') || [];
+      const rootCoverDir = rootChildren.find(
+        (c) => c.type === 'tree' && c.path === 'Cover'
+      );
+
+      if (rootCoverDir) {
+        const coverImages = (childrenOf.get(rootCoverDir.path) || [])
+          .filter((c) => c.type === 'blob' && isImage(c.path))
+          .sort((a, b) => a.path.localeCompare(b.path));
+
+        const pick = (re) =>
+          coverImages.find((f) => re.test(f.path.split('/').pop()));
+        const faviconFile =
+          pick(/^favicon\./i) || pick(/^icon\./i) || coverImages[0];
+
+        if (faviconFile) {
+          faviconEl.href = cdnFile(faviconFile.path);
+          console.log('[favicon] Using', faviconFile.path);
+        }
+      }
+
       // ---------- find qualifying folders ----------
       const results = [];
       for (const dirPath of allDirs) {
-        if (dirPath === '') continue; // skip repo root
+        if (dirPath === '') continue;                       // skip repo root
+        if (rootCoverDir && dirPath === rootCoverDir.path) continue; // skip root Cover
+
         const children = childrenOf.get(dirPath) || [];
 
         // direct sub-folder called "Cover"
