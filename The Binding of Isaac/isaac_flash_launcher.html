@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -75,7 +74,7 @@ ruffle-player {
 }
 
 .panel {
-    width: min(500px, 100%);
+    width: min(560px, 100%);
     background: #20202b;
     padding: 25px;
     border-radius: 12px;
@@ -101,6 +100,7 @@ ruffle-player {
     width: 0%;
     height: 100%;
     background: #9168e8;
+    transition: width 0.15s linear;
 }
 
 #details {
@@ -113,6 +113,10 @@ ruffle-player {
     color: #ff9999;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    max-height: 40vh;
+    overflow-y: auto;
 }
 
 .hidden { display: none !important; }
@@ -150,25 +154,31 @@ ruffle-player {
 "use strict";
 
 // ============================================
-// DOWNLOAD SOURCES
+// CONFIG  (all values are auto-detected if null)
 // ============================================
 
-const SOURCES = [
-    "https://api.github.com/repos/AMoldyWaffle/Ocarina-of-Time/contents/TBoI/The%20Binding%20of%20Isaac.swf?ref=main",
-    "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/TBoI/The%20Binding%20of%20Isaac.swf"
-];
+const CONFIG = {
+    owner: "AMoldyWaffle",
+    repo:  "Ocarina-of-Time",
+    branch: "main",
+    folder: null,     // null => derive from document.baseURI
+    filename: null    // null => auto-discover via contents listing
+};
+
+const FALLBACK_FOLDER = "TBoI";
+const FALLBACK_FILENAME = "The Binding of Isaac.swf";
 
 // ============================================
 // ELEMENTS
 // ============================================
 
-const game = document.getElementById("game");
-const overlay = document.getElementById("overlay");
-const heading = document.getElementById("heading");
-const message = document.getElementById("message");
-const progress = document.getElementById("progress");
-const details = document.getElementById("details");
-const errorBox = document.getElementById("error");
+const game      = document.getElementById("game");
+const overlay   = document.getElementById("overlay");
+const heading   = document.getElementById("heading");
+const message   = document.getElementById("message");
+const progress  = document.getElementById("progress");
+const details   = document.getElementById("details");
+const errorBox  = document.getElementById("error");
 
 let objectURL = null;
 let loading = false;
@@ -178,7 +188,7 @@ let loading = false;
 // ============================================
 
 function update(percent, text) {
-    progress.style.width = percent + "%";
+    progress.style.width = Math.max(0, Math.min(100, percent)) + "%";
     details.textContent = text;
 }
 
@@ -186,7 +196,6 @@ function status(title, text) {
     overlay.classList.remove("hidden");
     heading.textContent = title;
     message.textContent = text;
-
     errorBox.classList.add("hidden");
     document.getElementById("retry").classList.add("hidden");
     document.getElementById("close").classList.add("hidden");
@@ -194,123 +203,248 @@ function status(title, text) {
 
 function fail(error) {
     status("Loading failed", "Unable to retrieve or run the game.");
-
-    errorBox.textContent = error.message || String(error);
+    errorBox.textContent = error && (error.message || String(error));
     errorBox.classList.remove("hidden");
-
     document.getElementById("retry").classList.remove("hidden");
     document.getElementById("close").classList.remove("hidden");
 }
 
 function formatSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / 1048576).toFixed(2) + " MB";
+}
+
+// ============================================
+// AUTO-DETECT FOLDER FROM document.baseURI
+//
+// Handles two scenarios:
+//   1) Loaded directly from a raw-file host where the URL path is
+//        /OWNER/REPO/BRANCH/<folder>/index.html
+//   2) Loaded inside the parent wrapper via srcdoc + injected <base>
+//      where the URL path is
+//        /gh/OWNER/REPO@BRANCH/<folder>/
+// ============================================
+
+function detectFolder() {
+    if (CONFIG.folder) return CONFIG.folder;
+
+    try {
+        const u = new URL(document.baseURI);
+        const parts = u.pathname.split("/").filter(Boolean);
+
+        // Raw-file host: skip OWNER/REPO/BRANCH
+        if (u.hostname === "raw.githubusercontent.com") {
+            let rest = parts.slice(3);
+            if (rest.length && /\.[a-z0-9]+$/i.test(rest[rest.length - 1])) rest.pop();
+            return rest.join("/") || FALLBACK_FOLDER;
+        }
+
+        // CDN mirror: /gh/OWNER/REPO@BRANCH/...path.../file
+        if (u.hostname === "cdn.jsdelivr.net" && parts[0] === "gh") {
+            let rest = parts.slice(3);
+            if (rest.length && /\.[a-z0-9]+$/i.test(rest[rest.length - 1])) rest.pop();
+            return rest.join("/") || FALLBACK_FOLDER;
+        }
+    } catch (e) { /* about:srcdoc or similar — fall through */ }
+
+    return FALLBACK_FOLDER;
+}
+
+// ============================================
+// AUTO-DISCOVER THE SWF
+//   1) list the folder containing this HTML
+//   2) if that fails, scan the whole repository tree
+//   3) last resort: the historical filename
+// ============================================
+
+async function discoverSwfPath() {
+    const folder = detectFolder();
+    const folderEnc = folder.split("/").map(encodeURIComponent).join("/");
+
+    // 1) Contents listing for the folder
+    try {
+        const res = await fetch(
+            `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${folderEnc}?ref=${CONFIG.branch}`,
+            { cache: "no-store" }
+        );
+        if (res.ok) {
+            const list = await res.json();
+            if (Array.isArray(list)) {
+                const swf = list.find(f => f.type === "file" && /\.swf$/i.test(f.name));
+                if (swf) return `${folder}/${swf.name}`;
+            }
+        }
+    } catch (e) { /* fall through */ }
+
+    // 2) Scan the whole repository tree for any .swf
+    try {
+        const res = await fetch(
+            `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/git/trees/${CONFIG.branch}?recursive=1`,
+            { cache: "no-store" }
+        );
+        if (res.ok) {
+            const data = await res.json();
+            const matches = (data.tree || []).filter(
+                t => t.type === "blob" && /\.swf$/i.test(t.path)
+            );
+            if (matches.length) {
+                const inFolder = matches.find(t => t.path.startsWith(folder + "/"));
+                return (inFolder || matches[0]).path;
+            }
+        }
+    } catch (e) { /* fall through */ }
+
+    // 3) Last resort — try the historical filename
+    return `${folder}/${CONFIG.filename || FALLBACK_FILENAME}`;
+}
+
+// ============================================
+// BUILD THE THREE DOWNLOAD SOURCES FOR A PATH
+// ============================================
+
+function buildSources(path) {
+    const pathEnc = path.split("/").map(encodeURIComponent).join("/");
+    const { owner, repo, branch } = CONFIG;
+
+    return [
+        {
+            label: "Primary source",
+            url: `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${pathEnc}`,
+            headers: {}
+        },
+        {
+            label: "CDN backup",
+            url: `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${pathEnc}`,
+            headers: {}
+        },
+        {
+            // The "raw" media type resolves LFS pointers into actual bytes
+            label: "API fallback",
+            url: `https://api.github.com/repos/${owner}/${repo}/contents/${pathEnc}?ref=${branch}`,
+            headers: {
+                "Accept": "application/vnd.github.raw+json",
+                "X-GitHub-Api-Version": "2022-11-28"
+            }
+        }
+    ];
 }
 
 // ============================================
 // STREAM DOWNLOAD
 // ============================================
 
-async function downloadSource(url, sourceNumber) {
+async function downloadSource(source, sourceNumber, totalSources) {
 
     status(
         "Downloading game...",
-        sourceNumber === 1
-            ? "Connecting to primary source."
-            : "Primary source unavailable. Trying backup."
+        `Trying ${source.label} (${sourceNumber}/${totalSources})`
     );
 
-    update(0, "Connecting...");
+    update(0, "Connecting to " + source.label + "...");
 
-    const response = await fetch(url, {
+    const response = await fetch(source.url, {
         method: "GET",
-        headers: sourceNumber === 1 ? {
-            "Accept": "application/vnd.github.raw+json",
-            "X-GitHub-Api-Version": "2022-11-28"
-        } : {},
+        headers: source.headers,
         cache: "no-store"
     });
 
     if (!response.ok) {
-        throw new Error("HTTP " + response.status);
+        throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
     }
 
     if (!response.body) {
-        throw new Error("Streaming is not supported.");
+        throw new Error("Streaming not supported by this browser");
     }
+
+    const contentLength = parseInt(response.headers.get("Content-Length") || "0", 10);
+    const estimatedTotal = contentLength > 0 ? contentLength : 38 * 1048576;
 
     const reader = response.body.getReader();
     const chunks = [];
-
     let received = 0;
+    let lastUpdate = 0;
 
     while (true) {
         const result = await reader.read();
-
         if (result.done) break;
-
         chunks.push(result.value);
         received += result.value.byteLength;
 
-        update(
-            Math.min(99, received / (38 * 1048576) * 100),
-            formatSize(received) + " downloaded"
-        );
+        const now = Date.now();
+        if (now - lastUpdate > 100) {
+            lastUpdate = now;
+            update(
+                Math.min(99, (received / estimatedTotal) * 100),
+                `${formatSize(received)} downloaded (${source.label})`
+            );
+        }
     }
 
+    // Guard 1: too small = LFS pointer, error page, or redirect HTML
     if (received < 1000000) {
-        throw new Error("Downloaded file is unexpectedly small.");
+        throw new Error(`File too small (${formatSize(received)}) — likely an LFS pointer or error page`);
     }
 
-    return new Blob(chunks, {
-        type: "application/x-shockwave-flash"
-    });
+    // Guard 2: SWF must start with FWS, CWS or ZWS
+    if (chunks[0] && chunks[0].byteLength >= 3) {
+        const head = chunks[0].subarray(0, 3);
+        const magic = String.fromCharCode(head[0], head[1], head[2]);
+        if (magic !== "FWS" && magic !== "CWS" && magic !== "ZWS") {
+            throw new Error(`Downloaded data is not a valid SWF (magic bytes "${magic}")`);
+        }
+    }
+
+    update(100, `Downloaded ${formatSize(received)} from ${source.label}`);
+    return new Blob(chunks, { type: "application/x-shockwave-flash" });
 }
 
 // ============================================
-// AUTOMATIC FALLBACK
+// DOWNLOAD GAME (discovery + fallback chain)
 // ============================================
 
 async function downloadGame() {
-
     if (loading) return;
-
     loading = true;
 
     try {
+        status("Locating game file...", "Searching the repository for the SWF file.");
+
+        const path = await discoverSwfPath();
+        console.log("[TBoI] Resolved SWF path:", path);
+
+        const sources = buildSources(path);
+        const errors  = [];
         let blob = null;
-        let lastError = null;
 
-        for (let i = 0; i < SOURCES.length; i++) {
-
+        for (let i = 0; i < sources.length; i++) {
             try {
-                blob = await downloadSource(SOURCES[i], i + 1);
+                blob = await downloadSource(sources[i], i + 1, sources.length);
                 break;
-
-            } catch (error) {
-                console.warn("Download source " + (i + 1) + " failed:", error);
-                lastError = error;
-
-                if (i === 0) {
-                    status(
-                        "Switching source...",
-                        "Trying the backup download source."
-                    );
+            } catch (err) {
+                console.warn(`[TBoI] Source ${i + 1} (${sources[i].label}) failed:`, err.message);
+                errors.push(`• ${sources[i].label}: ${err.message}`);
+                if (i < sources.length - 1) {
+                    status("Retrying...", `Trying next source (${i + 2}/${sources.length}).`);
                 }
             }
         }
 
         if (!blob) {
-            throw lastError || new Error("All sources failed.");
+            throw new Error(
+                `All download sources failed for "${path}":\n\n` +
+                errors.join("\n") +
+                "\n\nIf the file is missing from the repository, add it to the " +
+                "TBoI folder, or upload it to a release and update the path in " +
+                "this file."
+            );
         }
-
-        update(100, "Downloaded " + formatSize(blob.size));
 
         await launchRuffle(blob);
 
     } catch (error) {
         console.error(error);
         fail(error);
-
     } finally {
         loading = false;
     }
@@ -321,12 +455,10 @@ async function downloadGame() {
 // ============================================
 
 async function launchRuffle(blob) {
-
     status("Starting game...", "Initializing Flash emulator.");
 
-    if (!window.RufflePlayer ||
-        !window.RufflePlayer.newest) {
-        throw new Error("Flash emulator failed to initialize.");
+    if (!window.RufflePlayer || !window.RufflePlayer.newest) {
+        throw new Error("Flash emulator (Ruffle) failed to initialize. Check your internet connection.");
     }
 
     if (objectURL) {
@@ -335,15 +467,12 @@ async function launchRuffle(blob) {
     }
 
     objectURL = URL.createObjectURL(blob);
-
     game.replaceChildren();
 
     const ruffle = window.RufflePlayer.newest();
     const player = ruffle.createPlayer();
-
     player.style.width = "100%";
     player.style.height = "100%";
-
     game.appendChild(player);
 
     await player.ruffle().load({
@@ -359,33 +488,20 @@ async function launchRuffle(blob) {
 // BUTTONS
 // ============================================
 
-document.getElementById("fullscreen")
-.addEventListener("click", () => {
-
-    if (!document.fullscreenElement) {
-        document.getElementById("game").requestFullscreen();
-    } else {
-        document.exitFullscreen();
-    }
+document.getElementById("fullscreen").addEventListener("click", () => {
+    if (!document.fullscreenElement) document.getElementById("game").requestFullscreen();
+    else document.exitFullscreen();
 });
 
-document.getElementById("reload")
-.addEventListener("click", () => {
-
-    if (objectURL) {
-        URL.revokeObjectURL(objectURL);
-        objectURL = null;
-    }
-
+document.getElementById("reload").addEventListener("click", () => {
+    if (objectURL) { URL.revokeObjectURL(objectURL); objectURL = null; }
     game.replaceChildren();
     downloadGame();
 });
 
-document.getElementById("retry")
-.addEventListener("click", downloadGame);
+document.getElementById("retry").addEventListener("click", downloadGame);
 
-document.getElementById("close")
-.addEventListener("click", () => {
+document.getElementById("close").addEventListener("click", () => {
     overlay.classList.add("hidden");
 });
 
@@ -398,7 +514,6 @@ window.addEventListener("beforeunload", () => {
 // ============================================
 
 downloadGame();
-
 </script>
 </body>
 </html>
