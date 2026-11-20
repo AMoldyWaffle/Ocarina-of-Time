@@ -21,11 +21,11 @@ button.pri{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:60
 small,.mut{color:var(--mut)}input[type=range]{width:140px}
 </style></head><body>
 <h1>WafflesIsolationism — Controller</h1>
-<div class="mut">Keep this file in the same folder as <b>emulator.html</b>. Works fully offline.</div>
+<div class="mut">Same folder as <b>emulator.html</b> — or paste a folder URL such as <b>https://raw.githubusercontent.com/USER/REPO/main/</b> below.</div>
 
 <div class="card"><h2>Emulator window</h2><div class="row">
   <span><span class="dot" id="dot"></span><span id="status">Not connected</span></span>
-  <input type="text" id="emuPath" value="emulator.html" size="16" title="Path to the emulator file">
+  <input type="text" id="emuPath" value="emulator.html" size="42" title="Path to the emulator file">
   <button class="pri" id="open">Open emulator</button>
 </div></div>
 
@@ -82,7 +82,18 @@ function setState(s,txt){state=s;$("dot").className="dot "+(s==="idle"?"on":s===
 setState("closed","Not connected");
 
 function openEmu(){
-  win=window.open($("emuPath").value,"wi_emulator","width=980,height=760");
+  const p=$("emuPath").value.trim();
+  if(/^https?:\/\//i.test(p)){                       // remote, e.g. https://raw.githubusercontent.com/USER/REPO/main/
+    win=window.open("about:blank","wi_emulator","width=980,height=760");
+    if(!win){log("Popup blocked — allow popups for this page.");return false;}
+    const base=p.replace(/emulator\.html.*$/,"").replace(/\/?$/,"/");
+    setState("closed","Downloading emulator…");
+    fetch(base+"emulator.html").then(r=>{if(!r.ok)throw new Error("HTTP "+r.status);return r.text();}).then(html=>{
+      html=html.replace("<head>","<head><script>window.WI_PACK_BASE="+JSON.stringify(base+"packs/")+"<\/script>");
+      win.location.href=URL.createObjectURL(new Blob([html],{type:"text/html"}));
+    }).catch(e=>{log("Could not download emulator: "+e.message);try{win.close();}catch(_){}win=null;setState("closed","Not connected");});
+    return true;}
+  win=window.open(p,"wi_emulator","width=980,height=760");
   if(!win){log("Popup blocked — allow popups for this page.");return false;}
   setState("closed","Opening…");return true;}
 $("open").onclick=openEmu;
