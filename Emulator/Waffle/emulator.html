@@ -46,7 +46,7 @@ async function viaFetch(url){const r=await realFetch(url);if(!r.ok)throw new Err
 function loadPack(f){return packs[f]||(packs[f]=(async()=>{
   const url=PB+f;
   // raw.githubusercontent.com serves text/plain+nosniff, so <script src> is refused there: fetch the text and run it instead
-  if(remote){try{await viaFetch(url);}catch(e){await viaScript(url);}}
+  if(remote){try{await viaFetch(url);}catch(e1){try{await viaScript(url);}catch(e2){throw new Error(e1.message+" (core file missing or blocked: "+url+")");}}}
   else{try{await viaScript(url);}catch(e){throw new Error("Missing "+url+" - keep the packs folder next to emulator.html");}}
 })());}
 const has=p=>!!(INDEX[p]||inline(p));
@@ -69,7 +69,7 @@ window.fetch=async(input,init)=>{
     if(init&&init.method==="HEAD")return new Response(null,{status:200});
     try{const b=await bytes(p);
       return new Response(b,{status:200,headers:{"Content-Length":String(b.length),"Cache-Control":"no-store"}});
-    }catch(e){console.error(e);return new Response("",{status:404});}
+    }catch(e){console.error(e);try{window.__WI_ERR&&window.__WI_ERR(String(e.message||e));}catch(_){}return new Response("",{status:404});}
   }
   return new Response("",{status:404});   // block everything else (CDN, update checks...)
 };
@@ -92,9 +92,18 @@ const parent_=()=>window.opener||(window.parent!==window?window.parent:null);
 function post(o,tr){const ts=new Set([lastSrc,parent_()].filter(Boolean));let first=true;
   ts.forEach(t=>{try{t.postMessage(Object.assign({wi:1},o),"*",first?(tr||[]):[]);first=false;}catch(e){}});}
 const msg=t=>{$("msg").textContent=t};
+window.__WI_ERR=m=>{post({evt:"error",msg:m});msg(m);};
 SYSTEMS.forEach(([k,l])=>{const o=document.createElement("option");o.value=k;o.textContent=l;$("sys").appendChild(o);});
 if(parent_())$("link").textContent="Linked to controller — waiting for a game…";
 
+// IndexedDB is blocked in opaque origins (e.g. a blob: page created by a launcher opened from file://) and in some private modes.
+// Probe it; if unusable, run without the core cache / in-menu save storage instead of failing.
+function probeIDB(){return new Promise(res=>{let done=false;const fin=v=>{if(!done){done=true;res(v);}};
+  try{if(window.WI_DISABLE_DB||!window.indexedDB)return fin(false);
+    const r=indexedDB.open("wi-probe");
+    r.onsuccess=()=>{try{r.result.close();indexedDB.deleteDatabase("wi-probe");}catch(e){}fin(true);};
+    r.onerror=r.onblocked=()=>fin(false);setTimeout(()=>fin(false),2000);
+  }catch(e){fin(false);}});}
 async function start({system,core,name,data,rom,bios}){
   data=data||rom;system=core||system;name=name||"game";
   if(running){post({evt:"error",msg:"A game is already running. Reload the emulator first."});return;}
@@ -102,9 +111,12 @@ async function start({system,core,name,data,rom,bios}){
   system=system||E2S[ext];
   if(!system){const m="Can't tell which system “"+name+"” is for — pick one.";msg(m);post({evt:"error",msg:m});return;}
   if(!AVAIL.has(system)){const m="System not included in this build: "+system;msg(m);post({evt:"error",msg:m});return;}
-  running=true;$("idle").style.display="none";post({evt:"loading",name,system});
+  running=true;$("idle").style.display="none";
+  const idb=await probeIDB();
+  if(!idb){try{Object.defineProperty(window,"indexedDB",{value:undefined,configurable:true});}catch(e){}}
+  post({evt:"loading",name,system,db:idb});
   const cfg={debug:false,dataPath:VB,system,gameName:name.replace(/\.[^.]+$/,""),
-    gameUrl:URL.createObjectURL(new Blob([data])),color:"#2ea3ff",startOnLoad:true,disableLocalStorage:true,volume:0.5,threads:false,
+    gameUrl:URL.createObjectURL(new Blob([data])),color:"#2ea3ff",startOnLoad:true,disableLocalStorage:true,disableDatabases:!idb,volume:0.5,threads:false,
     dontExtractRom:["arcade","mame","fbneo","mame2003","mame2003_plus","fbalpha2012_cps1","fbalpha2012_cps2"].includes(system),disableAutoUnload:true,
     gameId:1};
   if(bios)cfg.biosUrl=URL.createObjectURL(new Blob([bios]));

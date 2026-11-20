@@ -115,6 +115,7 @@ There are two parts: **getting the emulator open**, and **sending it messages**.
 <script src="loader.js"></script>
 <div id="box" style="width:960px;height:720px"></div>
 <input type="file" id="rom">
+<!-- If you create your own iframe instead of using loader.js, give it: allow="autoplay; fullscreen; gamepad" -->
 
 <script type="module">
   const BASE = "https://raw.githubusercontent.com/USER/REPO/main/";
@@ -378,7 +379,10 @@ normal one when it exists.
 
 - **localStorage: not used.** It is disabled in the emulator and replaced by a temporary in-memory stand-in, so menu settings and custom key bindings are not remembered
   between sessions.
-- **IndexedDB: still used** for (1) a cache of decompressed cores, which makes relaunching a system faster, and (2) save files and states created through the emulator's own menu.
+- **IndexedDB: used when the browser allows it** for (1) a cache of decompressed cores, which makes relaunching a system faster, and (2) save files and states created through the emulator's own menu.
+  At startup the emulator probes IndexedDB. If it is blocked, which happens inside a `blob:` page created by a launcher that was itself opened from a local `file://`
+  (the page's origin is "null"), it **automatically runs without the cache and in-menu save storage** instead of failing. In that mode cores are downloaded each launch.
+  You can also force this with `window.WI_DISABLE_DB = true` before the emulator starts. The `loading` event reports `db: true/false`.
   Saves and states made through `saveState` / `saveFile` messages come to your page as bytes, and your page decides where to keep them.
 - To clear everything the emulator stored, clear the site data for the page that hosts it (for blob/iframe mode, that is the site of your own page).
 
@@ -413,8 +417,11 @@ normal one when it exists.
 | "System not included in this build" | Typo in the key, or a threaded system (PSP, 3DS, DOS). |
 | Core fails to download / 404 | `packs/` missing or not next to `emulator.html`; wrong base URL (needs the trailing slash and the folder that contains `emulator.html`). |
 | Works locally, not from raw links | Open `BASE + "packs/fceumm-wasm.js"` in a browser to confirm the file exists; check the repo branch name in the URL. |
+| `HTTP 404 for …/packs/snes9x-legacy-wasm.js` (or any `<core>-wasm.js`) | Your repo doesn't have the per-core files. This happens if `packs/` still holds the older `pack-1.js` … `pack-5.js` files, or a mix of old and new. Delete everything in `packs/` and upload all 98 `<core>-wasm.js` / `<core>-legacy-wasm.js` files, together with the matching `emulator.html` (they must come from the same build). Check by opening `BASE + "packs/snes9x-legacy-wasm.js"` in a browser. |
+| IndexedDB / cache error inside a `blob:` page | Handled automatically in the latest `emulator.html` (see [section 9](#9-what-gets-stored-in-the-browser)). If you still see it, you are using an older `emulator.html`. |
 | Black screen with a disc game | Needs a BIOS, or try another core. |
 | No sound | Click inside the emulator window once. |
+| `getGamepads … disallowed by permissions policy` | Your page embedded the emulator in an iframe without the gamepad permission. The emulator now ignores this error and runs without gamepad support. To enable gamepads, add `allow="autoplay; fullscreen; gamepad"` to your iframe (`loader.js` already does). |
 | Settings don't stick | By design; localStorage is disabled ([section 9](#9-what-gets-stored-in-the-browser)). |
 | Arcade game won't start | Wrong ROM set version for that core. Try another arcade core. |
 | Pushed changes don't show | Raw links are cached for a few minutes; hard-refresh. |
