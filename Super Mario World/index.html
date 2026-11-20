@@ -2,76 +2,40 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Super Mario World</title>
+    <title>Super Mario World (Nostalgist.js)</title>
     <style>
         html, body { margin: 0; padding: 0; height: 100%; background: #000; }
-        #game { width: 100%; height: 100%; }
+        #game { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+        canvas { max-width: 100%; max-height: 100%; }
     </style>
 </head>
 <body>
     <div id="game"></div>
 
+    <!-- Load Nostalgist.js from jsDelivr -->
+    <script src="https://cdn.jsdelivr.net/npm/nostalgist"></script>
+
     <script>
-        // Your ROM (confirmed reachable on your Chromebook)
-        EJS_gameUrl = "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Super%20Mario%20World/Super%20Mario%20World%20(USA).sfc";
-        EJS_core   = "snes";
-        EJS_player = "#game";
-
-        // Mirror paths on jsDelivr to try in order
-        const DATA_PATHS = [
-            // 1. Official EmulatorJS GitHub repo via jsDelivr
-            "https://cdn.jsdelivr.net/gh/EmulatorJS/EmulatorJS@4.3.0-pre/data/",
-            // 2. The original ethanaobrien fork (often used as a fallback)
-            "https://cdn.jsdelivr.net/gh/ethanaobrien/emulatorjs@main/data/",
-            // 3. The joethun mirror (in case it was a temporary glitch)
-            "https://cdn.jsdelivr.net/gh/joethun/emulatorjs-cdn-mirror@main/stable/"
-        ];
-
-        let pathIndex = 0;
-
-        function tryNextPath() {
-            if (pathIndex >= DATA_PATHS.length) {
-                console.error("All EmulatorJS data sources failed.");
+        async function startGame() {
+            try {
+                await Nostalgist.launch({
+                    // Your ROM, served from jsDelivr (confirmed reachable)
+                    rom: "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Super%20Mario%20World/Super%20Mario%20World%20(USA).sfc",
+                    // The core to use. Nostalgist will fetch this from jsDelivr.
+                    core: "snes9x",
+                    // The element where the game canvas will be placed
+                    element: document.getElementById("game"),
+                });
+            } catch (error) {
+                console.error("Nostalgist launch failed:", error);
                 document.getElementById("game").innerHTML =
                     '<p style="color:white;padding:20px;font-family:sans-serif;">' +
-                    'Could not load EmulatorJS from any mirror. ' +
-                    'The only remaining option is to self‑host the EmulatorJS data folder ' +
-                    'on a server your Chromebook can access.' +
+                    'Failed to launch emulator. Check the console for details. Error: ' + error.message +
                     '</p>';
-                return;
             }
-
-            const path = DATA_PATHS[pathIndex];
-            pathIndex++;
-
-            console.log("Trying EmulatorJS data path: " + path);
-            EJS_pathtodata = path;
-
-            // Remove any previously injected loader script
-            const oldScript = document.getElementById("ejs-loader");
-            if (oldScript) oldScript.remove();
-
-            // Inject the loader from this path
-            const script = document.createElement("script");
-            script.id = "ejs-loader";
-            script.src = path + "loader.js";
-            script.onerror = function() {
-                console.warn("Failed to load loader.js from " + path);
-                tryNextPath();
-            };
-            document.body.appendChild(script);
-
-            // If nothing initialises within 8 seconds, try the next path
-            setTimeout(function() {
-                if (typeof EJS_emulator === "undefined") {
-                    console.warn("EmulatorJS did not initialise from " + path);
-                    tryNextPath();
-                }
-            }, 8000);
         }
 
-        // Start the first attempt
-        tryNextPath();
+        startGame();
     </script>
 </body>
 </html>
