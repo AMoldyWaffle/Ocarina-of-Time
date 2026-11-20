@@ -7,116 +7,40 @@
 <title>Super Mario World</title>
 
 <style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+*{margin:0;padding:0;box-sizing:border-box}
+html,body,#game{width:100%;height:100%;overflow:hidden;background:#000}
+#game{position:fixed;inset:0}
+#loading{
+position:fixed;inset:0;z-index:100;background:#000;color:white;
+display:flex;flex-direction:column;align-items:center;
+justify-content:center;font-family:Arial,sans-serif;text-align:center
 }
-
-html, body, #game {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: #000;
+#loading-bar-bg{width:280px;height:10px;background:#333;border-radius:10px;margin-top:15px}
+#loading-bar{height:100%;width:0%;background:#1685ff;border-radius:10px;transition:width .2s}
+#loading-text{color:#aaa;font-size:13px;margin-top:12px}
+#consoleToggle{
+position:fixed;top:10px;right:10px;z-index:999999;padding:9px 14px;
+background:#222;color:white;border:1px solid #555;border-radius:6px;cursor:pointer
 }
-
-#game {
-    position: fixed;
-    inset: 0;
+#consolePanel{
+display:none;position:fixed;bottom:0;left:0;width:100%;height:45%;
+z-index:999998;background:rgba(10,10,10,.97);color:white;
+font-family:monospace;border-top:2px solid #444
 }
-
-#loading {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    background: #000;
-    color: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-family: Arial, sans-serif;
-    text-align: center;
+#consoleHeader{
+height:40px;display:flex;align-items:center;justify-content:space-between;
+padding:0 10px;background:#222
 }
-
-#loading-bar-bg {
-    width: 280px;
-    height: 10px;
-    background: #333;
-    border-radius: 10px;
-    margin-top: 15px;
+#consoleHeader button{padding:5px 10px;margin-left:5px;cursor:pointer}
+#consoleOutput{
+height:calc(100% - 40px);overflow-y:auto;padding:10px;
+font-size:12px;line-height:1.6;overflow-wrap:anywhere
 }
-
-#loading-bar {
-    height: 100%;
-    width: 0%;
-    background: #1685ff;
-    border-radius: 10px;
-    transition: width .2s;
-}
-
-#loading-text {
-    color: #aaa;
-    font-size: 13px;
-    margin-top: 12px;
-}
-
-#consoleToggle {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 999999;
-    padding: 9px 14px;
-    background: #222;
-    color: white;
-    border: 1px solid #555;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-#consolePanel {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 45%;
-    z-index: 999998;
-    background: rgba(10,10,10,.97);
-    color: white;
-    font-family: monospace;
-    border-top: 2px solid #444;
-}
-
-#consoleHeader {
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 10px;
-    background: #222;
-}
-
-#consoleHeader button {
-    padding: 5px 10px;
-    margin-left: 5px;
-    cursor: pointer;
-}
-
-#consoleOutput {
-    height: calc(100% - 40px);
-    overflow-y: auto;
-    padding: 10px;
-    font-size: 12px;
-    line-height: 1.6;
-    overflow-wrap: anywhere;
-}
-
-.log-info { color: #65b5ff; }
-.log-warn { color: #ffcc55; }
-.log-error { color: #ff6666; }
-.log-success { color: #65dd85; }
-.log-fatal { color: #ff3333; font-weight: bold; }
+.log-info{color:#65b5ff}
+.log-warn{color:#ffcc55}
+.log-error{color:#ff6666}
+.log-success{color:#65dd85}
+.log-fatal{color:#ff3333;font-weight:bold}
 </style>
 </head>
 
@@ -125,10 +49,8 @@ html, body, #game {
 <div id="game"></div>
 
 <div id="loading">
-    <div id="loading-title">Loading Super Mario World...</div>
-    <div id="loading-bar-bg">
-        <div id="loading-bar"></div>
-    </div>
+    <div>Loading Super Mario World...</div>
+    <div id="loading-bar-bg"><div id="loading-bar"></div></div>
     <div id="loading-text">Preparing emulator...</div>
 </div>
 
@@ -154,250 +76,288 @@ const output = document.getElementById("consoleOutput");
 const panel = document.getElementById("consolePanel");
 const toggle = document.getElementById("consoleToggle");
 
-function log(type, message) {
-    const entry = document.createElement("div");
-    const time = new Date().toLocaleTimeString();
-
-    entry.className =
-        "log-" + type.toLowerCase().replace(" ", "-");
-
-    entry.textContent =
-        "[" + time + "] [" + type.toUpperCase() + "] " + message;
-
+function log(type,message){
+    const entry=document.createElement("div");
+    entry.className="log-"+type.toLowerCase().replace(" ","-");
+    entry.textContent="["+new Date().toLocaleTimeString()+"] ["+type+"] "+message;
     output.appendChild(entry);
-    output.scrollTop = output.scrollHeight;
+    output.scrollTop=output.scrollHeight;
 }
 
-function clearConsole() {
-    output.innerHTML = "";
+function clearConsole(){output.innerHTML=""}
+
+function hideConsole(){
+    panel.style.display="none";
+    toggle.textContent="Show Console";
 }
 
-function hideConsole() {
-    panel.style.display = "none";
-    toggle.textContent = "Show Console";
-}
-
-toggle.onclick = function() {
-    const visible = panel.style.display === "block";
-    panel.style.display = visible ? "none" : "block";
-    toggle.textContent = visible ? "Show Console" : "Hide Console";
+toggle.onclick=function(){
+    const visible=panel.style.display==="block";
+    panel.style.display=visible?"none":"block";
+    toggle.textContent=visible?"Show Console":"Hide Console";
 };
 
-/* Capture internal console errors and warnings */
+const originalError=console.error.bind(console);
+const originalWarn=console.warn.bind(console);
 
-const originalError = console.error.bind(console);
-const originalWarn = console.warn.bind(console);
-
-console.error = function(...args) {
+console.error=function(...args){
     originalError(...args);
-    log("ERROR", args.map(String).join(" "));
+    log("ERROR",args.map(a=>a instanceof Error?(a.stack||a.message):String(a)).join(" "));
 };
 
-console.warn = function(...args) {
+console.warn=function(...args){
     originalWarn(...args);
-    log("WARN", args.map(String).join(" "));
+    log("WARN",args.map(String).join(" "));
 };
 
-/* Capture JavaScript errors */
-
-window.addEventListener("error", function(event) {
-    if (event.target && event.target !== window) {
-        log("ERROR", "Failed resource: " +
-            (event.target.src || event.target.href || "Unknown"));
+window.addEventListener("error",function(event){
+    if(event.target && event.target!==window){
+        const resource=event.target.src||event.target.href||"Unknown resource";
+        log("ERROR","Browser failed to load or execute resource: "+resource);
         return;
     }
 
-    log("ERROR", event.message +
-        " | File: " + event.filename +
-        " | Line: " + event.lineno);
+    log("FATAL ERROR",
+        (event.message||"Unknown JavaScript error")+
+        " | File: "+(event.filename||"unknown")+
+        " | Line: "+(event.lineno||"?")+
+        " | Column: "+(event.colno||"?")
+    );
+
+    if(event.error && event.error.stack){
+        log("ERROR",event.error.stack);
+    }
 });
 
-window.addEventListener("unhandledrejection", function(event) {
-    log("ERROR", "Promise rejection: " + event.reason);
+window.addEventListener("unhandledrejection",function(event){
+    const reason=event.reason;
+    log("FATAL ERROR","Promise rejection: "+
+        (reason && reason.stack ? reason.stack : String(reason)));
 });
 
 /* =================================
    GAME CONFIGURATION
 ================================= */
 
-const ROM_URL =
+const ROM_URL=
 "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Super%20Mario%20World/Super%20Mario%20World%20(USA).sfc";
 
-const GAME_NAME = "Super Mario World";
+const GAME_NAME="Super Mario World";
 
-const DATA_URL =
+const DATA_URL=
 "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/";
 
-/* =================================
-   LOADING DISPLAY
-================================= */
-
-function loadingText(message) {
-    document.getElementById("loading-text").textContent = message;
+function loadingText(message){
+    document.getElementById("loading-text").textContent=message;
 }
 
-function loadingProgress(percent) {
-    document.getElementById("loading-bar").style.width =
-        Math.min(100, percent) + "%";
+function loadingProgress(percent){
+    document.getElementById("loading-bar").style.width=
+        Math.min(100,percent)+"%";
 }
 
-function hideLoading() {
-    document.getElementById("loading").style.display = "none";
+function hideLoading(){
+    document.getElementById("loading").style.display="none";
 }
 
 /* =================================
-   EMULATORJS CONFIGURATION
+   EMULATORJS SETTINGS
 ================================= */
 
-window.EJS_player = "#game";
-window.EJS_core = "snes9x";
-window.EJS_gameName = GAME_NAME;
-window.EJS_gameUrl = ROM_URL;
-window.EJS_pathtodata = DATA_URL;
+window.EJS_player="#game";
+window.EJS_core="snes9x";
+window.EJS_gameName=GAME_NAME;
+window.EJS_gameUrl=ROM_URL;
+window.EJS_pathtodata=DATA_URL;
 
-window.EJS_startOnLoaded = true;
-window.EJS_fullscreenOnLoaded = false;
-window.EJS_volume = 0.5;
-window.EJS_color = "#1685ff";
+window.EJS_startOnLoaded=true;
+window.EJS_fullscreenOnLoaded=false;
+window.EJS_volume=0.5;
+window.EJS_color="#1685ff";
 
-/* =================================
-   REAL EMULATORJS CALLBACKS
-================================= */
-
-/* EmulatorJS has completed its ready event */
-
-window.EJS_ready = function() {
-    log("SUCCESS", "EmulatorJS READY event received.");
+window.EJS_ready=function(){
+    log("SUCCESS","EmulatorJS READY event received.");
     loadingProgress(75);
     loadingText("Emulator initialized. Loading game...");
 };
 
-/* Game has actually started */
-
-window.EJS_onGameStart = function() {
-    log("SUCCESS", "GAME STARTED!");
+window.EJS_onGameStart=function(){
+    log("SUCCESS","GAME STARTED!");
     loadingProgress(100);
     loadingText("Game started!");
-
-    setTimeout(hideLoading, 500);
+    setTimeout(hideLoading,500);
 };
 
-/* Save/load callbacks */
-
-window.EJS_onLoadSave = function() {
-    log("INFO", "Save data loaded.");
+window.EJS_onLoadSave=function(){
+    log("INFO","Save data loaded.");
 };
 
-window.EJS_onExit = function() {
-    log("WARN", "Emulator exited.");
+window.EJS_onExit=function(){
+    log("WARN","Emulator exited.");
 };
 
-/* =================================
-   EMULATORJS BUTTONS
-================================= */
-
-window.EJS_Buttons = {
-    playPause: false,
-    restart: false,
-    mute: false,
-    settings: false,
-    fullscreen: false,
-    saveState: false,
-    loadState: false,
-    screenRecord: false,
-    gamepad: false,
-    cheat: false,
-    volume: false,
-    saveSavFiles: false,
-    loadSavFiles: false,
-    quickSave: false,
-    quickLoad: false,
-    screenshot: false,
-    cacheManager: false,
-    exitEmulation: false
+window.EJS_Buttons={
+    playPause:false,
+    restart:false,
+    mute:false,
+    settings:false,
+    fullscreen:false,
+    saveState:false,
+    loadState:false,
+    screenRecord:false,
+    gamepad:false,
+    cheat:false,
+    volume:false,
+    saveSavFiles:false,
+    loadSavFiles:false,
+    quickSave:false,
+    quickLoad:false,
+    screenshot:false,
+    cacheManager:false,
+    exitEmulation:false
 };
 
 /* =================================
-   RESOURCE DIAGNOSTICS
+   CHECK LOADER BEFORE EXECUTION
 ================================= */
 
-const observedResources = new Set();
+async function checkLoader(){
 
-const resourceObserver = new PerformanceObserver(function(list) {
-    for (const item of list.getEntries()) {
-        if (!item.name.includes("githubusercontent") &&
-            !item.name.includes("jsdelivr")) {
-            continue;
-        }
+    const url=DATA_URL+"loader.js";
 
-        if (observedResources.has(item.name)) continue;
-        observedResources.add(item.name);
+    log("INFO","Checking loader.js response...");
+    loadingText("Checking EmulatorJS files...");
 
-        log("INFO", "Resource loaded: " + item.name);
+    let response;
+
+    try{
+        response=await fetch(url,{cache:"no-store"});
+    }catch(error){
+        log("FATAL ERROR","Could not fetch loader.js: "+error.message);
+        log("ERROR","This may be a Chromebook network, CDN, or CORS issue.");
+        loadingText("Could not access emulator files.");
+        return false;
     }
-});
 
-try {
-    resourceObserver.observe({ type: "resource", buffered: true });
-} catch(e) {
-    log("WARN", "Resource monitoring unavailable.");
+    log("INFO","Loader HTTP status: "+response.status);
+    log("INFO","Loader content type: "+response.headers.get("content-type"));
+
+    if(!response.ok){
+        log("FATAL ERROR","loader.js returned HTTP "+response.status);
+        loadingText("Emulator loader unavailable.");
+        return false;
+    }
+
+    const source=await response.text();
+
+    log("INFO","Loader response size: "+source.length+" characters");
+
+    if(source.length<100){
+        log("FATAL ERROR","loader.js response is unexpectedly short.");
+        log("ERROR","Response: "+source.slice(0,200));
+        loadingText("Invalid emulator loader.");
+        return false;
+    }
+
+    if(source.trimStart().startsWith("<")){
+        log("FATAL ERROR","The CDN returned HTML instead of JavaScript.");
+        log("ERROR","Response begins: "+source.slice(0,200));
+        loadingText("CDN returned an invalid file.");
+        return false;
+    }
+
+    if(!source.includes("EmulatorJS") && !source.includes("EJS_pathtodata")){
+        log("WARN","Loader contents do not look like the expected EmulatorJS loader.");
+    }
+
+    log("SUCCESS","loader.js downloaded and passed the response checks.");
+
+    return true;
 }
 
 /* =================================
    LOAD EMULATORJS
 ================================= */
 
-function loadEmulator() {
-    log("INFO", "Game: " + GAME_NAME);
-    log("INFO", "ROM: " + ROM_URL);
-    log("INFO", "Core: " + window.EJS_core);
-    log("INFO", "Emulator data: " + DATA_URL);
-    log("INFO", "Browser: " + navigator.userAgent);
-    log("INFO", "WebAssembly: " +
-        (typeof WebAssembly !== "undefined"));
+async function loadEmulator(){
 
-    loadingText("Loading EmulatorJS loader...");
+    log("INFO","Game: "+GAME_NAME);
+    log("INFO","ROM: "+ROM_URL);
+    log("INFO","Core: "+window.EJS_core);
+    log("INFO","Emulator data: "+DATA_URL);
+    log("INFO","Browser: "+navigator.userAgent);
+    log("INFO","WebAssembly: "+(typeof WebAssembly!=="undefined"));
 
-    log("INFO", "Loading loader.js...");
+    const valid=await checkLoader();
 
-    const script = document.createElement("script");
+    if(!valid)return;
 
-    script.src = DATA_URL + "loader.js";
-    script.async = true;
+    loadingText("Starting EmulatorJS...");
+    log("INFO","Injecting loader.js...");
 
-    script.onload = function() {
-        log("SUCCESS", "loader.js executed.");
-        log("INFO", "Waiting for EmulatorJS ready event...");
+    const script=document.createElement("script");
+
+    script.src=DATA_URL+"loader.js";
+    script.async=true;
+    script.crossOrigin="anonymous";
+
+    script.onload=function(){
+        log("SUCCESS","loader.js executed successfully.");
+        log("INFO","Waiting for EmulatorJS initialization...");
         loadingProgress(20);
-        loadingText("Initializing EmulatorJS...");
+        loadingText("Initializing emulator...");
     };
 
-    script.onerror = function() {
-        log("FATAL ERROR", "Failed to load loader.js.");
-        loadingText("Failed to load EmulatorJS.");
+    script.onerror=function(event){
+        log("FATAL ERROR","The browser could not execute loader.js.");
+        log("ERROR","Script URL: "+script.src);
+        log("ERROR","Check the loader HTTP status and content type above.");
+        log("ERROR","This can indicate a browser security, MIME type, or script execution problem.");
+        loadingText("Emulator loader execution failed.");
     };
 
     document.body.appendChild(script);
 }
 
 /* =================================
-   INITIALIZATION TIMEOUT
+   RESOURCE MONITOR
 ================================= */
 
-setTimeout(function() {
-    if (document.getElementById("loading").style.display === "none") {
-        return;
-    }
+if("PerformanceObserver" in window){
+    try{
+        const observer=new PerformanceObserver(function(list){
+            for(const item of list.getEntries()){
+                if(item.name.includes("jsdelivr") ||
+                   item.name.includes("githubusercontent")){
+                    log("INFO","Resource request: "+item.name+
+                        " | Duration: "+Math.round(item.duration)+"ms");
+                }
+            }
+        });
 
-    if (window.EJS_emulator) {
-        log("WARN", "Emulator object exists but game has not started.");
+        observer.observe({type:"resource",buffered:true});
+    }catch(error){
+        log("WARN","Resource monitoring unavailable: "+error.message);
+    }
+}
+
+/* =================================
+   TIMEOUT
+================================= */
+
+setTimeout(function(){
+
+    if(document.getElementById("loading").style.display==="none")return;
+
+    if(window.EJS_emulator){
+        log("WARN","Emulator object exists, but the game has not started.");
         loadingText("Emulator loaded. Waiting for game...");
-    } else {
-        log("FATAL ERROR",
-            "EmulatorJS did not create its emulator object within 30 seconds.");
+    }else{
+        log("FATAL ERROR","EmulatorJS did not create its emulator object within 30 seconds.");
         loadingText("Initialization timed out. Open console for details.");
     }
-}, 30000);
+
+},30000);
 
 /* =================================
    START
