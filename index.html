@@ -4,9 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fun Math Puzzles</title>
-
-  <!-- Favicon placeholder — JS fills the href once it finds the image
-       inside the root-level Cover folder. -->
   <link id="favicon" rel="icon">
 
   <style>
@@ -25,8 +22,6 @@
       font-size: 1.8rem;
       color: #f0c040;
     }
-
-    /* ---------- search bar ---------- */
     #searchWrap {
       max-width: 1200px;
       margin: 0 auto 2rem;
@@ -51,8 +46,6 @@
     }
     #search::placeholder { color: #888; }
     #search:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* ---------- status / sections ---------- */
     #status {
       text-align: center;
       font-size: 1.1rem;
@@ -110,15 +103,12 @@
     }
     #betaSection .card .folder-name { color: #ff9966; }
     .error { color: #ff6b6b; }
-
     #noResults {
       text-align: center;
       color: #aaa;
       font-size: 1.05rem;
       padding: 2rem 1rem;
     }
-
-    /* ---------- full-screen in-page viewer ---------- */
     #viewer {
       display: none;
       position: fixed;
@@ -208,18 +198,50 @@
       const closeBtn     = document.getElementById('closeViewer');
       const faviconEl    = document.getElementById('favicon');
 
-      // ---------- helpers ----------
+      // ============================================================
+      // CACHE-BUSTING
+      //   - API calls: cache:'no-store' + ?t=... (forces a network hit)
+      //   - Content URLs: pinned to a commit SHA, so every push gets a
+      //     new URL and both raw.githubusercontent and jsdelivr are
+      //     guaranteed to serve the newest bytes for that SHA.
+      //   - SHA itself is re-fetched before every game launch.
+      // ============================================================
+      const bust = (url) =>
+        url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+
+      let BRANCH = 'main';
+      let SHA    = null;               // latest commit SHA (preferred)
+      const contentRef = () => SHA || BRANCH;
+
+      // ---------- URL builders (all use the commit SHA) ----------
       const encPath = (p) => p.split('/').map(encodeURIComponent).join('/');
       const rawFile = (p) =>
-        `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${encPath(p)}`;
+        `https://raw.githubusercontent.com/${OWNER}/${REPO}/${contentRef()}/${encPath(p)}`;
       const cdnDir = (dir) =>
-        `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/` +
+        `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${contentRef()}/` +
         (dir ? encPath(dir) + '/' : '');
       const cdnFile = (p) =>
-        `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/${encPath(p)}`;
+        `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${contentRef()}/${encPath(p)}`;
 
       const isImage = (name) => /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
       const isBetaMarker = (name) => /^beta/i.test(name);
+
+      // ---------- fetch the latest commit SHA ----------
+      async function getLatestSha() {
+        const res = await fetch(
+          bust(`https://api.github.com/repos/${OWNER}/${REPO}/commits/${encodeURIComponent(BRANCH)}`),
+          { cache: 'no-store' }
+        );
+        if (!res.ok) throw new Error(`commits: ${res.status} ${res.statusText}`);
+        const data = await res.json();
+        if (!data.sha) throw new Error('no commit sha returned');
+        return data.sha;
+      }
+
+      // Refresh the SHA quietly — if it fails, keep the previous one.
+      async function refreshSha() {
+        try { SHA = await getLatestSha(); } catch (e) { /* keep old */ }
+      }
 
       // ---------- viewer controls ----------
       function showLoading(name) {
@@ -259,15 +281,28 @@
       async function launchGame(htmlPath, folderName) {
         showLoading(folderName);
 
+        // Force the freshest commit before building URLs, so both the
+        // HTML fetch and every asset loaded inside the game come from
+        // the newest push — not a 12-hour-stale branch cache.
+        await refreshSha();
+
         const dirPath = htmlPath.includes('/')
           ? htmlPath.slice(0, htmlPath.lastIndexOf('/'))
           : '';
 
         try {
-          const res = await fetch(rawFile(htmlPath), { cache: 'no-cache' });
+          // raw.githubusercontent pins to the commit; ?t= is belt-and-suspenders
+          const res = await fetch(
+            bust(rawFile(htmlPath)),
+            { cache: 'no-store' }
+          );
           if (!res.ok) throw new Error(`Could not fetch HTML (HTTP ${res.status})`);
 
           let html = await res.text();
+
+          // base href already contains the fresh SHA → relative assets
+          // (game.js, sprites, audio, ...) are immutable-per-commit and
+          // therefore always fresh on a new push.
           html = injectBase(html, cdnDir(dirPath));
 
           viewerFrame.srcdoc = html;
@@ -281,10 +316,12 @@
         }
       }
 
-      // ---------- fetch default branch ----------
-      let BRANCH;
+      // ---------- 1. fetch default branch ----------
       try {
-        const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}`);
+        const res = await fetch(
+          bust(`https://api.github.com/repos/${OWNER}/${REPO}`),
+          { cache: 'no-store' }
+        );
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         BRANCH = (await res.json()).default_branch;
       } catch (err) {
@@ -293,11 +330,21 @@
         return;
       }
 
-      // ---------- fetch tree ----------
+      // ---------- 2. fetch latest commit SHA ----------
+      try {
+        SHA = await getLatestSha();
+        console.log('[cache] pinned to commit', SHA);
+      } catch (err) {
+        // fall back to branch ref (still works, just not SHA-immutable)
+        console.warn('[cache] could not resolve commit sha, using branch:', err.message);
+      }
+
+      // ---------- 3. fetch tree ----------
       let tree;
       try {
         const res = await fetch(
-          `https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`
+          bust(`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${contentRef()}?recursive=1`),
+          { cache: 'no-store' }
         );
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         tree = (await res.json()).tree;
@@ -319,9 +366,6 @@
       }
 
       // ---------- root-level Cover folder → favicon ----------
-      // This folder lives at the repository root (a sibling of the game
-      // folders), NOT inside any game folder. We use its first image as the
-      // page icon, preferring names like favicon.* or icon.*.
       const rootChildren = childrenOf.get('') || [];
       const rootCoverDir = rootChildren.find(
         (c) => c.type === 'tree' && c.path === 'Cover'
@@ -338,7 +382,9 @@
           pick(/^favicon\./i) || pick(/^icon\./i) || coverImages[0];
 
         if (faviconFile) {
-          faviconEl.href = cdnFile(faviconFile.path);
+          // SHA is already in the URL path; the ?t= guarantees the browser
+          // re-reads the icon even if it cached the previous SHA's icon.
+          faviconEl.href = bust(cdnFile(faviconFile.path));
           console.log('[favicon] Using', faviconFile.path);
         }
       }
@@ -346,18 +392,16 @@
       // ---------- find qualifying folders ----------
       const results = [];
       for (const dirPath of allDirs) {
-        if (dirPath === '') continue;                       // skip repo root
-        if (rootCoverDir && dirPath === rootCoverDir.path) continue; // skip root Cover
+        if (dirPath === '') continue;
+        if (rootCoverDir && dirPath === rootCoverDir.path) continue;
 
         const children = childrenOf.get(dirPath) || [];
 
-        // direct sub-folder called "Cover"
         const coverDir = children.find(
           (c) => c.type === 'tree' && c.path === `${dirPath}/Cover`
         );
         if (!coverDir) continue;
 
-        // at least one direct-child .html file
         const htmlFiles = children.filter(
           (c) =>
             c.type === 'blob' &&
@@ -367,19 +411,16 @@
         );
         if (htmlFiles.length === 0) continue;
 
-        // image inside Cover
         const coverChildren = childrenOf.get(coverDir.path) || [];
         const imageFile = coverChildren.find(
           (c) => c.type === 'blob' && isImage(c.path)
         );
         if (!imageFile) continue;
 
-        // prefer index.html, otherwise first alphabetically
         const htmlFile =
           htmlFiles.find((f) => /\/index\.html$/i.test(f.path)) ||
           htmlFiles.slice().sort((a, b) => a.path.localeCompare(b.path))[0];
 
-        // beta marker = direct child file whose name starts with "beta"
         const isBeta = children.some(
           (c) =>
             c.type === 'blob' &&
