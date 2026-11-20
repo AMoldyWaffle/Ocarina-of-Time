@@ -5,118 +5,56 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Super Mario World</title>
-
 <style>
-* { box-sizing:border-box; }
-
-html,body {
-    margin:0;
-    width:100%;
-    height:100%;
-    overflow:hidden;
-    background:#000;
-    color:white;
-    font-family:Arial,sans-serif;
-}
-
-#game {
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-}
-
-#loading {
-    position:absolute;
-    inset:0;
-    z-index:99999;
-    background:#080808;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
-    padding:25px;
-    text-align:center;
-}
-
-#barOuter {
-    width:min(400px,85vw);
-    height:9px;
-    background:#292929;
-    border-radius:10px;
-    overflow:hidden;
-}
-
-#bar {
-    height:100%;
-    width:0%;
-    background:#e63946;
-    transition:width .2s;
-}
-
-#status {
-    color:#aaa;
-    font-size:14px;
-    margin:15px;
-}
-
-#error {
-    color:#ff6666;
-    white-space:pre-wrap;
-    max-width:600px;
-    font-size:12px;
-}
-
-button {
-    background:#e63946;
-    color:white;
-    border:0;
-    padding:12px 25px;
-    border-radius:5px;
-    cursor:pointer;
-    margin-top:15px;
-}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:white;font-family:Arial}
+#game{position:absolute;inset:0;width:100%;height:100%}
+#loading{position:absolute;inset:0;z-index:99999;background:#080808;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:25px;text-align:center}
+#barOuter{width:min(400px,85vw);height:9px;background:#292929;border-radius:10px;overflow:hidden}
+#bar{height:100%;width:0;background:#e63946;transition:width .2s}
+#status{color:#aaa;font-size:14px;margin:15px}
+#error{color:#ff6666;white-space:pre-wrap;max-width:650px;font-size:12px}
+button{background:#e63946;color:white;border:0;padding:12px 25px;border-radius:5px;cursor:pointer;margin-top:15px}
 </style>
 </head>
-
 <body>
 
 <div id="game"></div>
 
 <div id="loading">
-    <h2>SUPER MARIO WORLD</h2>
-    <div id="status">Initializing...</div>
-    <div id="barOuter"><div id="bar"></div></div>
-    <p id="error"></p>
-    <button id="retry" onclick="start()" hidden>Retry</button>
+<h2>SUPER MARIO WORLD</h2>
+<div id="status">Initializing...</div>
+<div id="barOuter"><div id="bar"></div></div>
+<p id="error"></p>
+<button id="retry" onclick="start()" hidden>Retry</button>
 </div>
 
 <script>
 "use strict";
 
-/* ======================================
-   REPOSITORY CONFIGURATION
-====================================== */
+/* =====================================
+   SOURCES
+===================================== */
 
-const EMULATOR_ROOT =
+const ROOT =
 "https://raw.githubusercontent.com/AMoldyWaffle/RetroEmulator/main/";
 
-const ROM_URL =
+const ROM =
 "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Super%20Mario%20World/Super%20Mario%20World%20%28USA%29.sfc";
 
-/* ======================================
-   INTERFACE
-====================================== */
+/* =====================================
+   UI
+===================================== */
 
 const loading = document.getElementById("loading");
 const statusBox = document.getElementById("status");
 const bar = document.getElementById("bar");
 const errorBox = document.getElementById("error");
-const retryButton = document.getElementById("retry");
+const retry = document.getElementById("retry");
 
+let blobURLs = [];
+let scriptElements = [];
 let running = false;
-let started = false;
-let romObjectURL = null;
 let attempt = 0;
 
 function status(message) {
@@ -127,147 +65,186 @@ function progress(value) {
     bar.style.width = value + "%";
 }
 
-function fail(message) {
+function fail(error) {
     running = false;
-    status("Unable to start game");
-    errorBox.textContent = message;
-    retryButton.hidden = false;
+    status("Loading failed");
+    errorBox.textContent = String(error);
+    retry.hidden = false;
 }
 
-/* ======================================
-   DOWNLOAD ROM
-====================================== */
+function makeBlobURL(blob) {
+    const url = URL.createObjectURL(blob);
+    blobURLs.push(url);
+    return url;
+}
 
-async function downloadROM() {
+/* =====================================
+   FETCH FILES
+===================================== */
 
-    status("Downloading Super Mario World...");
+async function getFile(url, name) {
+    status("Downloading " + name + "...");
 
-    const response = await fetch(ROM_URL, {
-        cache:"no-store"
+    const response = await fetch(url, {
+        cache: "no-store"
     });
 
     if (!response.ok) {
-        throw new Error("ROM download failed: HTTP " +
-            response.status);
+        throw new Error(
+            name + " failed: HTTP " + response.status +
+            "\nURL: " + url
+        );
     }
 
-    const total = Number(
-        response.headers.get("content-length")
-    ) || 0;
-
-    if (!response.body) {
-        const data = await response.arrayBuffer();
-        progress(30);
-        return new Blob([data]);
-    }
-
-    const reader = response.body.getReader();
-    const chunks = [];
-    let received = 0;
-
-    while (true) {
-        const result = await reader.read();
-
-        if (result.done) break;
-
-        chunks.push(result.value);
-        received += result.value.length;
-
-        if (total) {
-            progress(30 * received / total);
-        }
-    }
-
-    const blob = new Blob(chunks, {
-        type:"application/octet-stream"
-    });
+    const blob = await response.blob();
 
     if (!blob.size) {
-        throw new Error("Downloaded ROM is empty.");
+        throw new Error(name + " is empty.");
     }
 
     return blob;
 }
 
-/* ======================================
-   LOAD EMULATOR
-====================================== */
+/* =====================================
+   LOAD A BLOB SCRIPT
+===================================== */
 
-function loadScript(url) {
-
-    return new Promise((resolve,reject) => {
-
+function executeBlobScript(url, name) {
+    return new Promise((resolve, reject) => {
         const script = document.createElement("script");
 
         script.src = url;
-        script.async = true;
+        script.async = false;
 
-        script.onload = resolve;
+        script.onload = () => resolve();
 
         script.onerror = () => {
             reject(new Error(
-                "Failed to load emulator file:\n" + url
+                "Could not execute " + name
             ));
         };
 
+        scriptElements.push(script);
         document.head.appendChild(script);
     });
 }
 
-/* ======================================
-   START GAME
-====================================== */
+/* =====================================
+   CLEANUP
+===================================== */
+
+function cleanup() {
+    for (const script of scriptElements) {
+        script.remove();
+    }
+
+    scriptElements = [];
+
+    for (const url of blobURLs) {
+        URL.revokeObjectURL(url);
+    }
+
+    blobURLs = [];
+
+    document.getElementById("game").innerHTML = "";
+
+    window.EJS_emulator = undefined;
+}
+
+/* =====================================
+   START
+===================================== */
 
 async function start() {
-
     if (running) return;
 
     running = true;
-    started = false;
-    attempt++;
+    const id = ++attempt;
 
-    const thisAttempt = attempt;
+    cleanup();
 
     errorBox.textContent = "";
-    retryButton.hidden = true;
+    retry.hidden = true;
     progress(0);
-
     loading.style.display = "flex";
-    document.getElementById("game").innerHTML = "";
-
-    if (romObjectURL) {
-        URL.revokeObjectURL(romObjectURL);
-        romObjectURL = null;
-    }
 
     try {
 
-        /* Download ROM */
+        /* 1. Download ROM */
 
-        const rom = await downloadROM();
+        const romBlob = await getFile(ROM, "game ROM");
 
-        if (thisAttempt !== attempt) return;
+        if (id !== attempt) return;
 
-        romObjectURL = URL.createObjectURL(rom);
+        const romURL = makeBlobURL(romBlob);
 
-        progress(35);
+        progress(20);
 
-        /* Configure EmulatorJS */
+        /* 2. Download actual minified engine */
 
-        status("Configuring SNES emulator...");
+        const engineBlob = await getFile(
+            ROOT + "emulator.min.js",
+            "emulator.min.js"
+        );
+
+        if (id !== attempt) return;
+
+        const engineURL = makeBlobURL(engineBlob);
+
+        progress(40);
+
+        /* 3. Download emulator CSS */
+
+        const cssBlob = await getFile(
+            ROOT + "emulator.min.css",
+            "emulator.min.css"
+        );
+
+        if (id !== attempt) return;
+
+        const cssURL = makeBlobURL(cssBlob);
+
+        progress(55);
+
+        /* 4. Download loader */
+
+        const loaderBlob = await getFile(
+            ROOT + "loader.js",
+            "loader.js"
+        );
+
+        if (id !== attempt) return;
+
+        const loaderURL = makeBlobURL(
+            new Blob([loaderBlob], {
+                type: "text/javascript"
+            })
+        );
+
+        progress(65);
+
+        /* 5. Configure EmulatorJS */
+
+        status("Configuring emulator...");
 
         window.EJS_player = "#game";
         window.EJS_core = "snes";
         window.EJS_gameName = "Super Mario World";
-        window.EJS_gameUrl = romObjectURL;
+        window.EJS_gameUrl = romURL;
+
+        // Supporting folders remain hosted in your repository.
+        window.EJS_pathtodata = ROOT;
 
         /*
-          IMPORTANT:
-          This points to YOUR repository root.
-          Do not append /data/ or /src/.
+          Explicitly override the two minified files.
+          This prevents loader.js from falling back
+          to emulator.js and other non-minified files.
         */
 
-        window.EJS_pathtodata = EMULATOR_ROOT;
+        window.EJS_paths = {
+            "emulator.min.js": engineURL,
+            "emulator.min.css": cssURL
+        };
 
         window.EJS_biosUrl = "";
         window.EJS_startOnLoaded = true;
@@ -277,60 +254,55 @@ async function start() {
         window.EJS_DEBUG_XX = false;
 
         window.EJS_ready = function() {
-            status("Emulator initialized...");
-            progress(85);
+            if (id !== attempt) return;
+
+            status("Emulator initialized. Starting game...");
+            progress(90);
         };
 
         window.EJS_onGameStart = function() {
-            started = true;
-            running = false;
+            if (id !== attempt) return;
+
+            status("Game started!");
             progress(100);
             loading.style.display = "none";
+            running = false;
         };
 
-        /* Load your repository's loader */
+        /* 6. Execute loader */
 
-        status("Loading emulator from RetroEmulator...");
+        status("Starting EmulatorJS...");
 
-        await loadScript(EMULATOR_ROOT + "loader.js");
+        await executeBlobScript(loaderURL, "loader.js");
 
-        if (thisAttempt !== attempt) return;
+        if (id !== attempt) return;
 
-        progress(65);
-        status("Loading SNES core and initializing game...");
+        status("Loading SNES core...");
 
         /*
-          The loader loads emulator.min.js, emulator.min.css,
-          and the supporting files from the repository root.
+          Wait for actual game startup.
+          A timeout reports missing supporting files.
         */
 
         setTimeout(() => {
+            if (id !== attempt || !running) return;
 
-            if (thisAttempt !== attempt || started) return;
-
-            if (!started) {
-                fail(
-                    "The emulator loader loaded, but the game " +
-                    "did not report that it started.\n\n" +
-                    "Check that the SNES core files exist in " +
-                    "RetroEmulator/cores/ and that the src " +
-                    "directory is accessible."
-                );
-            }
-
+            fail(
+                "Emulator did not finish starting.\n\n" +
+                "The minified engine loaded, but a supporting " +
+                "file or SNES core may be missing.\n\n" +
+                "Check the cores/ and src/ directories."
+            );
         }, 60000);
 
     } catch (error) {
-
         console.error(error);
-        fail(error.message);
 
+        if (id === attempt) {
+            fail(error.message);
+        }
     }
 }
-
-/* ======================================
-   AUTOMATIC START
-====================================== */
 
 window.addEventListener("load", start);
 
