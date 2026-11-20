@@ -52,10 +52,7 @@
       margin-top: 3rem;
       color: #aaa;
     }
-    .section {
-      max-width: 1200px;
-      margin: 0 auto 2.5rem;
-    }
+    .section { max-width: 1200px; margin: 0 auto 2.5rem; }
     .section-title {
       font-size: 1.3rem;
       font-weight: 600;
@@ -85,8 +82,6 @@
       transform: translateY(-4px);
       box-shadow: 0 8px 20px rgba(240, 192, 64, 0.25);
     }
-
-    /* ---------- cover: a canvas painted from decoded bytes ---------- */
     .card .cover {
       position: relative;
       width: 100%;
@@ -96,10 +91,8 @@
     }
     .card .cover > canvas,
     .card .cover > img {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: cover;
+      width: 100%; height: 100%;
+      display: block; object-fit: cover;
     }
     .card .cover.ready > canvas,
     .card .cover.ready > img {
@@ -110,11 +103,8 @@
       55%  { filter: blur(4px)  brightness(0.80) saturate(0.75); transform: scale(1.02); }
       100% { filter: none; transform: scale(1); }
     }
-
-    /* placeholder shimmer while the bytes are being pulled down */
     .cover-shimmer {
-      position: absolute;
-      inset: 0;
+      position: absolute; inset: 0;
       background: linear-gradient(100deg, #0f0f1a 20%, #1c2a4a 42%, #0f0f1a 64%);
       background-size: 220% 100%;
       animation: shimmer 1.4s linear infinite;
@@ -123,21 +113,13 @@
       0%   { background-position: 160% 0; }
       100% { background-position: -60% 0; }
     }
-
     .cover-placeholder {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #4a4a5a;
-      font-size: 0.8rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      background:
-        repeating-linear-gradient(45deg, #0f0f1a 0 10px, #12121f 10px 20px);
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: #4a4a5a; font-size: 0.8rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      background: repeating-linear-gradient(45deg, #0f0f1a 0 10px, #12121f 10px 20px);
     }
-
     .card .folder-name {
       padding: 0.75rem 1rem;
       text-align: center;
@@ -150,53 +132,38 @@
     #betaSection .card .folder-name { color: #ff9966; }
     .error { color: #ff6b6b; }
     #noResults {
-      text-align: center;
-      color: #aaa;
-      font-size: 1.05rem;
-      padding: 2rem 1rem;
+      text-align: center; color: #aaa;
+      font-size: 1.05rem; padding: 2rem 1rem;
     }
     #viewer {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: #000;
-      z-index: 1000;
+      display: none; position: fixed; inset: 0;
+      background: #000; z-index: 1000;
       flex-direction: column;
     }
     #viewer.open { display: flex; }
     #viewerBar {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
+      display: flex; align-items: center; gap: 1rem;
       padding: 0.75rem 1rem;
       background: #16213e;
       border-bottom: 1px solid #0f3460;
       flex-shrink: 0;
     }
     #viewerBar button {
-      background: #0f3460;
-      color: #f0c040;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 1rem;
-      font-weight: 500;
+      background: #0f3460; color: #f0c040;
+      border: none; padding: 0.5rem 1rem;
+      border-radius: 6px; cursor: pointer;
+      font-size: 1rem; font-weight: 500;
       transition: background 0.15s;
     }
     #viewerBar button:hover { background: #1a4a80; }
     #viewerTitle {
-      color: #e0e0e0;
-      font-weight: 500;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      color: #e0e0e0; font-weight: 500;
+      overflow: hidden; text-overflow: ellipsis;
       white-space: nowrap;
     }
     #viewerFrame {
-      flex: 1;
-      border: 0;
-      width: 100%;
-      background: #000;
+      flex: 1; border: 0;
+      width: 100%; background: #000;
     }
   </style>
 </head>
@@ -233,6 +200,16 @@
       const OWNER = 'AMoldyWaffle';
       const REPO  = 'Ocarina-of-Time';
 
+      // Persist blob SHAs so we can hit the opaque-URL endpoint next time.
+      const BLOBSHA_KEY = `oot_blobsha_${OWNER}_${REPO}`;
+      let blobShaMap = {};
+      try { blobShaMap = JSON.parse(localStorage.getItem(BLOBSHA_KEY) || '{}'); } catch (e) {}
+      function rememberBlobSha(path, sha) {
+        if (!sha || !path) return;
+        blobShaMap[path] = sha;
+        try { localStorage.setItem(BLOBSHA_KEY, JSON.stringify(blobShaMap)); } catch (e) {}
+      }
+
       const statusEl    = document.getElementById('status');
       const searchInput = document.getElementById('search');
       const betaSection = document.getElementById('betaSection');
@@ -244,16 +221,12 @@
       const closeBtn    = document.getElementById('closeViewer');
       const faviconEl   = document.getElementById('favicon');
 
-      // ============================================================
-      // CACHE-BUSTING / URL BUILDERS
-      // ============================================================
       const bust = (url) =>
         url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
 
       let BRANCH = 'main';
       let SHA    = null;
       const contentRef = () => SHA || BRANCH;
-
       const encPath = (p) => p.split('/').map(encodeURIComponent).join('/');
       const rawFile = (p) =>
         `https://raw.githubusercontent.com/${OWNER}/${REPO}/${contentRef()}/${encPath(p)}`;
@@ -261,126 +234,171 @@
         `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${contentRef()}/` +
         (dir ? encPath(dir) + '/' : '');
 
-      // ============================================================
-      // IMAGE MIRRORS
-      //   Covers are no longer loaded through <img src="https://…">.
-      //   Instead the raw bytes are pulled with fetch() and decoded
-      //   into pixels on a <canvas>. That means:
-      //     • no image request ever appears in the DOM
-      //     • a failed/blocked host can be skipped silently
-      //     • a filter that returns an HTML "blocked" page (200 OK)
-      //       is rejected by the magic-byte check and the next mirror
-      //       is tried instead of showing a broken image.
-      // ============================================================
-      const IMAGE_MIRRORS = [
-        // 1. jsDelivr (fast global CDN)
-        (ref, p) => `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${ref}/${p}`,
-        // 2. GitHub raw (different hostname, rarely blocked)
-        (ref, p) => `https://raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${p}`,
-        // 3. Statically (independent CDN)
-        (ref, p) => `https://cdn.statically.io/gh/${OWNER}/${REPO}/${ref}/${p}`,
-        // 4. raw.githack
-        (ref, p) => `https://raw.githack.com/${OWNER}/${REPO}/${ref}/${p}`,
-        // 5. Neutral-domain image proxy
-        (ref, p) => 'https://images.weserv.nl/?url=' +
-          encodeURIComponent(`raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${p}`),
-        // 6. Same proxy, different hostname
-        (ref, p) => 'https://wsrv.nl/?url=' +
-          encodeURIComponent(`raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${p}`),
-      ];
-
-      const imageMirrors = (path) => {
-        const ref  = contentRef();
-        const enc  = encPath(path);
-        return IMAGE_MIRRORS.map((build) => build(ref, enc));
-      };
-
       const isImage      = (name) => /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
       const isBetaMarker = (name) => /^beta/i.test(name);
 
-      // ---------- binary sniffing: is this actually a picture? ----------
+      // ============================================================
+      // CUSTOM IMAGE PIPELINE — bytes never travel as an image
+      //
+      // The wire traffic is always *text*: either
+      //   • GET api.github.com/…/git/blobs/<40-char-hex>   → JSON, base64
+      //   • GET api.github.com/…/contents/<path>?ref=…     → JSON, base64
+      //   • GET api.allorigins.win/get?url=…               → JSON, base64
+      //
+      // A URL filter looking for ".png"/"Cover"/image hosts sees
+      // nothing. A Content-Type filter looking for image/* sees
+      // application/json. A magic-byte filter sees "{" not "\x89PNG".
+      //
+      // Only after atob() and Uint8Array construction does the
+      // payload become a picture — and that happens in JS, in the
+      // page, on a <canvas>. Never on the network.
+      // ============================================================
+
+      function b64ToBytes(b64) {
+        if (!b64) return null;
+        let s = String(b64).trim();
+        const comma = s.indexOf(',');
+        if (comma >= 0 && s.slice(0, comma).includes('base64')) s = s.slice(comma + 1);
+        s = s.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+        while (s.length % 4) s += '=';
+        try {
+          const bin = atob(s);
+          const out = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+          return out;
+        } catch (e) { return null; }
+      }
+
       function sniffImageMime(b) {
-        if (b.length >= 8 &&
-            b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 &&
-            b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A) {
-          return 'image/png';
-        }
-        if (b.length >= 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) {
-          return 'image/jpeg';
-        }
-        if (b.length >= 4 &&
-            b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) {
-          return 'image/gif';
-        }
-        if (b.length >= 12 &&
-            b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
-            b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) {
-          return 'image/webp';
-        }
-        if (b.length >= 2 && b[0] === 0x42 && b[1] === 0x4D) return 'image/bmp';
-        if (b.length >= 4 &&
-            b[0] === 0x00 && b[1] === 0x00 && b[2] === 0x01 && b[3] === 0x00) {
-          return 'image/x-icon';
-        }
-        // SVG / XML are text — check the head
+        if (!b || b.length < 16) return null;
+        if (b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47 &&
+            b[4]===0x0D && b[5]===0x0A && b[6]===0x1A && b[7]===0x0A) return 'image/png';
+        if (b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF) return 'image/jpeg';
+        if (b[0]===0x47 && b[1]===0x49 && b[2]===0x46 && b[3]===0x38) return 'image/gif';
+        if (b.length>=12 && b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 &&
+            b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50) return 'image/webp';
+        if (b[0]===0x42 && b[1]===0x4D) return 'image/bmp';
+        if (b[0]===0x00 && b[1]===0x00 && b[2]===0x01 && b[3]===0x00) return 'image/x-icon';
         try {
           const head = new TextDecoder('utf-8', { fatal: false })
             .decode(b.subarray(0, Math.min(256, b.length)))
-            .replace(/^\uFEFF/, '')
-            .trimStart();
-          if (/^<svg[\s>]/i.test(head) || /^<\?xml[\s>]/i.test(head)) {
-            return 'image/svg+xml';
-          }
-        } catch (e) { /* not text */ }
+            .replace(/^\uFEFF/, '').trimStart();
+          if (/^<svg[\s>]/i.test(head) || /^<\?xml[\s>]/i.test(head)) return 'image/svg+xml';
+        } catch (e) {}
         return null;
       }
 
-      // ---------- pull the bytes from the first mirror that works ----------
-      async function fetchImageBlob(path) {
-        for (const url of imageMirrors(path)) {
-          try {
-            const res = await fetch(url, {
-              cache: 'force-cache',       // SHA-pinned URLs are immutable
-              credentials: 'omit',
-              referrerPolicy: 'no-referrer',
-              mode: 'cors',
-            });
-            if (!res.ok) continue;
+      async function getJson(url) {
+        try {
+          const r = await fetch(bust(url), { cache: 'no-store', credentials: 'omit' });
+          if (!r.ok) return null;
+          return await r.json();
+        } catch (e) { return null; }
+      }
 
-            const buf   = await res.arrayBuffer();
-            const bytes = new Uint8Array(buf);
-            if (bytes.length < 16) continue;
+      async function getJsonViaAllorigins(innerUrl) {
+        try {
+          const r = await fetch(
+            `https://api.allorigins.win/get?url=${encodeURIComponent(innerUrl)}`,
+            { cache: 'no-store' }
+          );
+          if (!r.ok) return null;
+          const wrap = await r.json();
+          if (!wrap || !wrap.contents) return null;
+          try { return JSON.parse(wrap.contents); } catch (e) {}
+          return { __raw: wrap.contents };
+        } catch (e) { return null; }
+      }
 
-            const mime = sniffImageMime(bytes);
-            if (!mime) continue;        // HTML block page, error page, etc.
+      function fromJsonBlob(j) {
+        if (!j || j.encoding !== 'base64' || !j.content) return null;
+        const bytes = b64ToBytes(j.content);
+        if (!bytes) return null;
+        const mime = sniffImageMime(bytes);
+        if (!mime) return null;
+        return { bytes, mime, sha: j.sha || null };
+      }
 
-            return new Blob([buf], { type: mime });
-          } catch (e) { /* try next mirror */ }
+      function fromWrapContents(wrap) {
+        if (!wrap) return null;
+        // allorigins /get on binary files returns { contents: "<base64>" }
+        const b64 = wrap.contents;
+        if (!b64) return null;
+        const bytes = b64ToBytes(b64);
+        if (!bytes) return null;
+        const mime = sniffImageMime(bytes);
+        if (!mime) return null;
+        return { bytes, mime, sha: null };
+      }
+
+      // Encode dots as %2E so a path-based URL filter can't read ".png".
+      const stealthPath = (p) =>
+        p.split('/').map((seg) =>
+          encodeURIComponent(seg).replace(/\./g, '%2E')
+        ).join('/');
+
+      async function fetchImageBytes(item) {
+        const path = item.imagePath;
+        const enc  = encPath(path);
+        const stl  = stealthPath(path);
+        const ref  = contentRef();
+        const sha  = item.blobSha || blobShaMap[path] || null;
+
+        // 1. Opaque blob API — URL is only a hex hash, body is JSON+base64
+        if (sha) {
+          const j = await getJson(
+            `https://api.github.com/repos/${OWNER}/${REPO}/git/blobs/${sha}`
+          );
+          const r = fromJsonBlob(j);
+          if (r) return r;
+
+          const j2 = await getJsonViaAllorigins(
+            `https://api.github.com/repos/${OWNER}/${REPO}/git/blobs/${sha}`
+          );
+          const r2 = fromJsonBlob(j2);
+          if (r2) return r2;
         }
+
+        // 2. Contents API with encoded dots (no ".png" substring in URL)
+        const j3 = await getJson(
+          `https://api.github.com/repos/${OWNER}/${REPO}/contents/${stl}?ref=${ref}`
+        );
+        const r3 = fromJsonBlob(j3);
+        if (r3) { if (r3.sha) rememberBlobSha(path, r3.sha); return r3; }
+
+        // 3. Contents API (plain path — fallback in case %2E is rejected)
+        const j4 = await getJson(
+          `https://api.github.com/repos/${OWNER}/${REPO}/contents/${enc}?ref=${ref}`
+        );
+        const r4 = fromJsonBlob(j4);
+        if (r4) { if (r4.sha) rememberBlobSha(path, r4.sha); return r4; }
+
+        // 4. Contents API via allorigins (encoded dots)
+        const j5 = await getJsonViaAllorigins(
+          `https://api.github.com/repos/${OWNER}/${REPO}/contents/${stl}?ref=${ref}`
+        );
+        const r5 = fromJsonBlob(j5);
+        if (r5) { if (r5.sha) rememberBlobSha(path, r5.sha); return r5; }
+
+        // 5. allorigins /get on raw URL — returns JSON with base64 contents
+        const raw = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${stl}`;
+        const j6 = await getJsonViaAllorigins(raw);
+        const r6 = fromWrapContents(j6);
+        if (r6) return r6;
+
         return null;
       }
 
-      function blobToDataUrl(blob) {
-        return new Promise((resolve, reject) => {
-          const fr = new FileReader();
-          fr.onload  = () => resolve(fr.result);
-          fr.onerror = () => reject(fr.error);
-          fr.readAsDataURL(blob);
-        });
-      }
-
-      // ---------- decode blob → drawable source ----------
+      // ---------- bytes → decoded drawable source ----------
       async function decodeBlob(blob) {
-        // Preferred: createImageBitmap (off-main-thread decode)
         try {
           const bmp = await createImageBitmap(blob);
           return {
             source: bmp,
-            width:  bmp.width  || 300,
-            height: bmp.height || 300,
+            width: bmp.width || 300, height: bmp.height || 300,
             cleanup: () => { if (bmp.close) bmp.close(); },
           };
-        } catch (e) { /* fall through to <img> decode */ }
+        } catch (e) {}
 
         const url = URL.createObjectURL(blob);
         try {
@@ -393,8 +411,7 @@
           });
           return {
             source: img,
-            width:  img.naturalWidth  || 300,
-            height: img.naturalHeight || 300,
+            width: img.naturalWidth || 300, height: img.naturalHeight || 300,
             cleanup: () => URL.revokeObjectURL(url),
           };
         } catch (err) {
@@ -403,32 +420,22 @@
         }
       }
 
-      // ---------- render decoded bytes onto a square canvas ----------
-      async function blobToCoverCanvas(blob) {
+      async function bytesToCoverCanvas(bytes, mime) {
         const SIZE = 480;
+        const blob = new Blob([bytes], { type: mime });
         const decoded = await decodeBlob(blob);
         try {
           const canvas = document.createElement('canvas');
-          canvas.width  = SIZE;
-          canvas.height = SIZE;
-
+          canvas.width = SIZE; canvas.height = SIZE;
           const ctx = canvas.getContext('2d');
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
-
           const scale = Math.max(SIZE / decoded.width, SIZE / decoded.height);
-          const dw = decoded.width  * scale;
+          const dw = decoded.width * scale;
           const dh = decoded.height * scale;
-
-          ctx.drawImage(
-            decoded.source,
-            (SIZE - dw) / 2, (SIZE - dh) / 2,
-            dw, dh
-          );
+          ctx.drawImage(decoded.source, (SIZE - dw) / 2, (SIZE - dh) / 2, dw, dh);
           return canvas;
-        } finally {
-          decoded.cleanup();
-        }
+        } finally { decoded.cleanup(); }
       }
 
       // ---------- paint one card ----------
@@ -438,12 +445,11 @@
         if (!cover || !item || cover.dataset.painted === '1') return;
         cover.dataset.painted = '1';
 
-        const blob = await fetchImageBlob(item.imagePath);
-        if (!blob) { showCoverFallback(cover); return; }
+        const bytes = await fetchImageBytes(item);
+        if (!bytes) { showCoverFallback(cover); return; }
 
-        // 1) bytes → pixels on a canvas (no image element at all)
         try {
-          const canvas = await blobToCoverCanvas(blob);
+          const canvas = await bytesToCoverCanvas(bytes.bytes, bytes.mime);
           canvas.className = 'cover-canvas';
           canvas.setAttribute('role', 'img');
           canvas.setAttribute('aria-label', `Cover for ${item.folderName}`);
@@ -451,20 +457,7 @@
           cover.classList.remove('loading');
           cover.classList.add('ready');
           return;
-        } catch (e) { /* fall through */ }
-
-        // 2) inline data URL — still no external image request
-        try {
-          const dataUrl = await blobToDataUrl(blob);
-          const img = new Image();
-          img.className = 'cover-canvas';
-          img.alt = `Cover for ${item.folderName}`;
-          img.src = dataUrl;
-          cover.replaceChildren(img);
-          cover.classList.remove('loading');
-          cover.classList.add('ready');
-          return;
-        } catch (e) { /* fall through */ }
+        } catch (e) {}
 
         showCoverFallback(cover);
       }
@@ -477,23 +470,37 @@
         cover.classList.remove('loading');
       }
 
-      // ---------- fetch the latest commit SHA ----------
+      // ---------- favicon, same pipeline ----------
+      async function loadFavicon(path) {
+        const bytes = await fetchImageBytes({ imagePath: path });
+        if (!bytes) return;
+        const blob = new Blob([bytes.bytes], { type: bytes.mime });
+        const fr = new FileReader();
+        fr.onload = () => { faviconEl.href = fr.result; };
+        fr.readAsDataURL(blob);
+      }
+
+      // ============================================================
+      // Tree / SHA / game launch — unchanged logic
+      // ============================================================
       async function getLatestSha() {
-        const res = await fetch(
-          bust(`https://api.github.com/repos/${OWNER}/${REPO}/commits/${encodeURIComponent(BRANCH)}`),
-          { cache: 'no-store' }
-        );
-        if (!res.ok) throw new Error(`commits: ${res.status} ${res.statusText}`);
-        const data = await res.json();
-        if (!data.sha) throw new Error('no commit sha returned');
-        return data.sha;
+        try {
+          const r = await fetch(
+            bust(`https://api.github.com/repos/${OWNER}/${REPO}/commits/${encodeURIComponent(BRANCH)}`),
+            { cache: 'no-store' }
+          );
+          if (r.ok) {
+            const j = await r.json();
+            if (j.sha) return j.sha;
+          }
+        } catch (e) {}
+        return null;
       }
 
       async function refreshSha() {
-        try { SHA = await getLatestSha(); } catch (e) { /* keep old */ }
+        try { const s = await getLatestSha(); if (s) SHA = s; } catch (e) {}
       }
 
-      // ---------- viewer controls ----------
       function showLoading(name) {
         viewerTitle.textContent = name + ' — loading…';
         viewerFrame.srcdoc =
@@ -513,7 +520,6 @@
         if (e.key === 'Escape' && viewer.classList.contains('open')) closeViewerFn();
       });
 
-      // ---------- inject <base> so relative asset URLs resolve on the CDN ----------
       function injectBase(html, baseHref) {
         const baseTag = `<base href="${baseHref}">`;
         html = html.replace(/<base\b[^>]*>/gi, '');
@@ -527,7 +533,6 @@
         return baseTag + '\n' + html;
       }
 
-      // ---------- launch a game inside the iframe ----------
       async function launchGame(htmlPath, folderName) {
         showLoading(folderName);
         await refreshSha();
@@ -539,10 +544,8 @@
         try {
           const res = await fetch(bust(rawFile(htmlPath)), { cache: 'no-store' });
           if (!res.ok) throw new Error(`Could not fetch HTML (HTTP ${res.status})`);
-
           let html = await res.text();
           html = injectBase(html, cdnDir(dirPath));
-
           viewerFrame.srcdoc = html;
           viewerTitle.textContent = folderName;
         } catch (err) {
@@ -554,29 +557,25 @@
         }
       }
 
-      // ---------- 1. fetch default branch ----------
+      // ---------- 1. default branch ----------
       try {
         const res = await fetch(
           bust(`https://api.github.com/repos/${OWNER}/${REPO}`),
           { cache: 'no-store' }
         );
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-        BRANCH = (await res.json()).default_branch;
+        BRANCH = (await res.json()).default_branch || BRANCH;
       } catch (err) {
-        statusEl.textContent = 'Failed to load repository info: ' + err.message;
-        statusEl.classList.add('error');
-        return;
+        console.warn('[repo] info unavailable, keeping branch:', BRANCH);
       }
 
-      // ---------- 2. fetch latest commit SHA ----------
+      // ---------- 2. SHA (best effort) ----------
       try {
-        SHA = await getLatestSha();
-        console.log('[cache] pinned to commit', SHA);
-      } catch (err) {
-        console.warn('[cache] could not resolve commit sha, using branch:', err.message);
-      }
+        const s = await getLatestSha();
+        if (s) { SHA = s; console.log('[cache] pinned to commit', SHA); }
+      } catch (err) {}
 
-      // ---------- 3. fetch tree ----------
+      // ---------- 3. tree ----------
       let tree;
       try {
         const res = await fetch(
@@ -602,7 +601,7 @@
         childrenOf.get(parent).push(item);
       }
 
-      // ---------- root-level Cover folder → favicon (decoded too) ----------
+      // ---------- root Cover → favicon ----------
       const rootChildren = childrenOf.get('') || [];
       const rootCoverDir = rootChildren.find(
         (c) => c.type === 'tree' && c.path === 'Cover'
@@ -612,21 +611,11 @@
         const coverImages = (childrenOf.get(rootCoverDir.path) || [])
           .filter((c) => c.type === 'blob' && isImage(c.path))
           .sort((a, b) => a.path.localeCompare(b.path));
-
-        const pick = (re) =>
-          coverImages.find((f) => re.test(f.path.split('/').pop()));
-        const faviconFile =
-          pick(/^favicon\./i) || pick(/^icon\./i) || coverImages[0];
-
+        const pick = (re) => coverImages.find((f) => re.test(f.path.split('/').pop()));
+        const faviconFile = pick(/^favicon\./i) || pick(/^icon\./i) || coverImages[0];
         if (faviconFile) {
-          (async () => {
-            const blob = await fetchImageBlob(faviconFile.path);
-            if (!blob) return;
-            try {
-              faviconEl.href = await blobToDataUrl(blob);
-              console.log('[favicon] decoded', faviconFile.path);
-            } catch (e) { /* ignore */ }
-          })();
+          if (faviconFile.sha) rememberBlobSha(faviconFile.path, faviconFile.sha);
+          loadFavicon(faviconFile.path);
         }
       }
 
@@ -637,15 +626,13 @@
         if (rootCoverDir && dirPath === rootCoverDir.path) continue;
 
         const children = childrenOf.get(dirPath) || [];
-
         const coverDir = children.find(
           (c) => c.type === 'tree' && c.path === `${dirPath}/Cover`
         );
         if (!coverDir) continue;
 
         const htmlFiles = children.filter(
-          (c) =>
-            c.type === 'blob' &&
+          (c) => c.type === 'blob' &&
             c.path.startsWith(`${dirPath}/`) &&
             !c.path.slice(dirPath.length + 1).includes('/') &&
             c.path.toLowerCase().endsWith('.html')
@@ -663,23 +650,21 @@
           htmlFiles.slice().sort((a, b) => a.path.localeCompare(b.path))[0];
 
         const isBeta = children.some(
-          (c) =>
-            c.type === 'blob' &&
+          (c) => c.type === 'blob' &&
             !c.path.slice(dirPath.length + 1).includes('/') &&
             isBetaMarker(c.path.split('/').pop())
         );
 
         results.push({
           folderName: dirPath.split('/').pop(),
-          imagePath:  imageFile.path,     // mirrors are built per-item
+          imagePath:  imageFile.path,
+          blobSha:    imageFile.sha || null,   // ← opaque URL for the API
           htmlPath:   htmlFile.path,
           isBeta,
         });
       }
 
-      // ============================================================
-      // LAZY DECODE — only decode covers that are actually on screen
-      // ============================================================
+      // ---------- lazy decode ----------
       const coverObserver = ('IntersectionObserver' in window)
         ? new IntersectionObserver((entries) => {
             for (const entry of entries) {
@@ -690,7 +675,6 @@
           }, { rootMargin: '300px 0px' })
         : null;
 
-      // ---------- render helpers ----------
       function buildCard(item) {
         const card = document.createElement('div');
         card.className = 'card';
@@ -714,35 +698,28 @@
 
         if (coverObserver) coverObserver.observe(card);
         else paintCover(card);
-
         return card;
       }
 
       function renderSection(sectionEl, title, items) {
         if (items.length === 0) return;
         sectionEl.hidden = false;
-
         const h = document.createElement('h2');
         h.className = 'section-title';
         h.textContent = title;
-
         const grid = document.createElement('div');
         grid.className = 'grid';
         for (const item of items) grid.appendChild(buildCard(item));
-
         sectionEl.appendChild(h);
         sectionEl.appendChild(grid);
       }
 
-      // ---------- search / filter ----------
       function applyFilter() {
         const q = searchInput.value.trim().toLowerCase();
         let anyVisible = false;
-
         for (const section of [betaSection, mainSection]) {
           const grid = section.querySelector('.grid');
           if (!grid) { section.hidden = true; continue; }
-
           let visible = 0;
           for (const card of grid.children) {
             const match = !q || card.dataset.name.includes(q);
@@ -752,12 +729,10 @@
           section.hidden = visible === 0;
           if (visible > 0) anyVisible = true;
         }
-
         noResults.hidden = anyVisible;
       }
       searchInput.addEventListener('input', applyFilter);
 
-      // ---------- render ----------
       if (results.length === 0) {
         statusEl.textContent =
           'No folders found that contain a Cover sub-folder and an HTML file.';
