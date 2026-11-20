@@ -72,9 +72,9 @@ font-size:12px;line-height:1.6;overflow-wrap:anywhere
    CONSOLE
 ================================= */
 
-const output = document.getElementById("consoleOutput");
-const panel = document.getElementById("consolePanel");
-const toggle = document.getElementById("consoleToggle");
+const output=document.getElementById("consoleOutput");
+const panel=document.getElementById("consolePanel");
+const toggle=document.getElementById("consoleToggle");
 
 function log(type,message){
     const entry=document.createElement("div");
@@ -97,6 +97,10 @@ toggle.onclick=function(){
     toggle.textContent=visible?"Show Console":"Hide Console";
 };
 
+/* =================================
+   ERROR CAPTURE
+================================= */
+
 const originalError=console.error.bind(console);
 const originalWarn=console.warn.bind(console);
 
@@ -111,9 +115,10 @@ console.warn=function(...args){
 };
 
 window.addEventListener("error",function(event){
+
     if(event.target && event.target!==window){
-        const resource=event.target.src||event.target.href||"Unknown resource";
-        log("ERROR","Browser failed to load or execute resource: "+resource);
+        log("ERROR","Resource error: "+
+            (event.target.src||event.target.href||"Unknown resource"));
         return;
     }
 
@@ -147,6 +152,10 @@ const GAME_NAME="Super Mario World";
 const DATA_URL=
 "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/";
 
+/* =================================
+   LOADING DISPLAY
+================================= */
+
 function loadingText(message){
     document.getElementById("loading-text").textContent=message;
 }
@@ -161,7 +170,7 @@ function hideLoading(){
 }
 
 /* =================================
-   EMULATORJS SETTINGS
+   EMULATORJS CONFIGURATION
 ================================= */
 
 window.EJS_player="#game";
@@ -174,6 +183,10 @@ window.EJS_startOnLoaded=true;
 window.EJS_fullscreenOnLoaded=false;
 window.EJS_volume=0.5;
 window.EJS_color="#1685ff";
+
+/* =================================
+   EMULATORJS CALLBACKS
+================================= */
 
 window.EJS_ready=function(){
     log("SUCCESS","EmulatorJS READY event received.");
@@ -218,108 +231,6 @@ window.EJS_Buttons={
 };
 
 /* =================================
-   CHECK LOADER BEFORE EXECUTION
-================================= */
-
-async function checkLoader(){
-
-    const url=DATA_URL+"loader.js";
-
-    log("INFO","Checking loader.js response...");
-    loadingText("Checking EmulatorJS files...");
-
-    let response;
-
-    try{
-        response=await fetch(url,{cache:"no-store"});
-    }catch(error){
-        log("FATAL ERROR","Could not fetch loader.js: "+error.message);
-        log("ERROR","This may be a Chromebook network, CDN, or CORS issue.");
-        loadingText("Could not access emulator files.");
-        return false;
-    }
-
-    log("INFO","Loader HTTP status: "+response.status);
-    log("INFO","Loader content type: "+response.headers.get("content-type"));
-
-    if(!response.ok){
-        log("FATAL ERROR","loader.js returned HTTP "+response.status);
-        loadingText("Emulator loader unavailable.");
-        return false;
-    }
-
-    const source=await response.text();
-
-    log("INFO","Loader response size: "+source.length+" characters");
-
-    if(source.length<100){
-        log("FATAL ERROR","loader.js response is unexpectedly short.");
-        log("ERROR","Response: "+source.slice(0,200));
-        loadingText("Invalid emulator loader.");
-        return false;
-    }
-
-    if(source.trimStart().startsWith("<")){
-        log("FATAL ERROR","The CDN returned HTML instead of JavaScript.");
-        log("ERROR","Response begins: "+source.slice(0,200));
-        loadingText("CDN returned an invalid file.");
-        return false;
-    }
-
-    if(!source.includes("EmulatorJS") && !source.includes("EJS_pathtodata")){
-        log("WARN","Loader contents do not look like the expected EmulatorJS loader.");
-    }
-
-    log("SUCCESS","loader.js downloaded and passed the response checks.");
-
-    return true;
-}
-
-/* =================================
-   LOAD EMULATORJS
-================================= */
-
-async function loadEmulator(){
-
-    log("INFO","Game: "+GAME_NAME);
-    log("INFO","ROM: "+ROM_URL);
-    log("INFO","Core: "+window.EJS_core);
-    log("INFO","Emulator data: "+DATA_URL);
-    log("INFO","Browser: "+navigator.userAgent);
-    log("INFO","WebAssembly: "+(typeof WebAssembly!=="undefined"));
-
-    const valid=await checkLoader();
-
-    if(!valid)return;
-
-    loadingText("Starting EmulatorJS...");
-    log("INFO","Injecting loader.js...");
-
-    const script=document.createElement("script");
-
-    script.src=DATA_URL+"loader.js";
-    script.async=true;
-    script.crossOrigin="anonymous";
-
-    script.onload=function(){
-        log("SUCCESS","loader.js executed successfully.");
-        log("INFO","Waiting for EmulatorJS initialization...");
-        loadingProgress(20);
-        loadingText("Initializing emulator...");
-    };
-
-    script.onerror=function(event){
-        log("FATAL ERROR","The browser could not execute loader.js.");
-        log("ERROR","Script URL: "+script.src);
-        log("ERROR","Check the loader HTTP status and content type above.");
-        log("ERROR","This can indicate a browser security, MIME type, or script execution problem.");
-        loadingText("Emulator loader execution failed.");
-    };
-
-    document.body.appendChild(script);
-}
-
-/* =================================
    RESOURCE MONITOR
 ================================= */
 
@@ -329,7 +240,7 @@ if("PerformanceObserver" in window){
             for(const item of list.getEntries()){
                 if(item.name.includes("jsdelivr") ||
                    item.name.includes("githubusercontent")){
-                    log("INFO","Resource request: "+item.name+
+                    log("INFO","Resource requested: "+item.name+
                         " | Duration: "+Math.round(item.duration)+"ms");
                 }
             }
@@ -342,7 +253,47 @@ if("PerformanceObserver" in window){
 }
 
 /* =================================
-   TIMEOUT
+   LOAD EMULATORJS
+================================= */
+
+function loadEmulator(){
+
+    log("INFO","Game: "+GAME_NAME);
+    log("INFO","ROM: "+ROM_URL);
+    log("INFO","Core: "+window.EJS_core);
+    log("INFO","Emulator data: "+DATA_URL);
+    log("INFO","Browser: "+navigator.userAgent);
+    log("INFO","WebAssembly: "+(typeof WebAssembly!=="undefined"));
+
+    loadingText("Loading EmulatorJS...");
+    loadingProgress(10);
+
+    log("INFO","Loading loader.js directly without fetch or CORS mode...");
+
+    const script=document.createElement("script");
+
+    script.src=DATA_URL+"loader.js";
+    script.async=true;
+
+    script.onload=function(){
+        log("SUCCESS","loader.js downloaded and executed.");
+        log("INFO","Waiting for EmulatorJS initialization...");
+        loadingProgress(20);
+        loadingText("Initializing emulator...");
+    };
+
+    script.onerror=function(){
+        log("FATAL ERROR","Browser could not load or execute loader.js.");
+        log("ERROR","URL: "+script.src);
+        log("ERROR","Check network access, browser extensions, and embedded-page restrictions.");
+        loadingText("Could not load EmulatorJS. Check console.");
+    };
+
+    document.body.appendChild(script);
+}
+
+/* =================================
+   INITIALIZATION TIMEOUT
 ================================= */
 
 setTimeout(function(){
@@ -350,7 +301,7 @@ setTimeout(function(){
     if(document.getElementById("loading").style.display==="none")return;
 
     if(window.EJS_emulator){
-        log("WARN","Emulator object exists, but the game has not started.");
+        log("WARN","Emulator object exists but game has not started.");
         loadingText("Emulator loaded. Waiting for game...");
     }else{
         log("FATAL ERROR","EmulatorJS did not create its emulator object within 30 seconds.");
