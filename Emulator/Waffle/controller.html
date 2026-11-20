@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>WafflesIsolationism — Controller</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#f4f5f8;--card:#fff;--fg:#1b1d24;--mut:#6b7080;--bd:#d9dce5;--ac:#1f8ef1}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1015;--card:#1a1c24;--fg:#e8e9ee;--mut:#8b90a0;--bd:#2c2f3b}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif;padding:16px;max-width:900px;margin-inline:auto}
+h1{font-size:20px;margin:0 0 4px}.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin:12px 0}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,select,input[type=text]{font:inherit;padding:7px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);cursor:pointer}
+button:hover:not(:disabled){border-color:var(--ac)}button:disabled{opacity:.45;cursor:default}
+button.pri{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;background:#c33;display:inline-block;margin-right:6px}.dot.on{background:#2b2}.dot.run{background:#e90}
+#drop{border:2px dashed var(--bd);border-radius:10px;padding:16px;text-align:center;color:var(--mut)}#drop.over{border-color:var(--ac)}
+#pad{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;user-select:none;touch-action:none}
+.dpad{display:grid;grid-template:repeat(3,48px)/repeat(3,48px);gap:4px}.dpad button,.face button,.sh button{touch-action:none}
+.face{display:grid;grid-template:repeat(3,48px)/repeat(3,48px);gap:4px}
+.mid{display:flex;flex-direction:column;align-items:center;gap:8px}.sh{display:flex;gap:8px}
+#log{height:110px;overflow:auto;font:12px ui-monospace,monospace;color:var(--mut);white-space:pre-wrap}
+small,.mut{color:var(--mut)}input[type=range]{width:140px}
+</style></head><body>
+<h1>WafflesIsolationism — Controller</h1>
+<div class="mut">Keep this file in the same folder as <b>emulator.html</b>. Works fully offline.</div>
+
+<div class="card"><h2>Emulator window</h2><div class="row">
+  <span><span class="dot" id="dot"></span><span id="status">Not connected</span></span>
+  <input type="text" id="emuPath" value="emulator.html" size="16" title="Path to the emulator file">
+  <button class="pri" id="open">Open emulator</button>
+</div></div>
+
+<div class="card"><h2>Game</h2>
+  <div id="drop">Drop a ROM / disc image here or <button id="pickRom">choose file…</button><input id="rom" type="file" hidden><div id="romName" class="mut"></div></div>
+  <div class="row" style="margin-top:10px">
+    <select id="sys"><option value="">Auto-detect system</option></select>
+    <button id="pickBios">BIOS (optional)…</button><input id="bios" type="file" hidden><span id="biosName" class="mut"></span>
+    <button class="pri" id="launch" disabled>Launch game</button>
+  </div>
+</div>
+
+<div class="card"><h2>Controls</h2><div class="row">
+  <button id="pp" disabled>Pause</button><button id="reset" disabled>Reset</button>
+  <button id="ss" disabled>Save state</button><button id="ls" disabled>Load state</button><input id="lsf" type="file" hidden>
+  <button id="shot" disabled>Screenshot</button>
+  <button id="sf" disabled>Download save (.sav)</button><button id="lf" disabled>Load save…</button><input id="lff" type="file" hidden>
+  <button id="fs" disabled>Fullscreen</button>
+</div>
+<div class="row" style="margin-top:10px">
+  <label>Volume <input type="range" id="vol" min="0" max="100" value="50"></label>
+  <label><input type="checkbox" id="ff"> Fast-forward</label>
+  <select id="ffr"><option>2</option><option selected>3</option><option>5</option><option>8</option></select>×
+  <small id="lastState" class="mut"></small>
+</div></div>
+
+<div class="card"><h2>Virtual gamepad</h2>
+  <div class="row" style="margin-bottom:10px">
+    <label>Player <select id="player"><option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option></select></label>
+    <label><input type="checkbox" id="kb"> Send my keyboard from this window</label>
+    <small>Arrows · Z/X/A/S = B/A/Y/X · Q/W = L/R · Enter = Start · Shift = Select</small>
+  </div>
+  <div id="pad">
+    <div class="dpad"><span></span><button data-i="4">▲</button><span></span><button data-i="6">◀</button><span></span><button data-i="7">▶</button><span></span><button data-i="5">▼</button><span></span></div>
+    <div class="mid"><div class="sh"><button data-i="10">L</button><button data-i="11">R</button></div><div class="sh"><button data-i="2">Select</button><button data-i="3">Start</button></div></div>
+    <div class="face"><span></span><button data-i="9">X</button><span></span><button data-i="1">Y</button><span></span><button data-i="8">A</button><span></span><button data-i="0">B</button><span></span></div>
+  </div>
+</div>
+
+<div class="card"><h2>Log</h2><div id="log"></div></div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+let win=null,state="closed",paused=false,pending=null,lastState=null,files={rom:null,bios:null};
+const log=t=>{const l=$("log");l.textContent+=t+"\n";l.scrollTop=l.scrollHeight;};
+const alive=()=>win&&!win.closed;
+const send=(o,tr)=>{if(alive())win.postMessage(Object.assign({wi:1},o),"*",tr||[]);};
+function setState(s,txt){state=s;$("dot").className="dot "+(s==="idle"?"on":s==="running"?"run":"");
+  $("status").textContent=txt;const on=s==="running";
+  ["pp","reset","ss","ls","shot","sf","lf","fs"].forEach(i=>$(i).disabled=!on);
+  $("launch").disabled=!files.rom;}
+setState("closed","Not connected");
+
+function openEmu(){
+  win=window.open($("emuPath").value,"wi_emulator","width=980,height=760");
+  if(!win){log("Popup blocked — allow popups for this page.");return false;}
+  setState("closed","Opening…");return true;}
+$("open").onclick=openEmu;
+setInterval(()=>{if(win&&win.closed&&state!=="closed"){win=null;setState("closed","Emulator window closed");}},800);
+
+addEventListener("message",e=>{
+  const m=e.data;if(!m||m.wi!==1||e.source!==win)return;
+  switch(m.evt){
+    case"hello":
+      $("sys").length=1;(m.systems||[]).forEach(([k,l])=>{const o=document.createElement("option");o.value=k;o.textContent=l;$("sys").appendChild(o);});
+      if(m.running){setState("running","Game running");}else{setState("idle","Connected — ready");}
+      if(pending&&!m.running)deliver();
+      break;
+    case"loading":setState("running","Loading "+m.name+"…");log("Loading "+m.name+" ("+m.system+")");break;
+    case"started":setState("running","Playing "+m.name);paused=false;$("pp").textContent="Pause";break;
+    case"paused":paused=true;$("pp").textContent="Resume";break;
+    case"playing":paused=false;$("pp").textContent="Pause";break;
+    case"error":log("Error: "+m.msg);if(state!=="running")setState("idle","Connected — ready");break;
+    case"exit":setState("idle","Game exited");break;
+    case"state":lastState=m.data;$("lastState").textContent="State saved "+new Date().toLocaleTimeString();dl(new Blob([m.data]),(m.name||"game")+".state");break;
+    case"savefile":dl(new Blob([m.data]),(m.name||"game")+".sav");break;
+    case"screenshot":dl(new Blob([m.data],{type:"image/"+(m.format||"png")}),(m.name||"game")+".png");break;
+  }});
+function dl(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
+
+// ---- ROM / launch ----
+function setRom(f){files.rom=f;$("romName").textContent=f.name+" ("+(f.size/1048576).toFixed(1)+" MB)";$("launch").disabled=false;}
+$("pickRom").onclick=()=>$("rom").click();$("rom").onchange=e=>e.target.files[0]&&setRom(e.target.files[0]);
+$("pickBios").onclick=()=>$("bios").click();$("bios").onchange=e=>{files.bios=e.target.files[0];$("biosName").textContent=files.bios?files.bios.name:"";};
+const dz=$("drop");["dragover","dragenter"].forEach(n=>dz.addEventListener(n,e=>{e.preventDefault();dz.classList.add("over")}));
+["dragleave","drop"].forEach(n=>dz.addEventListener(n,e=>{e.preventDefault();dz.classList.remove("over")}));
+dz.addEventListener("drop",e=>e.dataTransfer.files[0]&&setRom(e.dataTransfer.files[0]));
+$("launch").onclick=async()=>{
+  if(!files.rom)return;
+  const data=await files.rom.arrayBuffer(),bios=files.bios?await files.bios.arrayBuffer():null;
+  pending={cmd:"load",system:$("sys").value,name:files.rom.name,data,bios};
+  if(!alive()){openEmu();return;}                        // 'hello' will deliver the pending game
+  if(state==="idle")deliver();
+  else send({cmd:"reload"});                             // swap games: reload, then 'hello' delivers
+};
+function deliver(){const p=pending;pending=null;if(p)send(p,[p.data,...(p.bios?[p.bios]:[])]);}
+
+// ---- controls ----
+$("pp").onclick=()=>send({cmd:paused?"play":"pause"});
+$("reset").onclick=()=>send({cmd:"reset"});
+$("ss").onclick=()=>send({cmd:"saveState"});
+$("ls").onclick=()=>{if(lastState){send({cmd:"loadState",data:lastState.slice(0)});log("Loaded last saved state");}else $("lsf").click();};
+$("ls").oncontextmenu=e=>{e.preventDefault();$("lsf").click();};
+$("lsf").onchange=async e=>{const f=e.target.files[0];if(f)send({cmd:"loadState",data:await f.arrayBuffer()});};
+$("shot").onclick=()=>send({cmd:"screenshot"});
+$("sf").onclick=()=>send({cmd:"saveFile"});
+$("lf").onclick=()=>$("lff").click();
+$("lff").onchange=async e=>{const f=e.target.files[0];if(f)send({cmd:"loadFile",data:await f.arrayBuffer()});};
+$("fs").onclick=()=>{send({cmd:"fullscreen",on:true});if(alive())win.focus();};
+$("vol").oninput=e=>send({cmd:"volume",value:e.target.value/100});
+const ff=()=>send({cmd:"ff",on:$("ff").checked,ratio:+$("ffr").value});$("ff").onchange=ff;$("ffr").onchange=ff;
+
+// ---- gamepad ----
+const pl=()=>+$("player").value,inp=(i,v)=>send({cmd:"input",player:pl(),index:i,value:v});
+document.querySelectorAll("[data-i]").forEach(b=>{const i=+b.dataset.i;
+  b.addEventListener("pointerdown",e=>{e.preventDefault();b.setPointerCapture(e.pointerId);inp(i,1);});
+  ["pointerup","pointercancel"].forEach(n=>b.addEventListener(n,()=>inp(i,0)));});
+const KEYS={ArrowUp:4,ArrowDown:5,ArrowLeft:6,ArrowRight:7,z:0,x:8,a:1,s:9,q:10,w:11,Enter:3,Shift:2};
+const held=new Set();
+function key(e,v){if(!$("kb").checked)return;const i=KEYS[e.key.length===1?e.key.toLowerCase():e.key];if(i===undefined)return;
+  e.preventDefault();if(v&&held.has(i))return;v?held.add(i):held.delete(i);inp(i,v);}
+addEventListener("keydown",e=>key(e,1));addEventListener("keyup",e=>key(e,0));
+})();
+</script></body></html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>WafflesIsolationism (offline)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>/*EJS_CSS*/</style>
+<style>
+html,body{margin:0;height:100%;background:#0e0e12;color:#eee;font-family:system-ui,sans-serif;overflow:hidden}
+#game{position:absolute;inset:0}
+#idle{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0e0e12;text-align:center;padding:20px}
+#idle h1{margin:0;font-size:28px}#idle small{color:#999}
+#idle select,#idle button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid #444;background:#1c1c24;color:#eee;cursor:pointer}
+#idle button.go{background:#2ea3ff;color:#001;border:0;font-weight:600}
+#drop{border:2px dashed #444;border-radius:12px;padding:28px 40px;max-width:420px}#drop.over{border-color:#2ea3ff;background:#16202a}
+#link{font-size:13px;color:#7c7}
+</style></head><body>
+<div id="game"></div>
+<div id="idle">
+  <h1>WafflesIsolationism</h1>
+  <div id="link">Not linked to a controller (standalone mode)</div>
+  <div id="drop">Drop a ROM here<br><small>or</small><br><br><button id="pick">Choose ROM…</button><input id="file" type="file" hidden></div>
+  <div><select id="sys"><option value="">Auto-detect system</option></select> <button class="go" id="go" disabled>Start</button></div>
+  <small id="msg">100% offline — no network access is used.</small>
+</div>
+<script>
+(()=>{
+const VB="https://ejs.offline/"+"/*BUILD*/"+"/";
+// ---- Offline guard + virtual file system: only blob:/data: and embedded files ever resolve ----
+const realFetch=window.fetch.bind(window), cache={};
+function bytes(p){ if(cache[p]) return cache[p];
+  const el=document.querySelector('script[data-vf="'+p+'"]'); if(!el) return null;
+  const s=atob(el.textContent.trim()), u=new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i);
+  return (cache[p]=u); }
+window.fetch=async(input,init)=>{
+  const url=typeof input==="string"?input:(input.url||String(input));
+  if(/^(blob|data):/.test(url)) return realFetch(input,init);
+  if(url.startsWith(VB)){
+    let p=url.slice(VB.length).split("?")[0].replace(/-(legacy|thread)-wasm\.data$/,"-wasm.data");
+    const b=bytes(p);
+    if(!b) return new Response("",{status:404});
+    if(init&&init.method==="HEAD") return new Response(null,{status:200});
+    return new Response(b,{status:200,headers:{"Content-Length":String(b.length),"Cache-Control":"no-store"}});
+  }
+  return new Response("",{status:404});   // block everything else (CDN, update checks…)
+};
+})();
+</script>
+<script>/*EJS_JS*/</script>
+<script>
+(()=>{
+const SYSTEMS=/*SYSTEMS*/, VB="https://ejs.offline/"+"/*BUILD*/"+"/";
+const EXT={nes:"nes fds unf unif",snes:"smc sfc fig swc",gb:"gb gbc sgb",gba:"gba",nds:"nds",n64:"n64 z64 v64",segaMD:"md gen smd",segaMS:"sms",segaGG:"gg",sega32x:"32x",pce:"pce sgx",ngp:"ngp ngc",ws:"ws wsc",lynx:"lnx",atari2600:"a26",atari7800:"a78",atari5200:"a52",jaguar:"j64 jag",coleco:"col",vb:"vb vboy",intv:"int",amiga:"adf adz dms ipf lha hdf",c64:"d64 t64 prg crt tap d71",psx:"pbp chd cue m3u ccd"};
+const E2S={};for(const k in EXT)EXT[k].split(" ").forEach(e=>E2S[e]=k);
+const AVAIL=new Set(SYSTEMS.map(s=>s[0]));
+const $=id=>document.getElementById(id);
+let emu=null,running=false,staged=null;
+const parent_=()=>window.opener||(window.parent!==window?window.parent:null);
+function post(o,tr){const t=parent_();if(t)t.postMessage(Object.assign({wi:1},o),"*",tr||[]);}
+const msg=t=>{$("msg").textContent=t};
+SYSTEMS.forEach(([k,l])=>{const o=document.createElement("option");o.value=k;o.textContent=l;$("sys").appendChild(o);});
+if(parent_())$("link").textContent="Linked to controller — waiting for a game…";
+
+async function start({system,name,data,bios}){
+  if(running){post({evt:"error",msg:"A game is already running. Reload the emulator first."});return;}
+  const ext=(name.split(".").pop()||"").toLowerCase();
+  system=system||E2S[ext];
+  if(!system){const m="Can't tell which system “"+name+"” is for — pick one.";msg(m);post({evt:"error",msg:m});return;}
+  if(!AVAIL.has(system)){const m="System not included in this build: "+system;msg(m);post({evt:"error",msg:m});return;}
+  running=true;$("idle").style.display="none";post({evt:"loading",name,system});
+  const cfg={debug:false,dataPath:VB,system,gameName:name.replace(/\.[^.]+$/,""),
+    gameUrl:URL.createObjectURL(new Blob([data])),color:"#2ea3ff",startOnLoad:true,volume:0.5,threads:false,
+    dontExtractRom:system==="arcade"||system==="mame",disableAutoUnload:true,
+    gameId:1};
+  if(bios)cfg.biosUrl=URL.createObjectURL(new Blob([bios]));
+  emu=new window.__EJS("#game",cfg);
+  emu.on("start",()=>post({evt:"started",name,system}));
+  emu.on("exit",()=>post({evt:"exit"}));
+}
+// ---- standalone UI ----
+function stage(f){staged=f;$("go").disabled=false;msg("Ready: "+f.name);}
+$("pick").onclick=()=>$("file").click();$("file").onchange=e=>e.target.files[0]&&stage(e.target.files[0]);
+const dz=$("drop");
+["dragover","dragenter"].forEach(n=>dz.addEventListener(n,e=>{e.preventDefault();dz.classList.add("over")}));
+["dragleave","drop"].forEach(n=>dz.addEventListener(n,e=>{e.preventDefault();dz.classList.remove("over")}));
+dz.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];f&&stage(f)});
+$("go").onclick=async()=>start({system:$("sys").value,name:staged.name,data:await staged.arrayBuffer()});
+
+// ---- controller protocol ----
+const u8=b=>new Uint8Array(b);
+const copy=a=>{const c=a.slice();return c.buffer;};
+addEventListener("message",async e=>{
+  const m=e.data;if(!m||m.wi!==1)return;
+  const gm=emu&&emu.gameManager;
+  try{switch(m.cmd){
+    case"ping":hello();break;
+    case"load":$("link").textContent="Linked to controller";await start(m);break;
+    case"reload":location.reload();break;
+    case"pause":emu&&emu.pause();post({evt:"paused"});break;
+    case"play":emu&&emu.play();post({evt:"playing"});break;
+    case"reset":gm&&gm.restart();break;
+    case"volume":emu&&emu.setVolume(m.value);break;
+    case"fullscreen":emu&&emu.toggleFullscreen(!!m.on);break;
+    case"ff":if(gm){gm.setFastForwardRatio(m.ratio||3);gm.toggleFastForward(m.on?1:0);}break;
+    case"input":gm&&gm.simulateInput(m.player||0,m.index,m.value);break;
+    case"cheat":gm&&gm.setCheat(m.index,m.on?1:0,m.code);break;
+    case"saveState":{if(!gm)break;const s=copy(gm.getState());post({evt:"state",data:s,name:emu.config.gameName},[s]);break;}
+    case"loadState":gm&&gm.loadState(u8(m.data));break;
+    case"saveFile":{if(!gm)break;const s=gm.getSaveFile();if(!s){post({evt:"error",msg:"No save file yet."});break;}const c=copy(s);post({evt:"savefile",data:c,name:emu.config.gameName},[c]);break;}
+    case"loadFile":if(gm){gm.FS.writeFile(gm.getSaveFilePath(),u8(m.data));gm.loadSaveFiles();}break;
+    case"screenshot":{if(!emu)break;const r=await emu.takeScreenshot("canvas","png",1);const c=copy(r.screenshot);post({evt:"screenshot",data:c,format:r.format,name:emu.config.gameName},[c]);break;}
+  }}catch(err){post({evt:"error",msg:String(err)});}
+});
+function hello(){post({evt:"hello",systems:SYSTEMS,running});}
+hello();
+})();
+</script>
+<!--VFS-->
+</body></html>
