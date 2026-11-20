@@ -1,764 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cuphead - Chromebook Launcher</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuphead - Build Folder Inspector</title>
 
-    <base href="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Cuphead@main/">
+<style>
+* {
+    box-sizing: border-box;
+}
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+body {
+    margin: 0;
+    padding: 20px;
+    background: #101114;
+    color: #eee;
+    font-family: Arial, sans-serif;
+}
 
-        html, body {
-            margin: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #080808;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
+h1 {
+    color: #e5b45b;
+}
 
-        #gameContainer {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-        }
+#status {
+    padding: 12px;
+    background: #20232a;
+    border-radius: 8px;
+    margin: 15px 0;
+}
 
-        #loadingScreen {
-            position: absolute;
-            inset: 0;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: #080808;
-            padding: 24px;
-            text-align: center;
-        }
+#results {
+    margin-top: 15px;
+}
 
-        #loadingTitle {
-            font-size: 30px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
+.file {
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #20232a;
+    border: 1px solid #383b43;
+    border-radius: 7px;
+    overflow-wrap: anywhere;
+}
 
-        #progressOuter {
-            width: min(500px, 90vw);
-            height: 14px;
-            background: #292929;
-            border-radius: 20px;
-            overflow: hidden;
-            margin: 12px 0;
-        }
+.filename {
+    font-weight: bold;
+    color: #e5b45b;
+}
 
-        #progressInner {
-            width: 0%;
-            height: 100%;
-            background: #d7a33d;
-            transition: width .2s;
-        }
+.details {
+    color: #aaa;
+    font-size: 12px;
+    margin-top: 5px;
+}
 
-        #status {
-            color: #ccc;
-            font-size: 14px;
-            margin-top: 8px;
-        }
+a {
+    color: #80baff;
+    overflow-wrap: anywhere;
+}
 
-        #diagnostics {
-            position: absolute;
-            z-index: 20;
-            left: 12px;
-            right: 12px;
-            bottom: 12px;
-            max-height: 35%;
-            overflow: auto;
-            padding: 12px;
-            background: rgba(0, 0, 0, .88);
-            border: 1px solid #555;
-            border-radius: 8px;
-            color: #ddd;
-            font: 12px monospace;
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-        }
+button {
+    padding: 12px 18px;
+    background: #d6a34a;
+    border: 0;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 5px 5px 5px 0;
+}
 
-        #errorScreen {
-            display: none;
-            position: absolute;
-            inset: 0;
-            z-index: 30;
-            background: #100707;
-            color: white;
-            padding: 30px;
-            overflow: auto;
-        }
+pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: #08090b;
+    padding: 12px;
+    border-radius: 7px;
+    max-height: 400px;
+    overflow: auto;
+    font-size: 12px;
+}
 
-        #errorScreen h2 {
-            color: #ff6464;
-        }
-
-        #errorText {
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-            font: 13px monospace;
-            line-height: 1.5;
-        }
-
-        button {
-            margin-top: 16px;
-            padding: 10px 18px;
-            border: 0;
-            border-radius: 6px;
-            background: #d7a33d;
-            color: #111;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        canvas {
-            width: 100% !important;
-            height: 100% !important;
-        }
-    </style>
+#summary {
+    color: #aaa;
+    margin: 12px 0;
+}
+</style>
 </head>
 
 <body>
-    <div id="gameContainer"></div>
 
-    <div id="loadingScreen">
-        <div id="loadingTitle">CUPHEAD</div>
-        <div id="progressOuter">
-            <div id="progressInner"></div>
-        </div>
-        <div id="status">Preparing launcher...</div>
-    </div>
+<h1>CUPHEAD BUILD INSPECTOR</h1>
 
-    <div id="diagnostics">Starting diagnostics...</div>
+<p>
+This diagnostic checks the actual files in the Cuphead GitHub repository.
+It does not download the game or modify anything.
+</p>
 
-    <div id="errorScreen">
-        <h2>CUPHEAD</h2>
-        <p>Startup failed. Diagnostic information:</p>
-        <div id="errorText"></div>
-        <button onclick="location.reload()">Retry</button>
-    </div>
+<button onclick="inspectBuild()">Inspect Build Folder</button>
+<button onclick="copyResults()">Copy Results</button>
+
+<div id="status">Waiting to inspect repository...</div>
+<div id="summary"></div>
+<div id="results"></div>
+
+<h3>Raw diagnostic output</h3>
+<pre id="rawOutput">No results yet.</pre>
 
 <script>
 "use strict";
 
-/* =========================================================
-   CONFIGURATION
-========================================================= */
-
-const CDN_ROOT =
-    "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Cuphead@main/";
-
-const FALLBACK_CDN_ROOT =
-    "https://cdn.jsdelivr.net/gh/web-ports/cuphead@c9ff1b6b16f9d402b78a42fc2200e1c076c0ab6e/";
+const API_URL =
+"https://api.github.com/repos/AMoldyWaffle/Cuphead/contents/Build";
 
 const RAW_ROOT =
-    "https://raw.githubusercontent.com/AMoldyWaffle/Cuphead/main/";
-
-const API_ROOT =
-    "https://api.github.com/repos/AMoldyWaffle/Cuphead/contents/";
-
-const BUILD = "Build/";
-
-const PARTS = {
-    "CupheadPort.data.unityweb": 103,
-    "CupheadPort.wasm.code.unityweb": 2,
-    "CupheadPort.asm.code.unityweb": 3
-};
-
-const PART_CONCURRENCY = 4;
-const STARTUP_TIMEOUT = 90000;
-
-/* =========================================================
-   ELEMENTS AND DIAGNOSTICS
-========================================================= */
+"https://raw.githubusercontent.com/AMoldyWaffle/Cuphead/main/Build/";
 
 const statusElement = document.getElementById("status");
-const progressElement = document.getElementById("progressInner");
-const diagnosticsElement = document.getElementById("diagnostics");
+const resultsElement = document.getElementById("results");
+const rawOutputElement = document.getElementById("rawOutput");
+const summaryElement = document.getElementById("summary");
 
-let diagnosticLines = [];
-let startupFailed = false;
-let unityStarted = false;
-let unityReady = false;
-let lastProgress = 0;
-
-function log(message) {
-    const timestamp = new Date().toLocaleTimeString();
-    diagnosticLines.push("[" + timestamp + "] " + message);
-
-    if (diagnosticLines.length > 100) {
-        diagnosticLines.shift();
-    }
-
-    diagnosticsElement.textContent = diagnosticLines.join("\n");
-    diagnosticsElement.scrollTop = diagnosticsElement.scrollHeight;
-}
+let outputText = "";
 
 function setStatus(message) {
     statusElement.textContent = message;
-    log(message);
 }
 
-function setProgress(value) {
-    value = Math.max(0, Math.min(100, Number(value) || 0));
-    lastProgress = value;
-    progressElement.style.width = value + "%";
-}
-
-function fail(message) {
-    if (startupFailed) return;
-
-    startupFailed = true;
-
-    log("FATAL: " + message);
-
-    document.getElementById("errorText").textContent =
-        diagnosticLines.join("\n");
-
-    document.getElementById("errorScreen").style.display = "block";
-    document.getElementById("loadingScreen").style.display = "none";
-}
-
-/* =========================================================
-   ENVIRONMENT CHECKS
-========================================================= */
-
-function checkEnvironment() {
-    log("Browser: " + navigator.userAgent);
-    log("Platform: " + navigator.platform);
-    log("WebAssembly: " + (typeof WebAssembly !== "undefined"));
-    log("Fetch: " + (typeof fetch !== "undefined"));
-    log("WebGL: " + (!!document.createElement("canvas").getContext("webgl")));
-    log("WebGL2: " + (!!document.createElement("canvas").getContext("webgl2")));
-    log("Device memory: " + (navigator.deviceMemory || "unknown") + " GB");
-
-    if (typeof WebAssembly === "undefined") {
-        throw new Error("WebAssembly is not supported.");
+function formatSize(bytes) {
+    if (bytes < 1024) {
+        return bytes + " B";
     }
 
-    if (!document.createElement("canvas").getContext("webgl")) {
-        throw new Error("WebGL is not supported.");
+    if (bytes < 1024 * 1024) {
+        return (bytes / 1024).toFixed(2) + " KB";
+    }
+
+    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+}
+
+async function inspectBuild() {
+    resultsElement.innerHTML = "";
+    summaryElement.textContent = "";
+    outputText = "";
+
+    setStatus("Connecting to GitHub API...");
+
+    try {
+        const response = await fetch(API_URL, {
+            cache: "no-store",
+            headers: {
+                "Accept": "application/vnd.github+json"
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                "GitHub API returned HTTP " + response.status
+            );
+        }
+
+        const files = await response.json();
+
+        if (!Array.isArray(files)) {
+            throw new Error("GitHub did not return a file listing.");
+        }
+
+        const sorted = files.sort((a, b) =>
+            a.name.localeCompare(b.name)
+        );
+
+        let totalSize = 0;
+        let fileCount = 0;
+        let directoryCount = 0;
+
+        const lines = [];
+
+        lines.push("CUPHEAD REPOSITORY BUILD FOLDER");
+        lines.push("Repository: AMoldyWaffle/Cuphead");
+        lines.push("Path: Build/");
+        lines.push("========================================");
+        lines.push("");
+
+        for (const file of sorted) {
+            const isDirectory = file.type === "dir";
+
+            if (isDirectory) {
+                directoryCount++;
+            } else {
+                fileCount++;
+                totalSize += file.size || 0;
+            }
+
+            const downloadURL =
+                file.download_url ||
+                (isDirectory ? "" : RAW_ROOT + encodeURIComponent(file.name));
+
+            const card = document.createElement("div");
+            card.className = "file";
+
+            const name = document.createElement("div");
+            name.className = "filename";
+            name.textContent =
+                (isDirectory ? "[FOLDER] " : "[FILE] ") + file.name;
+
+            const details = document.createElement("div");
+            details.className = "details";
+
+            details.textContent =
+                "Size: " + (isDirectory ? "N/A" : formatSize(file.size || 0)) +
+                " | Type: " + file.type;
+
+            card.appendChild(name);
+            card.appendChild(details);
+
+            if (downloadURL) {
+                const link = document.createElement("a");
+                link.href = downloadURL;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                link.textContent = "Open download URL";
+                card.appendChild(document.createElement("br"));
+                card.appendChild(link);
+            }
+
+            resultsElement.appendChild(card);
+
+            lines.push(
+                file.type +
+                " | " +
+                file.name +
+                " | " +
+                (file.size || 0) +
+                " bytes"
+            );
+
+            if (downloadURL) {
+                lines.push("URL: " + downloadURL);
+            }
+
+            lines.push("");
+        }
+
+        lines.push("========================================");
+        lines.push("Files: " + fileCount);
+        lines.push("Folders: " + directoryCount);
+        lines.push("Total listed file size: " + formatSize(totalSize));
+
+        outputText = lines.join("\n");
+        rawOutputElement.textContent = outputText;
+
+        summaryElement.textContent =
+            fileCount + " files, " +
+            directoryCount + " folders, " +
+            formatSize(totalSize) + " total";
+
+        setStatus("Inspection complete.");
+
+    } catch (error) {
+        setStatus("Inspection failed: " + error.message);
+
+        outputText =
+            "ERROR: " + error.message +
+            "\n\nPossible causes:\n" +
+            "- GitHub API access is blocked.\n" +
+            "- Network connection failed.\n" +
+            "- Repository or folder could not be found.";
+
+        rawOutputElement.textContent = outputText;
     }
 }
 
-/* =========================================================
-   CACHE CLEANUP
-========================================================= */
-
-async function cleanupCupheadCache() {
-    log("Checking old Cuphead cache entries...");
-
-    if (!("caches" in window)) {
-        log("Cache Storage unavailable; skipping cleanup.");
+async function copyResults() {
+    if (!outputText) {
+        setStatus("Nothing to copy yet.");
         return;
     }
 
     try {
-        const keys = await caches.keys();
-
-        for (const key of keys) {
-            if (
-                key.toLowerCase().includes("cuphead") ||
-                key.toLowerCase().includes("unity")
-            ) {
-                try {
-                    await caches.delete(key);
-                    log("Removed cache: " + key);
-                } catch (error) {
-                    log("Could not remove cache " + key + ": " + error.message);
-                }
-            }
-        }
-
-        log("Cache cleanup finished.");
+        await navigator.clipboard.writeText(outputText);
+        setStatus("Results copied to clipboard.");
     } catch (error) {
-        log("Cache cleanup warning: " + error.message);
+        rawOutputElement.focus;
+        setStatus("Clipboard unavailable. Copy the raw diagnostic output manually.");
     }
 }
 
-/* =========================================================
-   URL HELPERS
-========================================================= */
-
-function encodePath(path) {
-    return path.split("/").map(encodeURIComponent).join("/");
-}
-
-function sourceUrls(path) {
-    const encoded = encodePath(path);
-
-    return [
-        RAW_ROOT + encoded,
-        CDN_ROOT + path,
-        FALLBACK_CDN_ROOT + path,
-        API_ROOT + encoded
-    ];
-}
-
-/* =========================================================
-   FETCH WITH FALLBACK
-========================================================= */
-
-async function fetchWithFallback(path) {
-    const urls = sourceUrls(path);
-    const errors = [];
-
-    for (let i = 0; i < urls.length; i++) {
-        const url = urls[i];
-
-        try {
-            log("Fetching: " + url);
-
-            const response = await fetch(url, {
-                cache: "no-store",
-                mode: "cors"
-            });
-
-            if (!response.ok) {
-                throw new Error("HTTP " + response.status);
-            }
-
-            if (url.includes("api.github.com")) {
-                const json = await response.json();
-
-                if (!json.content) {
-                    throw new Error("GitHub API returned no file content.");
-                }
-
-                const binary = atob(json.content.replace(/\s/g, ""));
-                const bytes = new Uint8Array(binary.length);
-
-                for (let j = 0; j < binary.length; j++) {
-                    bytes[j] = binary.charCodeAt(j);
-                }
-
-                log("Downloaded through GitHub API: " + path);
-                return bytes;
-            }
-
-            const buffer = await response.arrayBuffer();
-
-            if (!buffer.byteLength) {
-                throw new Error("Downloaded file is empty.");
-            }
-
-            log("Downloaded " + path + " (" + buffer.byteLength + " bytes)");
-            return new Uint8Array(buffer);
-
-        } catch (error) {
-            errors.push(url + " -> " + error.message);
-            log("Source failed: " + error.message);
-        }
-    }
-
-    throw new Error(
-        "All download sources failed for " + path + "\n" +
-        errors.join("\n")
-    );
-}
-
-/* =========================================================
-   SPLIT FILE DOWNLOAD AND ASSEMBLY
-========================================================= */
-
-async function downloadPart(filename, partNumber) {
-    const padded = String(partNumber).padStart(3, "0");
-    const path = BUILD + filename + ".part" + padded;
-
-    return await fetchWithFallback(path);
-}
-
-async function downloadParts(filename, totalParts) {
-    setStatus("Downloading " + filename + "...");
-
-    const parts = new Array(totalParts);
-    let nextPart = 1;
-    let completed = 0;
-
-    async function worker() {
-        while (true) {
-            const partNumber = nextPart++;
-
-            if (partNumber > totalParts) {
-                return;
-            }
-
-            const data = await downloadPart(filename, partNumber);
-
-            parts[partNumber - 1] = data;
-            completed++;
-
-            const percent = Math.floor(
-                (completed / totalParts) * 100
-            );
-
-            setStatus(
-                "Downloading " + filename +
-                " - " + completed + "/" + totalParts
-            );
-
-            log(
-                filename + ": part " +
-                partNumber + "/" + totalParts +
-                " downloaded (" + data.byteLength + " bytes)"
-            );
-
-            setProgress(percent);
-        }
-    }
-
-    const workers = [];
-
-    for (let i = 0; i < PART_CONCURRENCY; i++) {
-        workers.push(worker());
-    }
-
-    await Promise.all(workers);
-
-    let totalSize = 0;
-
-    for (const part of parts) {
-        if (!part) {
-            throw new Error("A split-file part is missing: " + filename);
-        }
-
-        totalSize += part.byteLength;
-    }
-
-    log("Combining " + filename + " (" + totalSize + " bytes)");
-
-    const combined = new Uint8Array(totalSize);
-    let offset = 0;
-
-    for (const part of parts) {
-        combined.set(part, offset);
-        offset += part.byteLength;
-    }
-
-    log("Successfully assembled " + filename);
-
-    return combined;
-}
-
-/* =========================================================
-   BLOB URL MANAGEMENT
-========================================================= */
-
-const blobUrls = {};
-
-function createAssetBlob(filename, data) {
-    const blob = new Blob([data], {
-        type: "application/octet-stream"
-    });
-
-    const url = URL.createObjectURL(blob);
-
-    blobUrls[filename] = url;
-
-    log("Created Blob URL for " + filename);
-
-    return url;
-}
-
-function releaseBlobUrls() {
-    for (const filename of Object.keys(blobUrls)) {
-        try {
-            URL.revokeObjectURL(blobUrls[filename]);
-            log("Released Blob URL: " + filename);
-        } catch (error) {
-            log("Blob cleanup warning: " + error.message);
-        }
-    }
-}
-
-/* =========================================================
-   XHR ASSET INTERCEPTION
-========================================================= */
-
-function installAssetInterceptor() {
-    const originalOpen = XMLHttpRequest.prototype.open;
-
-    XMLHttpRequest.prototype.open = function(method, url) {
-        let finalUrl = url;
-
-        if (typeof url === "string") {
-            for (const filename of Object.keys(blobUrls)) {
-                if (url.includes(filename)) {
-                    finalUrl = blobUrls[filename];
-                    log("Redirected Unity asset request: " + filename);
-                    break;
-                }
-            }
-        }
-
-        return originalOpen.apply(this, [
-            method,
-            finalUrl,
-            ...Array.prototype.slice.call(arguments, 2)
-        ]);
-    };
-
-    log("Asset XHR interception installed.");
-}
-
-/* =========================================================
-   XHR FAILURE DIAGNOSTICS
-========================================================= */
-
-function installXHRDiagnostics() {
-    const originalOpen = XMLHttpRequest.prototype.open;
-    const originalSend = XMLHttpRequest.prototype.send;
-
-    XMLHttpRequest.prototype.open = function(method, url) {
-        this.__cupheadURL = String(url);
-
-        return originalOpen.apply(this, arguments);
-    };
-
-    XMLHttpRequest.prototype.send = function() {
-        const xhr = this;
-
-        xhr.addEventListener("loadend", function() {
-            const url = xhr.__cupheadURL || "unknown URL";
-
-            if (xhr.status === 0) {
-                log("NETWORK ERROR: " + url);
-                log("HTTP status 0 may indicate a blocked request, CORS failure, or network interruption.");
-            } else if (xhr.status >= 400) {
-                log("HTTP " + xhr.status + ": " + url);
-            }
-        });
-
-        xhr.addEventListener("error", function() {
-            log("XHR ERROR: " + (xhr.__cupheadURL || "unknown URL"));
-        });
-
-        return originalSend.apply(this, arguments);
-    };
-
-    log("XHR diagnostics installed.");
-}
-
-/* =========================================================
-   UNITY LOADER SCRIPT
-========================================================= */
-
-async function loadUnityLoader() {
-    setStatus("Loading Unity engine...");
-
-    const scriptData = await fetchWithFallback(
-        BUILD + "UnityLoader.js"
-    );
-
-    const scriptText = new TextDecoder().decode(scriptData);
-
-    if (!scriptText || scriptText.length < 100) {
-        throw new Error("UnityLoader.js appears to be empty or incomplete.");
-    }
-
-    const script = document.createElement("script");
-
-    script.textContent = scriptText;
-
-    document.head.appendChild(script);
-
-    if (typeof window.UnityLoader === "undefined") {
-        throw new Error(
-            "UnityLoader.js downloaded, but UnityLoader was not initialized."
-        );
-    }
-
-    log("UnityLoader initialized.");
-}
-
-/* =========================================================
-   DOWNLOAD AND PREPARE ASSETS
-========================================================= */
-
-async function prepareAssets() {
-    const filenames = Object.keys(PARTS);
-
-    for (let i = 0; i < filenames.length; i++) {
-        const filename = filenames[i];
-
-        setStatus(
-            "Preparing game files (" +
-            (i + 1) + "/" + filenames.length + ")..."
-        );
-
-        const data = await downloadParts(
-            filename,
-            PARTS[filename]
-        );
-
-        createAssetBlob(filename, data);
-    }
-
-    log("All split assets downloaded and assembled.");
-}
-
-/* =========================================================
-   UNITY STARTUP
-========================================================= */
-
-function startUnity() {
-    setStatus("Starting Cuphead...");
-
-    installAssetInterceptor();
-
-    const configURL =
-        CDN_ROOT + "Build/CupheadPort.json";
-
-    log("Unity config: " + configURL);
-
-    if (typeof UnityLoader === "undefined") {
-        throw new Error("UnityLoader is unavailable.");
-    }
-
-    unityStarted = true;
-
-    const instance = UnityLoader.instantiate(
-        "gameContainer",
-        configURL,
-        {
-            onProgress: function(unityInstance, progress) {
-                if (startupFailed) return;
-
-                const percent = Math.floor(progress * 100);
-
-                setProgress(percent);
-
-                setStatus(
-                    "Starting Unity... " + percent + "%"
-                );
-
-                log("Unity progress: " + percent + "%");
-
-                if (percent >= 100) {
-                    log("Unity download progress reached 100%.");
-                }
-            },
-
-            Module: {
-                onRuntimeInitialized: function() {
-                    unityReady = true;
-
-                    log("Unity runtime initialized.");
-
-                    setProgress(100);
-
-                    setStatus("Cuphead loaded.");
-
-                    document.getElementById("loadingScreen").style.display =
-                        "none";
-
-                    diagnosticsElement.style.display = "none";
-                }
-            }
-        }
-    );
-
-    window.cupheadInstance = instance;
-
-    log("UnityLoader.instantiate called.");
-}
-
-/* =========================================================
-   GLOBAL ERROR HANDLERS
-========================================================= */
-
-window.addEventListener("error", function(event) {
-    const message =
-        event.message ||
-        (event.error && event.error.message) ||
-        "Unknown JavaScript error";
-
-    log("JavaScript error: " + message);
-
-    if (
-        message.includes("WebAssembly") ||
-        message.includes("DataView") ||
-        message.includes("memory access")
-    ) {
-        fail("Unity encountered a JavaScript or WebAssembly error: " + message);
-    }
-});
-
-window.addEventListener("unhandledrejection", function(event) {
-    const reason = event.reason;
-    const message = reason && reason.message
-        ? reason.message
-        : String(reason);
-
-    log("Unhandled promise rejection: " + message);
-});
-
-/* =========================================================
-   STARTUP TIMEOUT
-========================================================= */
-
-setTimeout(function() {
-    if (!unityReady && !startupFailed) {
-        fail(
-            "No Unity runtime initialization callback after " +
-            (STARTUP_TIMEOUT / 1000) +
-            " seconds.\n\n" +
-            "Last Unity progress: " + lastProgress + "%\n" +
-            "Unity started: " + unityStarted + "\n" +
-            "WebAssembly: " + (typeof WebAssembly !== "undefined")
-        );
-    }
-}, STARTUP_TIMEOUT);
-
-/* =========================================================
-   MAIN STARTUP SEQUENCE
-========================================================= */
-
-async function main() {
-    try {
-        checkEnvironment();
-
-        await cleanupCupheadCache();
-
-        setProgress(0);
-
-        await loadUnityLoader();
-
-        await prepareAssets();
-
-        setProgress(0);
-
-        startUnity();
-
-    } catch (error) {
-        fail(
-            error && error.stack
-                ? error.stack
-                : String(error)
-        );
-    }
-}
-
-main();
-
-/* =========================================================
-   PAGE EXIT CLEANUP
-========================================================= */
-
-window.addEventListener("beforeunload", function() {
-    releaseBlobUrls();
-});
+inspectBuild();
 </script>
+
 </body>
 </html>
