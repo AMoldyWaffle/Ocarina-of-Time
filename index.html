@@ -223,6 +223,43 @@
       const cdnFile = (p) =>
         `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${contentRef()}/${encPath(p)}`;
 
+      // ---------- image mirrors ----------
+      // Covers are loaded through this ordered list instead of a single
+      // hard-coded host. If one host is blocked (adblocker, school/work
+      // filter, DNS block, rate limit, outage) the <img> onerror handler
+      // silently walks down the list until one succeeds.
+      const IMAGE_MIRRORS = [
+        // 1. jsDelivr (fast global CDN)
+        (ref, p) => `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${ref}/${p}`,
+        // 2. GitHub raw (very unlikely to be blocked, just slower)
+        (ref, p) => `https://raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${p}`,
+        // 3. Statically (independent CDN, different hostname)
+        (ref, p) => `https://cdn.statically.io/gh/${OWNER}/${REPO}/${ref}/${p}`,
+        // 4. raw.githack (proxies GitHub with CORS + proper MIME types)
+        (ref, p) => `https://raw.githack.com/${OWNER}/${REPO}/${ref}/${p}`,
+        // 5. Image proxy – returns real image bytes from a neutral domain
+        (ref, p) => 'https://images.weserv.nl/?url=' +
+          encodeURIComponent(`raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${p}`),
+        // 6. wsrv.nl (same service, different hostname – dodges name blocks)
+        (ref, p) => 'https://wsrv.nl/?url=' +
+          encodeURIComponent(`raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${p}`),
+      ];
+
+      const imageMirrors = (p) => {
+        const ref = contentRef();
+        const path = encPath(p);
+        return IMAGE_MIRRORS.map((build) => build(ref, path));
+      };
+
+      // Inline SVG shown only if every mirror fails.
+      const PLACEHOLDER_IMG =
+        'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">' +
+          '<rect width="200" height="200" fill="#0f0f1a"/>' +
+          '<text x="100" y="105" fill="#555" font-family="sans-serif" ' +
+          'font-size="14" text-anchor="middle">no cover</text></svg>'
+        );
+
       const isImage = (name) => /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
       const isBetaMarker = (name) => /^beta/i.test(name);
 
@@ -430,6 +467,7 @@
 
         results.push({
           folderName: dirPath.split('/').pop(),
+          imagePath: imageFile.path,     // mirrors are built per-item
           imageUrl: cdnFile(imageFile.path),
           htmlPath: htmlFile.path,
           isBeta,
@@ -444,9 +482,30 @@
         card.dataset.name = item.folderName.toLowerCase();
 
         const img = document.createElement('img');
-        img.src = item.imageUrl;
         img.alt = `Cover for ${item.folderName}`;
         img.loading = 'lazy';
+        img.decoding = 'async';
+        img.referrerPolicy = 'no-referrer';   // some filters trip on referer
+
+        // Walk the mirror list on every load failure instead of giving up.
+        const sources = imageMirrors(item.imagePath);
+        let idx = 0;
+        let done = false;
+
+        const handleError = () => {
+          if (done) return;
+          idx++;
+          if (idx < sources.length) {
+            img.src = sources[idx];
+          } else {
+            done = true;
+            img.removeEventListener('error', handleError);
+            img.src = PLACEHOLDER_IMG;
+          }
+        };
+
+        img.addEventListener('error', handleError);
+        img.src = sources[0];
 
         const name = document.createElement('div');
         name.className = 'folder-name';
