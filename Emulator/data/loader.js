@@ -229,7 +229,7 @@ async function prepareLanguage() {
     }
 
     if (!EmulatorJS) {
-        console.error("EmulatorJS failed to load. Check for missing files.");
+        console.error("WafflesIsolationism failed to load. Check for missing files.");
         return;
     }
 

@@ -113,7 +113,7 @@
     "Download Game State": "下载游戏状态",
     "Check console": "检查控制台",
     "Error for site owner": "给站长的错误提醒",
-    "EmulatorJS": "EmulatorJS",
+    "EmulatorJS": "WafflesIsolationism",
     "Clear All": "全部清除",
     "Take Screenshot": "截图",
     "Quick Save": "快速保存",
@@ -314,7 +314,6 @@
     "Cancel": "取消",
     "Note that some cheats require a restart to disable": "请注意，某些作弊码需要重新启动才能禁用",
     "Drop save state here to load": "将状态保存文件拖放到此处以加载",
-
     "Disks": "Disks",
     "SWAP DISKS": "SWAP DISKS",
     "EJECT/INSERT DISK": "EJECT/INSERT DISK",

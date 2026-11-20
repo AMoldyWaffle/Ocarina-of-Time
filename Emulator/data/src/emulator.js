@@ -204,7 +204,7 @@ class EmulatorJS {
                 response.text().then(body => {
                     let version = JSON.parse(body);
                     if (this.versionAsInt(this.ejs_version) < this.versionAsInt(version.version)) {
-                        console.log(`Using EmulatorJS version ${this.ejs_version} but the newest version is ${version.current_version}\nopen https://github.com/EmulatorJS/EmulatorJS to update`);
+                        console.log(`Using WafflesIsolationism version ${this.ejs_version} but the newest version is ${version.current_version}\nopen https://github.com/EmulatorJS/EmulatorJS to update`);
                     }
                 })
             }
@@ -584,7 +584,7 @@ class EmulatorJS {
     localization(text, log) {
         if (typeof text === "undefined" || text.length === 0) return;
         text = text.toString();
-        if (text.includes("EmulatorJS v")) return text;
+        if (text.includes("WafflesIsolationism v")) return text;
         if (this.config.langJson) {
             if (typeof log === "undefined") log = true;
             if (!this.config.langJson[text] && log) {
@@ -597,8 +597,8 @@ class EmulatorJS {
     }
     checkCoreCompatibility(version) {
         if (this.versionAsInt(version.minimumEJSVersion) > this.versionAsInt(this.ejs_version)) {
-            this.startGameError(this.localization("Outdated EmulatorJS version"));
-            throw new Error("Core requires minimum EmulatorJS version of " + version.minimumEJSVersion);
+            this.startGameError(this.localization("Outdated WafflesIsolationism version"));
+            throw new Error("Core requires minimum WafflesIsolationism version of " + version.minimumEJSVersion);
         }
     }
     startGameError(message) {
@@ -1124,7 +1124,7 @@ class EmulatorJS {
     initModule(wasmData, threadData) {
         if (typeof window.EJS_Runtime !== "function") {
             console.warn("EJS_Runtime is not defined!");
-            this.startGameError(this.localization("Error loading EmulatorJS runtime"));
+            this.startGameError(this.localization("Error loading WafflesIsolationism runtime"));
             throw new Error("EJS_Runtime is not defined!");
         }
         window.EJS_Runtime({
@@ -1729,9 +1729,9 @@ class EmulatorJS {
             save: qSave,
             load: qLoad
         }
-        addButton("EmulatorJS v" + this.ejs_version, false, () => {
+        addButton("WafflesIsolationism v" + this.ejs_version, false, () => {
             hideMenu();
-            const body = this.createPopup("EmulatorJS", {
+            const body = this.createPopup("WafflesIsolationism", {
                 "Close": () => {
                     this.closePopup();
                 }
@@ -1774,7 +1774,7 @@ class EmulatorJS {
             body.appendChild(retroarch);
             body.appendChild(coreLicense);
 
-            home.innerText = "EmulatorJS v" + this.ejs_version;
+            home.innerText = "WafflesIsolationism v" + this.ejs_version;
             home.appendChild(this.createElement("br"));
             home.appendChild(this.createElement("br"));
 
@@ -2505,14 +2505,14 @@ class EmulatorJS {
 
                 this.addEventListener(submit, "click", (e) => {
                     popups[0].remove();
-                    const body = this.createPopup("EmulatorJS has exited", {});
+                    const body = this.createPopup("WafflesIsolationism has exited", {});
                     setTimeout(() => {
                         this.callEvent("exit");
                     }, 20);
                 })
                 setTimeout(this.menu.close.bind(this), 20);
             } else {
-                const body = this.createPopup("EmulatorJS has exited", {});
+                const body = this.createPopup("WafflesIsolationism has exited", {});
                 setTimeout(() => {
                     this.callEvent("exit");
                 }, 20);
