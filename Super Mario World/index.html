@@ -17,7 +17,7 @@ justify-content:center;font-family:Arial,sans-serif;text-align:center
 }
 #loading-bar-bg{width:280px;height:10px;background:#333;border-radius:10px;margin-top:15px}
 #loading-bar{height:100%;width:0%;background:#1685ff;border-radius:10px;transition:width .2s}
-#loading-text{color:#aaa;font-size:13px;margin-top:12px}
+#loading-text{color:#aaa;font-size:13px;margin-top:12px;max-width:90%;overflow-wrap:anywhere}
 #consoleToggle{
 position:fixed;top:10px;right:10px;z-index:999999;padding:9px 14px;
 background:#222;color:white;border:1px solid #555;border-radius:6px;cursor:pointer
@@ -115,7 +115,6 @@ console.warn=function(...args){
 };
 
 window.addEventListener("error",function(event){
-
     if(event.target && event.target!==window){
         log("ERROR","Resource error: "+
             (event.target.src||event.target.href||"Unknown resource"));
@@ -125,8 +124,7 @@ window.addEventListener("error",function(event){
     log("FATAL ERROR",
         (event.message||"Unknown JavaScript error")+
         " | File: "+(event.filename||"unknown")+
-        " | Line: "+(event.lineno||"?")+
-        " | Column: "+(event.colno||"?")
+        " | Line: "+(event.lineno||"?")
     );
 
     if(event.error && event.error.stack){
@@ -149,8 +147,39 @@ const ROM_URL=
 
 const GAME_NAME="Super Mario World";
 
-const DATA_URL=
-"https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/";
+/*
+   MIRROR LIST
+
+   Each mirror points to the same EmulatorJS
+   data folder in your GitHub repository.
+*/
+
+const MIRRORS=[
+    {
+        name:"jsDelivr Main",
+        base:"https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/"
+    },
+    {
+        name:"jsDelivr Fastly",
+        base:"https://fastly.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/"
+    },
+    {
+        name:"jsDelivr TestingCF",
+        base:"https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/"
+    },
+    {
+        name:"GitHub Raw",
+        base:"https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Emulator/data/"
+    },
+    {
+        name:"Raw.githack",
+        base:"https://raw.githack.com/AMoldyWaffle/Ocarina-of-Time/main/Emulator/data/"
+    }
+];
+
+let selectedMirror=null;
+let currentAttempt=0;
+let mirrorFailures=[];
 
 /* =================================
    LOADING DISPLAY
@@ -177,16 +206,11 @@ window.EJS_player="#game";
 window.EJS_core="snes9x";
 window.EJS_gameName=GAME_NAME;
 window.EJS_gameUrl=ROM_URL;
-window.EJS_pathtodata=DATA_URL;
 
 window.EJS_startOnLoaded=true;
 window.EJS_fullscreenOnLoaded=false;
 window.EJS_volume=0.5;
 window.EJS_color="#1685ff";
-
-/* =================================
-   EMULATORJS CALLBACKS
-================================= */
 
 window.EJS_ready=function(){
     log("SUCCESS","EmulatorJS READY event received.");
@@ -231,6 +255,114 @@ window.EJS_Buttons={
 };
 
 /* =================================
+   TRY MIRRORS
+================================= */
+
+function tryNextMirror(){
+
+    if(currentAttempt>=MIRRORS.length){
+
+        log("FATAL ERROR","ALL MIRRORS FAILED.");
+        log("FATAL ERROR","No hosting link could load loader.js.");
+
+        log("INFO","Failed mirror list:");
+
+        mirrorFailures.forEach(function(item){
+            log("ERROR",item);
+        });
+
+        loadingText("All emulator hosting links failed. Open console.");
+        return;
+    }
+
+    const mirror=MIRRORS[currentAttempt];
+    const attemptNumber=currentAttempt+1;
+
+    currentAttempt++;
+
+    selectedMirror=mirror;
+
+    /*
+       IMPORTANT:
+       Tell EmulatorJS to use the same mirror
+       for all its additional data files.
+    */
+
+    window.EJS_pathtodata=mirror.base;
+
+    log("INFO","--------------------------------");
+    log("INFO","Trying mirror "+attemptNumber+" of "+MIRRORS.length);
+    log("INFO","Host: "+mirror.name);
+    log("INFO","URL: "+mirror.base+"loader.js");
+
+    loadingText("Trying "+mirror.name+" ("+
+        attemptNumber+"/"+MIRRORS.length+")...");
+    loadingProgress((attemptNumber-1)/MIRRORS.length*30);
+
+    const script=document.createElement("script");
+
+    script.src=mirror.base+"loader.js";
+    script.async=true;
+
+    let completed=false;
+
+    const failureTimer=setTimeout(function(){
+
+        if(completed)return;
+
+        completed=true;
+
+        log("WARN",mirror.name+" timed out.");
+
+        mirrorFailures.push(mirror.name+" - timeout");
+
+        script.remove();
+        tryNextMirror();
+
+    },12000);
+
+    script.onload=function(){
+
+        if(completed)return;
+
+        completed=true;
+        clearTimeout(failureTimer);
+
+        log("SUCCESS","LOADER DOWNLOADED: "+mirror.name);
+        log("SUCCESS","Selected emulator data host: "+mirror.base);
+        log("INFO","Waiting for EmulatorJS to initialize...");
+
+        loadingProgress(35);
+        loadingText("Loaded "+mirror.name+". Initializing emulator...");
+
+        /*
+           Do not try another mirror here.
+           loader.js loads its own dependencies
+           asynchronously after this event.
+        */
+    };
+
+    script.onerror=function(){
+
+        if(completed)return;
+
+        completed=true;
+        clearTimeout(failureTimer);
+
+        log("ERROR","FAILED: "+mirror.name);
+        log("ERROR","Browser could not load "+script.src);
+
+        mirrorFailures.push(mirror.name+" - script load failed");
+
+        script.remove();
+
+        setTimeout(tryNextMirror,300);
+    };
+
+    document.body.appendChild(script);
+}
+
+/* =================================
    RESOURCE MONITOR
 ================================= */
 
@@ -239,57 +371,18 @@ if("PerformanceObserver" in window){
         const observer=new PerformanceObserver(function(list){
             for(const item of list.getEntries()){
                 if(item.name.includes("jsdelivr") ||
-                   item.name.includes("githubusercontent")){
-                    log("INFO","Resource requested: "+item.name+
-                        " | Duration: "+Math.round(item.duration)+"ms");
+                   item.name.includes("githubusercontent") ||
+                   item.name.includes("githack")){
+                    log("INFO","Resource: "+item.name+
+                        " | "+Math.round(item.duration)+"ms");
                 }
             }
         });
 
         observer.observe({type:"resource",buffered:true});
     }catch(error){
-        log("WARN","Resource monitoring unavailable: "+error.message);
+        log("WARN","Resource monitoring unavailable.");
     }
-}
-
-/* =================================
-   LOAD EMULATORJS
-================================= */
-
-function loadEmulator(){
-
-    log("INFO","Game: "+GAME_NAME);
-    log("INFO","ROM: "+ROM_URL);
-    log("INFO","Core: "+window.EJS_core);
-    log("INFO","Emulator data: "+DATA_URL);
-    log("INFO","Browser: "+navigator.userAgent);
-    log("INFO","WebAssembly: "+(typeof WebAssembly!=="undefined"));
-
-    loadingText("Loading EmulatorJS...");
-    loadingProgress(10);
-
-    log("INFO","Loading loader.js directly without fetch or CORS mode...");
-
-    const script=document.createElement("script");
-
-    script.src=DATA_URL+"loader.js";
-    script.async=true;
-
-    script.onload=function(){
-        log("SUCCESS","loader.js downloaded and executed.");
-        log("INFO","Waiting for EmulatorJS initialization...");
-        loadingProgress(20);
-        loadingText("Initializing emulator...");
-    };
-
-    script.onerror=function(){
-        log("FATAL ERROR","Browser could not load or execute loader.js.");
-        log("ERROR","URL: "+script.src);
-        log("ERROR","Check network access, browser extensions, and embedded-page restrictions.");
-        loadingText("Could not load EmulatorJS. Check console.");
-    };
-
-    document.body.appendChild(script);
 }
 
 /* =================================
@@ -303,18 +396,27 @@ setTimeout(function(){
     if(window.EJS_emulator){
         log("WARN","Emulator object exists but game has not started.");
         loadingText("Emulator loaded. Waiting for game...");
-    }else{
-        log("FATAL ERROR","EmulatorJS did not create its emulator object within 30 seconds.");
-        loadingText("Initialization timed out. Open console for details.");
+    }else if(selectedMirror){
+        log("FATAL ERROR","A loader was downloaded from "+selectedMirror.name+
+            " but EmulatorJS did not initialize.");
+        log("ERROR","The loader's additional files may be blocked or unavailable.");
+        loadingText("Emulator initialization timed out. Check console.");
     }
 
-},30000);
+},45000);
 
 /* =================================
    START
 ================================= */
 
-loadEmulator();
+log("INFO","Game: "+GAME_NAME);
+log("INFO","ROM: "+ROM_URL);
+log("INFO","Core: "+window.EJS_core);
+log("INFO","Browser: "+navigator.userAgent);
+log("INFO","WebAssembly: "+(typeof WebAssembly!=="undefined"));
+log("INFO","Testing "+MIRRORS.length+" emulator hosting links.");
+
+tryNextMirror();
 
 </script>
 </body>
