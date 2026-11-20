@@ -282,8 +282,7 @@ if (!CORE) {
    EMULATORJS CDN
 ============================== */
 
-const DATA =
-"https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/";
+const DATA = new URL("../Emulator/data/", window.location.href).href;
 
 window.EJS_player = "#game";
 window.EJS_core = CORE;
