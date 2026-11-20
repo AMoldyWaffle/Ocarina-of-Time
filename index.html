@@ -85,13 +85,59 @@
       transform: translateY(-4px);
       box-shadow: 0 8px 20px rgba(240, 192, 64, 0.25);
     }
-    .card img {
+
+    /* ---------- cover: a canvas painted from decoded bytes ---------- */
+    .card .cover {
+      position: relative;
       width: 100%;
       aspect-ratio: 1 / 1;
-      object-fit: cover;
-      display: block;
       background: #0f0f1a;
+      overflow: hidden;
     }
+    .card .cover > canvas,
+    .card .cover > img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+    .card .cover.ready > canvas,
+    .card .cover.ready > img {
+      animation: decodeIn 0.65s cubic-bezier(.2, .7, .2, 1) both;
+    }
+    @keyframes decodeIn {
+      0%   { filter: blur(18px) brightness(0.35) saturate(0.15); transform: scale(1.08); }
+      55%  { filter: blur(4px)  brightness(0.80) saturate(0.75); transform: scale(1.02); }
+      100% { filter: none; transform: scale(1); }
+    }
+
+    /* placeholder shimmer while the bytes are being pulled down */
+    .cover-shimmer {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(100deg, #0f0f1a 20%, #1c2a4a 42%, #0f0f1a 64%);
+      background-size: 220% 100%;
+      animation: shimmer 1.4s linear infinite;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 160% 0; }
+      100% { background-position: -60% 0; }
+    }
+
+    .cover-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #4a4a5a;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background:
+        repeating-linear-gradient(45deg, #0f0f1a 0 10px, #12121f 10px 20px);
+    }
+
     .card .folder-name {
       padding: 0.75rem 1rem;
       text-align: center;
@@ -185,83 +231,251 @@
   <script>
     (async function () {
       const OWNER = 'AMoldyWaffle';
-      const REPO = 'Ocarina-of-Time';
+      const REPO  = 'Ocarina-of-Time';
 
-      const statusEl     = document.getElementById('status');
-      const searchInput  = document.getElementById('search');
-      const betaSection  = document.getElementById('betaSection');
-      const mainSection  = document.getElementById('mainSection');
-      const noResults    = document.getElementById('noResults');
-      const viewer       = document.getElementById('viewer');
-      const viewerFrame  = document.getElementById('viewerFrame');
-      const viewerTitle  = document.getElementById('viewerTitle');
-      const closeBtn     = document.getElementById('closeViewer');
-      const faviconEl    = document.getElementById('favicon');
+      const statusEl    = document.getElementById('status');
+      const searchInput = document.getElementById('search');
+      const betaSection = document.getElementById('betaSection');
+      const mainSection = document.getElementById('mainSection');
+      const noResults   = document.getElementById('noResults');
+      const viewer      = document.getElementById('viewer');
+      const viewerFrame = document.getElementById('viewerFrame');
+      const viewerTitle = document.getElementById('viewerTitle');
+      const closeBtn    = document.getElementById('closeViewer');
+      const faviconEl   = document.getElementById('favicon');
 
       // ============================================================
-      // CACHE-BUSTING
-      //   - API calls: cache:'no-store' + ?t=... (forces a network hit)
-      //   - Content URLs: pinned to a commit SHA, so every push gets a
-      //     new URL and both raw.githubusercontent and jsdelivr are
-      //     guaranteed to serve the newest bytes for that SHA.
-      //   - SHA itself is re-fetched before every game launch.
+      // CACHE-BUSTING / URL BUILDERS
       // ============================================================
       const bust = (url) =>
         url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
 
       let BRANCH = 'main';
-      let SHA    = null;               // latest commit SHA (preferred)
+      let SHA    = null;
       const contentRef = () => SHA || BRANCH;
 
-      // ---------- URL builders (all use the commit SHA) ----------
       const encPath = (p) => p.split('/').map(encodeURIComponent).join('/');
       const rawFile = (p) =>
         `https://raw.githubusercontent.com/${OWNER}/${REPO}/${contentRef()}/${encPath(p)}`;
       const cdnDir = (dir) =>
         `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${contentRef()}/` +
         (dir ? encPath(dir) + '/' : '');
-      const cdnFile = (p) =>
-        `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${contentRef()}/${encPath(p)}`;
 
-      // ---------- image mirrors ----------
-      // Covers are loaded through this ordered list instead of a single
-      // hard-coded host. If one host is blocked (adblocker, school/work
-      // filter, DNS block, rate limit, outage) the <img> onerror handler
-      // silently walks down the list until one succeeds.
+      // ============================================================
+      // IMAGE MIRRORS
+      //   Covers are no longer loaded through <img src="https://…">.
+      //   Instead the raw bytes are pulled with fetch() and decoded
+      //   into pixels on a <canvas>. That means:
+      //     • no image request ever appears in the DOM
+      //     • a failed/blocked host can be skipped silently
+      //     • a filter that returns an HTML "blocked" page (200 OK)
+      //       is rejected by the magic-byte check and the next mirror
+      //       is tried instead of showing a broken image.
+      // ============================================================
       const IMAGE_MIRRORS = [
         // 1. jsDelivr (fast global CDN)
         (ref, p) => `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${ref}/${p}`,
-        // 2. GitHub raw (very unlikely to be blocked, just slower)
+        // 2. GitHub raw (different hostname, rarely blocked)
         (ref, p) => `https://raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${p}`,
-        // 3. Statically (independent CDN, different hostname)
+        // 3. Statically (independent CDN)
         (ref, p) => `https://cdn.statically.io/gh/${OWNER}/${REPO}/${ref}/${p}`,
-        // 4. raw.githack (proxies GitHub with CORS + proper MIME types)
+        // 4. raw.githack
         (ref, p) => `https://raw.githack.com/${OWNER}/${REPO}/${ref}/${p}`,
-        // 5. Image proxy – returns real image bytes from a neutral domain
+        // 5. Neutral-domain image proxy
         (ref, p) => 'https://images.weserv.nl/?url=' +
           encodeURIComponent(`raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${p}`),
-        // 6. wsrv.nl (same service, different hostname – dodges name blocks)
+        // 6. Same proxy, different hostname
         (ref, p) => 'https://wsrv.nl/?url=' +
           encodeURIComponent(`raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${p}`),
       ];
 
-      const imageMirrors = (p) => {
-        const ref = contentRef();
-        const path = encPath(p);
-        return IMAGE_MIRRORS.map((build) => build(ref, path));
+      const imageMirrors = (path) => {
+        const ref  = contentRef();
+        const enc  = encPath(path);
+        return IMAGE_MIRRORS.map((build) => build(ref, enc));
       };
 
-      // Inline SVG shown only if every mirror fails.
-      const PLACEHOLDER_IMG =
-        'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-          '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">' +
-          '<rect width="200" height="200" fill="#0f0f1a"/>' +
-          '<text x="100" y="105" fill="#555" font-family="sans-serif" ' +
-          'font-size="14" text-anchor="middle">no cover</text></svg>'
-        );
-
-      const isImage = (name) => /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
+      const isImage      = (name) => /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
       const isBetaMarker = (name) => /^beta/i.test(name);
+
+      // ---------- binary sniffing: is this actually a picture? ----------
+      function sniffImageMime(b) {
+        if (b.length >= 8 &&
+            b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 &&
+            b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A) {
+          return 'image/png';
+        }
+        if (b.length >= 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) {
+          return 'image/jpeg';
+        }
+        if (b.length >= 4 &&
+            b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) {
+          return 'image/gif';
+        }
+        if (b.length >= 12 &&
+            b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+            b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) {
+          return 'image/webp';
+        }
+        if (b.length >= 2 && b[0] === 0x42 && b[1] === 0x4D) return 'image/bmp';
+        if (b.length >= 4 &&
+            b[0] === 0x00 && b[1] === 0x00 && b[2] === 0x01 && b[3] === 0x00) {
+          return 'image/x-icon';
+        }
+        // SVG / XML are text — check the head
+        try {
+          const head = new TextDecoder('utf-8', { fatal: false })
+            .decode(b.subarray(0, Math.min(256, b.length)))
+            .replace(/^\uFEFF/, '')
+            .trimStart();
+          if (/^<svg[\s>]/i.test(head) || /^<\?xml[\s>]/i.test(head)) {
+            return 'image/svg+xml';
+          }
+        } catch (e) { /* not text */ }
+        return null;
+      }
+
+      // ---------- pull the bytes from the first mirror that works ----------
+      async function fetchImageBlob(path) {
+        for (const url of imageMirrors(path)) {
+          try {
+            const res = await fetch(url, {
+              cache: 'force-cache',       // SHA-pinned URLs are immutable
+              credentials: 'omit',
+              referrerPolicy: 'no-referrer',
+              mode: 'cors',
+            });
+            if (!res.ok) continue;
+
+            const buf   = await res.arrayBuffer();
+            const bytes = new Uint8Array(buf);
+            if (bytes.length < 16) continue;
+
+            const mime = sniffImageMime(bytes);
+            if (!mime) continue;        // HTML block page, error page, etc.
+
+            return new Blob([buf], { type: mime });
+          } catch (e) { /* try next mirror */ }
+        }
+        return null;
+      }
+
+      function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload  = () => resolve(fr.result);
+          fr.onerror = () => reject(fr.error);
+          fr.readAsDataURL(blob);
+        });
+      }
+
+      // ---------- decode blob → drawable source ----------
+      async function decodeBlob(blob) {
+        // Preferred: createImageBitmap (off-main-thread decode)
+        try {
+          const bmp = await createImageBitmap(blob);
+          return {
+            source: bmp,
+            width:  bmp.width  || 300,
+            height: bmp.height || 300,
+            cleanup: () => { if (bmp.close) bmp.close(); },
+          };
+        } catch (e) { /* fall through to <img> decode */ }
+
+        const url = URL.createObjectURL(blob);
+        try {
+          const img = new Image();
+          img.decoding = 'async';
+          await new Promise((res, rej) => {
+            img.onload  = () => res();
+            img.onerror = () => rej(new Error('decode failed'));
+            img.src = url;
+          });
+          return {
+            source: img,
+            width:  img.naturalWidth  || 300,
+            height: img.naturalHeight || 300,
+            cleanup: () => URL.revokeObjectURL(url),
+          };
+        } catch (err) {
+          URL.revokeObjectURL(url);
+          throw err;
+        }
+      }
+
+      // ---------- render decoded bytes onto a square canvas ----------
+      async function blobToCoverCanvas(blob) {
+        const SIZE = 480;
+        const decoded = await decodeBlob(blob);
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width  = SIZE;
+          canvas.height = SIZE;
+
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          const scale = Math.max(SIZE / decoded.width, SIZE / decoded.height);
+          const dw = decoded.width  * scale;
+          const dh = decoded.height * scale;
+
+          ctx.drawImage(
+            decoded.source,
+            (SIZE - dw) / 2, (SIZE - dh) / 2,
+            dw, dh
+          );
+          return canvas;
+        } finally {
+          decoded.cleanup();
+        }
+      }
+
+      // ---------- paint one card ----------
+      async function paintCover(card) {
+        const cover = card.querySelector('.cover');
+        const item  = card._item;
+        if (!cover || !item || cover.dataset.painted === '1') return;
+        cover.dataset.painted = '1';
+
+        const blob = await fetchImageBlob(item.imagePath);
+        if (!blob) { showCoverFallback(cover); return; }
+
+        // 1) bytes → pixels on a canvas (no image element at all)
+        try {
+          const canvas = await blobToCoverCanvas(blob);
+          canvas.className = 'cover-canvas';
+          canvas.setAttribute('role', 'img');
+          canvas.setAttribute('aria-label', `Cover for ${item.folderName}`);
+          cover.replaceChildren(canvas);
+          cover.classList.remove('loading');
+          cover.classList.add('ready');
+          return;
+        } catch (e) { /* fall through */ }
+
+        // 2) inline data URL — still no external image request
+        try {
+          const dataUrl = await blobToDataUrl(blob);
+          const img = new Image();
+          img.className = 'cover-canvas';
+          img.alt = `Cover for ${item.folderName}`;
+          img.src = dataUrl;
+          cover.replaceChildren(img);
+          cover.classList.remove('loading');
+          cover.classList.add('ready');
+          return;
+        } catch (e) { /* fall through */ }
+
+        showCoverFallback(cover);
+      }
+
+      function showCoverFallback(cover) {
+        const ph = document.createElement('div');
+        ph.className = 'cover-placeholder';
+        ph.textContent = 'no cover';
+        cover.replaceChildren(ph);
+        cover.classList.remove('loading');
+      }
 
       // ---------- fetch the latest commit SHA ----------
       async function getLatestSha() {
@@ -275,7 +489,6 @@
         return data.sha;
       }
 
-      // Refresh the SHA quietly — if it fails, keep the previous one.
       async function refreshSha() {
         try { SHA = await getLatestSha(); } catch (e) { /* keep old */ }
       }
@@ -317,10 +530,6 @@
       // ---------- launch a game inside the iframe ----------
       async function launchGame(htmlPath, folderName) {
         showLoading(folderName);
-
-        // Force the freshest commit before building URLs, so both the
-        // HTML fetch and every asset loaded inside the game come from
-        // the newest push — not a 12-hour-stale branch cache.
         await refreshSha();
 
         const dirPath = htmlPath.includes('/')
@@ -328,18 +537,10 @@
           : '';
 
         try {
-          // raw.githubusercontent pins to the commit; ?t= is belt-and-suspenders
-          const res = await fetch(
-            bust(rawFile(htmlPath)),
-            { cache: 'no-store' }
-          );
+          const res = await fetch(bust(rawFile(htmlPath)), { cache: 'no-store' });
           if (!res.ok) throw new Error(`Could not fetch HTML (HTTP ${res.status})`);
 
           let html = await res.text();
-
-          // base href already contains the fresh SHA → relative assets
-          // (game.js, sprites, audio, ...) are immutable-per-commit and
-          // therefore always fresh on a new push.
           html = injectBase(html, cdnDir(dirPath));
 
           viewerFrame.srcdoc = html;
@@ -372,7 +573,6 @@
         SHA = await getLatestSha();
         console.log('[cache] pinned to commit', SHA);
       } catch (err) {
-        // fall back to branch ref (still works, just not SHA-immutable)
         console.warn('[cache] could not resolve commit sha, using branch:', err.message);
       }
 
@@ -402,7 +602,7 @@
         childrenOf.get(parent).push(item);
       }
 
-      // ---------- root-level Cover folder → favicon ----------
+      // ---------- root-level Cover folder → favicon (decoded too) ----------
       const rootChildren = childrenOf.get('') || [];
       const rootCoverDir = rootChildren.find(
         (c) => c.type === 'tree' && c.path === 'Cover'
@@ -419,10 +619,14 @@
           pick(/^favicon\./i) || pick(/^icon\./i) || coverImages[0];
 
         if (faviconFile) {
-          // SHA is already in the URL path; the ?t= guarantees the browser
-          // re-reads the icon even if it cached the previous SHA's icon.
-          faviconEl.href = bust(cdnFile(faviconFile.path));
-          console.log('[favicon] Using', faviconFile.path);
+          (async () => {
+            const blob = await fetchImageBlob(faviconFile.path);
+            if (!blob) return;
+            try {
+              faviconEl.href = await blobToDataUrl(blob);
+              console.log('[favicon] decoded', faviconFile.path);
+            } catch (e) { /* ignore */ }
+          })();
         }
       }
 
@@ -467,12 +671,24 @@
 
         results.push({
           folderName: dirPath.split('/').pop(),
-          imagePath: imageFile.path,     // mirrors are built per-item
-          imageUrl: cdnFile(imageFile.path),
-          htmlPath: htmlFile.path,
+          imagePath:  imageFile.path,     // mirrors are built per-item
+          htmlPath:   htmlFile.path,
           isBeta,
         });
       }
+
+      // ============================================================
+      // LAZY DECODE — only decode covers that are actually on screen
+      // ============================================================
+      const coverObserver = ('IntersectionObserver' in window)
+        ? new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              coverObserver.unobserve(entry.target);
+              paintCover(entry.target);
+            }
+          }, { rootMargin: '300px 0px' })
+        : null;
 
       // ---------- render helpers ----------
       function buildCard(item) {
@@ -480,42 +696,25 @@
         card.className = 'card';
         card.title = `Play ${item.folderName}`;
         card.dataset.name = item.folderName.toLowerCase();
+        card._item = item;
 
-        const img = document.createElement('img');
-        img.alt = `Cover for ${item.folderName}`;
-        img.loading = 'lazy';
-        img.decoding = 'async';
-        img.referrerPolicy = 'no-referrer';   // some filters trip on referer
-
-        // Walk the mirror list on every load failure instead of giving up.
-        const sources = imageMirrors(item.imagePath);
-        let idx = 0;
-        let done = false;
-
-        const handleError = () => {
-          if (done) return;
-          idx++;
-          if (idx < sources.length) {
-            img.src = sources[idx];
-          } else {
-            done = true;
-            img.removeEventListener('error', handleError);
-            img.src = PLACEHOLDER_IMG;
-          }
-        };
-
-        img.addEventListener('error', handleError);
-        img.src = sources[0];
+        const cover = document.createElement('div');
+        cover.className = 'cover loading';
+        cover.innerHTML = '<div class="cover-shimmer"></div>';
 
         const name = document.createElement('div');
         name.className = 'folder-name';
         name.textContent = item.folderName;
 
-        card.appendChild(img);
+        card.appendChild(cover);
         card.appendChild(name);
         card.addEventListener('click', () =>
           launchGame(item.htmlPath, item.folderName)
         );
+
+        if (coverObserver) coverObserver.observe(card);
+        else paintCover(card);
+
         return card;
       }
 
