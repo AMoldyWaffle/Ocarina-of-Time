@@ -1,41 +1,311 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Super Mario World (Nostalgist.js)</title>
-    <style>
-        html, body { margin: 0; padding: 0; height: 100%; background: #000; }
-        #game { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-        canvas { max-width: 100%; max-height: 100%; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Super Mario World</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+#screen {
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+#emulator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#emulator iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 20px;
+  background: #000;
+  color: white;
+  font-size: 16px;
+  white-space: pre-line;
+  pointer-events: none;
+}
+
+#overlay.hidden {
+  display: none;
+}
+
+#consoleButton {
+  position: fixed;
+  z-index: 1000;
+  right: 14px;
+  bottom: 14px;
+  padding: 9px 14px;
+  border: 1px solid #555;
+  border-radius: 7px;
+  background: #202126;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+#consoleButton:hover {
+  opacity: 1;
+  background: #34363d;
+}
+
+#consolePanel {
+  display: none;
+  position: fixed;
+  z-index: 999;
+  left: 12px;
+  right: 12px;
+  bottom: 58px;
+  max-height: 38vh;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background: rgba(12, 13, 17, 0.96);
+  color: #ccc;
+  font: 12px/1.5 Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#consolePanel.visible {
+  display: block;
+}
+</style>
 </head>
+
 <body>
-    <div id="game"></div>
 
-    <!-- Load Nostalgist.js from jsDelivr -->
-    <script src="https://cdn.jsdelivr.net/npm/nostalgist"></script>
+<div id="screen">
+  <div id="emulator"></div>
+  <div id="overlay">Starting Super Mario World...</div>
+</div>
 
-    <script>
-        async function startGame() {
-            try {
-                await Nostalgist.launch({
-                    // Your ROM, served from jsDelivr (confirmed reachable)
-                    rom: "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Super%20Mario%20World/Super%20Mario%20World%20(USA).sfc",
-                    // The core to use. Nostalgist will fetch this from jsDelivr.
-                    core: "snes9x",
-                    // The element where the game canvas will be placed
-                    element: document.getElementById("game"),
-                });
-            } catch (error) {
-                console.error("Nostalgist launch failed:", error);
-                document.getElementById("game").innerHTML =
-                    '<p style="color:white;padding:20px;font-family:sans-serif;">' +
-                    'Failed to launch emulator. Check the console for details. Error: ' + error.message +
-                    '</p>';
-            }
-        }
+<div id="consolePanel"></div>
+<button id="consoleButton" type="button">Console</button>
 
-        startGame();
-    </script>
+<script>
+(async function () {
+  "use strict";
+
+  const BASE =
+    "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Emulator/Waffle/";
+
+  const ROM_URL =
+    "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Super%20Mario%20World/Super%20Mario%20World%20(USA).sfc";
+
+  const ROM_NAME = "Super Mario World (USA).sfc";
+
+  const overlay = document.getElementById("overlay");
+  const consolePanel = document.getElementById("consolePanel");
+  const consoleButton = document.getElementById("consoleButton");
+  const container = document.getElementById("emulator");
+
+  let emulatorStarted = false;
+
+  // Console toggle
+  consoleButton.addEventListener("click", () => {
+    const isVisible = consolePanel.classList.toggle("visible");
+    consoleButton.textContent = isVisible ? "Hide Console" : "Console";
+  });
+
+  function log(message) {
+    const line = "[SMW Launcher] " + message;
+    console.log(line);
+    consolePanel.textContent += line + "\n";
+    consolePanel.scrollTop = consolePanel.scrollHeight;
+  }
+
+  function status(message) {
+    log(message);
+    overlay.textContent = message;
+  }
+
+  function fail(error) {
+    const message = error?.message || String(error);
+
+    overlay.textContent = "Unable to start game:\n" + message;
+    overlay.classList.remove("hidden");
+
+    log("ERROR: " + message);
+    console.error("[SMW Launcher]", error);
+
+    // Automatically show console if an error occurs
+    consolePanel.classList.add("visible");
+    consoleButton.textContent = "Hide Console";
+  }
+
+  function timeout(promise, milliseconds, message) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        setTimeout(
+          () => reject(new Error(message)),
+          milliseconds
+        );
+      })
+    ]);
+  }
+
+  try {
+    // Download ROM automatically
+    status("Downloading Super Mario World...");
+
+    const romResponse = await fetch(ROM_URL, {
+      cache: "no-store"
+    });
+
+    if (!romResponse.ok) {
+      throw new Error(
+        "ROM download failed: HTTP " + romResponse.status
+      );
+    }
+
+    const romBuffer = await romResponse.arrayBuffer();
+
+    if (romBuffer.byteLength !== 524288) {
+      throw new Error(
+        "Unexpected ROM size: " + romBuffer.byteLength + " bytes"
+      );
+    }
+
+    log("ROM downloaded: " + romBuffer.byteLength + " bytes");
+
+    // Download Waffle loader
+    status("Loading emulator...");
+
+    const loaderResponse = await fetch(BASE + "loader.js", {
+      cache: "no-store"
+    });
+
+    if (!loaderResponse.ok) {
+      throw new Error(
+        "Loader download failed: HTTP " + loaderResponse.status
+      );
+    }
+
+    const loaderCode = await loaderResponse.text();
+
+    if (!loaderCode.includes("WafflesEmu")) {
+      throw new Error("Downloaded loader.js is invalid.");
+    }
+
+    const script = document.createElement("script");
+    script.textContent = loaderCode;
+    document.head.appendChild(script);
+
+    if (!window.WafflesEmu) {
+      throw new Error("Waffle loader failed to initialize.");
+    }
+
+    // Open emulator inside this page
+    status("Opening emulator...");
+
+    const emu = await WafflesEmu.open(BASE, {
+      container: container
+    });
+
+    // Listen for emulator events
+    emu.on(message => {
+      if (!message || !message.evt) return;
+
+      log("Waffle event: " + message.evt);
+
+      switch (message.evt) {
+        case "hello":
+          log("Emulator handshake received.");
+          break;
+
+        case "loading":
+          status("Loading game...");
+          break;
+
+        case "started":
+          emulatorStarted = true;
+          overlay.classList.add("hidden");
+          log("Super Mario World started!");
+          break;
+
+        case "error":
+          fail(
+            new Error(
+              message.msg || "The emulator reported an error."
+            )
+          );
+          break;
+      }
+    });
+
+    // Wait for emulator
+    status("Initializing emulator...");
+
+    await timeout(
+      emu.ready,
+      45000,
+      "Waffle initialization timed out."
+    );
+
+    log("Waffle is ready.");
+
+    // Load ROM automatically
+    status("Launching Super Mario World...");
+
+    const romFile = new File(
+      [romBuffer],
+      ROM_NAME,
+      {
+        type: "application/octet-stream"
+      }
+    );
+
+    await emu.load(romFile, {
+      system: "snes",
+      core: "snes9x"
+    });
+
+    log("ROM sent to emulator.");
+
+    setTimeout(() => {
+      if (!emulatorStarted) {
+        log("Still waiting for the emulator to report that the game started.");
+      }
+    }, 30000);
+
+  } catch (error) {
+    fail(error);
+  }
+})();
+</script>
+
 </body>
 </html>
