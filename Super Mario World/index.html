@@ -254,20 +254,19 @@ async function start() {
         window.EJS_DEBUG_XX = false;
 
         window.EJS_ready = function() {
-            if (id !== attempt) return;
+    status("Emulator ready. Loading SNES core...");
+    progress(75);
 
-            status("Emulator initialized. Starting game...");
-            progress(90);
-        };
+    // Reveal EmulatorJS's own loading screen and errors.
+    loading.style.display = "none";
+};
 
         window.EJS_onGameStart = function() {
-            if (id !== attempt) return;
-
-            status("Game started!");
-            progress(100);
-            loading.style.display = "none";
-            running = false;
-        };
+    status("Super Mario World started!");
+    progress(100);
+    loading.style.display = "none";
+    running = false;
+};
 
         /* 6. Execute loader */
 
