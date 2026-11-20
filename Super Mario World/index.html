@@ -26,77 +26,63 @@ html, body, #game {
 }
 
 /* Console toggle */
-
 #consoleToggle {
     position: fixed;
-    z-index: 999999;
     top: 10px;
     right: 10px;
-    padding: 9px 14px;
-    border: 1px solid #777;
-    border-radius: 5px;
+    z-index: 999999;
+    padding: 10px 15px;
     background: #222;
     color: white;
-    font: 13px Arial;
+    border: 1px solid #555;
+    border-radius: 6px;
     cursor: pointer;
 }
 
 /* Console panel */
-
 #consolePanel {
-    position: fixed;
-    z-index: 999998;
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-    height: min(40vh, 320px);
-    min-height: 140px;
-    display: flex;
-    flex-direction: column;
-    background: rgba(10,10,10,.97);
-    border: 1px solid #777;
-    border-radius: 7px;
-    color: white;
-    font-family: monospace;
-}
-
-#consolePanel.hidden {
     display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 45%;
+    background: rgba(10,10,10,.97);
+    color: white;
+    z-index: 999998;
+    font-family: monospace;
+    border-top: 2px solid #444;
 }
 
 #consoleHeader {
+    height: 40px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px;
-    background: #252525;
-    border-bottom: 1px solid #555;
-    font: bold 12px Arial;
-}
-
-#consoleHeader span {
-    flex: 1;
+    justify-content: space-between;
+    padding: 0 10px;
+    background: #222;
 }
 
 #consoleHeader button {
     padding: 5px 10px;
-    background: #444;
-    color: white;
-    border: 1px solid #777;
-    border-radius: 4px;
+    margin-left: 5px;
     cursor: pointer;
 }
 
 #consoleOutput {
-    flex: 1;
-    overflow: auto;
-    padding: 9px;
-    white-space: pre-wrap;
+    height: calc(100% - 40px);
+    overflow-y: auto;
+    padding: 10px;
+    font-size: 12px;
+    line-height: 1.6;
     overflow-wrap: anywhere;
-    font: 11px/1.5 monospace;
-    color: #ddd;
 }
 
+.log-info { color: #65b5ff; }
+.log-warn { color: #ffcc55; }
+.log-error { color: #ff6666; }
+.log-success { color: #65dd85; }
+.log-fatal { color: #ff3333; font-weight: bold; }
 </style>
 </head>
 
@@ -104,141 +90,74 @@ html, body, #game {
 
 <div id="game"></div>
 
-<button id="consoleToggle">Show console</button>
+<button id="consoleToggle">Show Console</button>
 
 <div id="consolePanel">
     <div id="consoleHeader">
-        <span>EmulatorJS Console</span>
-        <button id="clearConsole">Clear</button>
-        <button id="hideConsole">Hide</button>
+        <strong>EmulatorJS Console</strong>
+        <div>
+            <button onclick="clearConsole()">Clear</button>
+            <button onclick="hideConsole()">Hide</button>
+        </div>
     </div>
-    <div id="consoleOutput">Starting launcher...</div>
+    <div id="consoleOutput"></div>
 </div>
 
 <script>
-
 /* ==============================
-   ON-SCREEN CONSOLE
+   CONSOLE SYSTEM
 ============================== */
 
-const consolePanel = document.getElementById("consolePanel");
 const consoleOutput = document.getElementById("consoleOutput");
+const consolePanel = document.getElementById("consolePanel");
 const consoleToggle = document.getElementById("consoleToggle");
 
-let consoleLines = [];
-
-function addLog(message, type = "INFO") {
+function log(type, message) {
     const time = new Date().toLocaleTimeString();
 
-    consoleLines.push(
-        "[" + time + "] [" + type + "] " + String(message)
-    );
+    const entry = document.createElement("div");
+    entry.className = "log-" + type.toLowerCase().replace(" ", "-");
+    entry.textContent = "[" + time + "] [" + type.toUpperCase() + "] " + message;
 
-    if (consoleLines.length > 500) {
-        consoleLines.shift();
-    }
-
-    consoleOutput.textContent = consoleLines.join("\n");
+    consoleOutput.appendChild(entry);
     consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+    console.log("[" + type + "]", message);
 }
 
-function formatArgument(value) {
-    if (value instanceof Error) {
-        return value.stack || value.message;
-    }
-
-    if (typeof value === "string") {
-        return value;
-    }
-
-    try {
-        return JSON.stringify(value);
-    } catch (error) {
-        return String(value);
-    }
+function clearConsole() {
+    consoleOutput.innerHTML = "";
 }
 
-/* Capture normal browser console messages */
+function hideConsole() {
+    consolePanel.style.display = "none";
+    consoleToggle.textContent = "Show Console";
+}
 
-["log", "info", "warn", "error", "debug"].forEach(function(method) {
-    const original = console[method];
+consoleToggle.onclick = function() {
+    const visible = consolePanel.style.display === "block";
 
-    console[method] = function() {
-        const args = Array.from(arguments);
-
-        try {
-            original.apply(console, args);
-        } catch (error) {}
-
-        addLog(
-            args.map(formatArgument).join(" "),
-            method.toUpperCase()
-        );
-    };
-});
-
-/* Console controls */
-
-consoleToggle.addEventListener("click", function() {
-    consolePanel.classList.remove("hidden");
-    consoleToggle.style.display = "none";
-});
-
-document.getElementById("hideConsole").addEventListener("click", function() {
-    consolePanel.classList.add("hidden");
-    consoleToggle.style.display = "block";
-});
-
-document.getElementById("clearConsole").addEventListener("click", function() {
-    consoleLines = [];
-    consoleOutput.textContent = "";
-    addLog("Console cleared.");
-});
+    consolePanel.style.display = visible ? "none" : "block";
+    consoleToggle.textContent = visible ? "Show Console" : "Hide Console";
+};
 
 /* Capture JavaScript errors */
-
-window.addEventListener("error", function(event) {
-    addLog(
-        "JavaScript error: " + (event.message || "Unknown error"),
-        "ERROR"
-    );
-
-    if (event.filename) {
-        addLog("File: " + event.filename, "ERROR");
-    }
-
-    if (event.lineno) {
-        addLog("Line: " + event.lineno, "ERROR");
-    }
-
-    if (event.error && event.error.stack) {
-        addLog(event.error.stack, "ERROR");
-    }
-});
-
-/* Capture failed resource requests */
-
 window.addEventListener("error", function(event) {
     if (event.target && event.target !== window) {
-        const resource =
-            event.target.src ||
-            event.target.href ||
-            event.target.tagName;
-
-        addLog("Failed resource: " + resource, "RESOURCE ERROR");
+        log("RESOURCE ERROR",
+            "Failed resource: " + (event.target.src || event.target.href || "Unknown"));
+        return;
     }
-}, true);
+
+    log("ERROR",
+        "JavaScript error: " + event.message +
+        " | File: " + event.filename +
+        " | Line: " + event.lineno);
+});
 
 /* Capture rejected promises */
-
 window.addEventListener("unhandledrejection", function(event) {
-    const reason = event.reason;
-
-    addLog(
-        "Unhandled rejection: " +
-        (reason && reason.stack ? reason.stack : String(reason)),
-        "PROMISE ERROR"
-    );
+    log("ERROR", "Unhandled promise rejection: " + event.reason);
 });
 
 /* ==============================
@@ -249,8 +168,6 @@ const ROM_URL =
 "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Super%20Mario%20World/Super%20Mario%20World%20(USA).sfc";
 
 const GAME_NAME = "Super Mario World";
-
-/* Automatically select a core by file extension */
 
 const extension = ROM_URL.split("?")[0].split(".").pop().toLowerCase();
 
@@ -275,20 +192,25 @@ const CORE_MAP = {
 const CORE = CORE_MAP[extension];
 
 if (!CORE) {
+    log("FATAL ERROR", "Unsupported game extension: " + extension);
     throw new Error("Unsupported game extension: " + extension);
 }
 
 /* ==============================
-   EMULATORJS CDN
+   EMULATORJS CONFIGURATION
 ============================== */
 
-const DATA = new URL("../Emulator/data/", window.location.href).href;
+/* Primary and backup CDN locations */
+
+const DATA_SOURCES = [
+    "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Emulator/data/",
+    "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/"
+];
 
 window.EJS_player = "#game";
 window.EJS_core = CORE;
 window.EJS_gameName = GAME_NAME;
 window.EJS_gameUrl = ROM_URL;
-window.EJS_pathtodata = DATA;
 
 window.EJS_startOnLoaded = true;
 window.EJS_fullscreenOnLoaded = false;
@@ -322,28 +244,54 @@ window.EJS_Buttons = {
    LOAD EMULATORJS
 ============================== */
 
-addLog("Game: " + GAME_NAME);
-addLog("ROM: " + ROM_URL);
-addLog("Core: " + CORE);
-addLog("Emulator data: " + DATA);
-addLog("Browser: " + navigator.userAgent);
-addLog("WebAssembly: " + (typeof WebAssembly !== "undefined"));
+function loadEmulator(index) {
 
-addLog("Loading EmulatorJS loader...");
+    if (index >= DATA_SOURCES.length) {
+        log("FATAL ERROR", "All EmulatorJS sources failed.");
+        log("FATAL ERROR", "Check that Emulator/data/loader.js exists in your repository.");
+        return;
+    }
 
-const loader = document.createElement("script");
+    const DATA = DATA_SOURCES[index];
 
-loader.src = DATA + "loader.js";
+    window.EJS_pathtodata = DATA;
 
-loader.onload = function() {
-    addLog("EmulatorJS loader downloaded successfully.");
-};
+    log("INFO", "Trying emulator source: " + DATA);
 
-loader.onerror = function() {
-    addLog("FAILED TO LOAD EMULATORJS LOADER: " + loader.src, "FATAL ERROR");
-};
+    const loader = document.createElement("script");
 
-document.body.appendChild(loader);
+    loader.src = DATA + "loader.js";
+
+    loader.onload = function() {
+        log("SUCCESS", "EmulatorJS loader downloaded successfully.");
+        log("INFO", "Waiting for emulator initialization...");
+    };
+
+    loader.onerror = function() {
+        log("ERROR", "Failed to load loader.js from: " + DATA);
+
+        log("WARN", "Trying the next available source...");
+
+        loader.remove();
+        loadEmulator(index + 1);
+    };
+
+    document.body.appendChild(loader);
+}
+
+/* ==============================
+   STARTUP INFORMATION
+============================== */
+
+log("INFO", "Game: " + GAME_NAME);
+log("INFO", "ROM: " + ROM_URL);
+log("INFO", "Core: " + CORE);
+log("INFO", "Browser: " + navigator.userAgent);
+log("INFO", "WebAssembly: " + (typeof WebAssembly !== "undefined"));
+
+log("INFO", "Loading EmulatorJS...");
+
+loadEmulator(0);
 
 </script>
 
