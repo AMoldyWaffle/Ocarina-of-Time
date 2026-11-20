@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Super Mario World</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; }
+        html, body { margin: 0; padding: 0; height: 100%; background: #000; }
         #game { width: 100%; height: 100%; }
     </style>
 </head>
@@ -12,11 +12,61 @@
     <div id="game"></div>
 
     <script>
-        EJS_player = "#game";
-        EJS_core = "snes";
-        EJS_pathtodata = "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/";
+        // ---------- Your ROM (confirmed reachable on your Chromebook) ----------
         EJS_gameUrl = "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Super%20Mario%20World/Super%20Mario%20World%20(USA).sfc";
+        EJS_core   = "snes";
+        EJS_player = "#game";
+
+        // ---------- Mirror data paths on jsDelivr ----------
+        const DATA_PATHS = [
+            // 1. Unofficial mirror of the EmulatorJS stable CDN
+            "https://cdn.jsdelivr.net/gh/joethun/emulatorjs-cdn-mirror@main/stable/data/",
+            // 2. Another community mirror that has worked in the past
+            "https://cdn.jsdelivr.net/gh/ethanaobrien/emulatorjs@main/data/"
+        ];
+
+        let pathIndex = 0;
+
+        function tryNextPath() {
+            if (pathIndex >= DATA_PATHS.length) {
+                console.error("All EmulatorJS data sources failed.");
+                document.getElementById("game").innerHTML =
+                    '<p style="color:white;padding:20px;">Could not load EmulatorJS from any mirror. ' +
+                    'You may need to self‑host the data folder.</p>';
+                return;
+            }
+
+            const path = DATA_PATHS[pathIndex];
+            pathIndex++;
+
+            console.log("Trying EmulatorJS data path: " + path);
+            EJS_pathtodata = path;
+
+            // Remove any previously injected loader script
+            const oldScript = document.getElementById("ejs-loader");
+            if (oldScript) oldScript.remove();
+
+            // Inject the loader from this path
+            const script = document.createElement("script");
+            script.id = "ejs-loader";
+            script.src = path + "loader.js";
+            script.onerror = function() {
+                console.warn("Failed to load loader.js from " + path);
+                tryNextPath();
+            };
+            document.body.appendChild(script);
+
+            // Give it a moment; if nothing initialises, try the next mirror
+            setTimeout(function() {
+                if (typeof EJS_emulator === "undefined") {
+                    console.warn("EmulatorJS did not initialise from " + path);
+                    tryNextPath();
+                }
+            }, 8000);
+        }
+
+        // Start the first attempt
+        tryNextPath();
     </script>
-    <script src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/loader.js"></script>
 </body>
 </html>
