@@ -1,115 +1,252 @@
-# WafflesIsolationism — offline EmulatorJS
+# WafflesIsolationism — Offline EmulatorJS (detailed guide)
 
-A fully self-contained build of EmulatorJS 4.2.3. The emulator has no dependency on the internet: no CDN, no update checks, no
-analytics. Every core (the actual emulator engine for each console) is stored in this folder as a small `.js` file.
+A self-contained build of **EmulatorJS 4.2.3** that runs without the internet. No CDN, no update checks, no analytics. All emulator
+engines ("cores") live in this folder as small script files. Other web pages can control it with simple messages, and the whole thing can be
+hosted from plain GitHub files (raw links), not just GitHub Pages.
 
-> **Status:** the scripts parse cleanly, and I verified that all 98 core files load correctly and byte-for-byte match your original
-> data folder, including when served as `text/plain` the way raw.githubusercontent.com does. It has **not** been run in a real
-> browser with a real game yet, so treat the first launch as a test and report anything odd.
+> **Honest status:** I verified that every script parses, that all 98 core files load and are byte-for-byte identical to your original `data/`
+> folder, and that loading works when files are served as `text/plain` like raw.githubusercontent.com does. I have **not** been able to run it in a real
+> browser with a real game. Treat your first launch as a test.
 
----
-
-## 1. What's in this folder
-
-| Path | What it is |
-|---|---|
-| `emulator.html` | The emulator (about 1.5 MB). Runs standalone or is driven by other pages. |
-| `packs/` | 98 files, one per core build (`<core>-wasm.js` and `<core>-legacy-wasm.js`). Largest is about 10 MB. |
-| `loader.js` | Small helper so *any* page can run the emulator from raw.githubusercontent.com links. |
-| `controller.html` | Example remote control: load ROMs, save states, gamepad, etc. |
-| `PROTOCOL.md` | Every message your own pages can send to / receive from the emulator. |
-| `build-tools/` | `build.py` + template to rebuild everything from the original `data/` folder. |
-
-**Keep `emulator.html` and `packs/` together.** Cores are only fetched from `packs/` when a game needs them.
-
----
-
-## 2. Quick start (local, no internet)
-
-1. Download or clone the whole folder.
-2. Open `emulator.html` in Chrome or Edge. Drop a ROM onto it (or click *Choose ROM…*), optionally pick the system, press **Start**.
-   The system is auto-detected from the file extension where possible (see the table in section 5).
-3. Or open `controller.html`, click **Open emulator**, drop a ROM in the *Game* box and press **Launch game**.
-
-Notes:
-- ROM files are **not included**. Bring your own legally obtained games.
-- Some systems need BIOS files (typically Sega CD, Saturn, 3DO, PC-FX, Amiga, Atari 5200/7800, sometimes PlayStation). The controller has a
-  *BIOS (optional)* button; your own pages can pass `bios`.
-- Audio can stay silent until you click inside the emulator window (browser autoplay rules).
-- Zipped ROMs: arcade systems keep the zip intact (required); for other systems the zip is unpacked automatically.
+## Contents
+1. [What's in the folder](#1-whats-in-the-folder)
+2. [Quick start (local)](#2-quick-start-local)
+3. [Hosting on GitHub (raw links)](#3-hosting-on-github-raw-links)
+4. [Controlling the emulator from your own pages](#4-controlling-the-emulator-from-your-own-pages)
+5. [Using controller.html](#5-using-controllerhtml)
+6. [Supported systems](#6-supported-systems-and-file-types)
+7. [All 49 cores](#7-all-49-cores)
+8. [BIOS files and ROMs](#8-bios-files-and-roms)
+9. [What gets stored in the browser](#9-what-gets-stored-in-the-browser)
+10. [How the offline part works](#10-how-the-offline-part-works)
+11. [Security notes](#11-security-notes)
+12. [Troubleshooting](#12-troubleshooting)
+13. [FAQ](#13-faq)
+14. [Rebuilding](#14-rebuilding-from-the-original-data-folder)
+15. [Legal](#15-legal)
 
 ---
 
-## 3. Using it from GitHub (raw links)
-
-### Why you can't just open the raw link
-`raw.githubusercontent.com` serves every file as `text/plain` with `nosniff`. A browser will show `emulator.html` as source code and will refuse
-to run `<script src>` files from there. Raw links **do** allow other pages to `fetch()` them, so `loader.js` downloads the emulator as text and runs
-it from a temporary page.
-
-### Upload
-Put the whole folder in a repo (all files are far below GitHub's 100 MB per-file limit; total about 164 MB; no Git LFS needed).
-Your base URL is the folder containing `emulator.html` and `packs/`, with a trailing slash:
+## 1. What's in the folder
 
 ```
-https://raw.githubusercontent.com/USER/REPO/BRANCH/
-https://raw.githubusercontent.com/USER/REPO/BRANCH/some/subfolder/     (if you put it in a subfolder)
+WafflesOffline/
+├── emulator.html        the emulator (about 1.5 MB)
+├── loader.js            helper that lets any page run it from raw GitHub links
+├── controller.html      example remote control
+├── README.md            this file
+├── PROTOCOL.md          short message reference
+├── packs/               98 core files, about 170 MB total
+│   ├── fceumm-wasm.js
+│   ├── fceumm-legacy-wasm.js
+│   └── ... (one pair per core)
+└── build-tools/         build.py + template to regenerate everything
 ```
 
-### From your own page
-Copy `loader.js` next to your page (it's tiny) or paste it in, then:
+- **`emulator.html`** contains the emulator program, its styles, and the small helper files needed to unpack cores and archives. It does not contain the cores.
+- **`packs/<core>-wasm.js`** is the normal build of a core. **`packs/<core>-legacy-wasm.js`** is the legacy build used by browsers without WebGL2.
+  Each file is the original core data encoded as text, so it can be fetched like any script. The biggest is about 10 MB, far below GitHub's 100 MB limit.
+- Only the core for the game you launch is ever downloaded or read.
+- **Keep `emulator.html` and `packs/` together.**
+
+---
+
+## 2. Quick start (local)
+
+1. Download or clone the folder.
+2. Open **`emulator.html`** in Chrome or Edge (Firefox usually works too).
+3. Drop a ROM on the page, or click **Choose ROM…**. Optionally choose a system, then click **Start**.
+   The system is guessed from the file extension when possible (see [section 6](#6-supported-systems-and-file-types)).
+
+Or use the remote control:
+1. Open **`controller.html`**, click **Open emulator** (allow the popup).
+2. Drop a ROM into the *Game* box, optionally set system/core/BIOS, click **Launch game**.
+
+Tips:
+- Click inside the emulator window once if you hear no sound (browser autoplay rules).
+- To play another game, launch it from the controller (it reloads the emulator page for you), or just reload the emulator page yourself.
+  The emulator runs **one game per page load**.
+
+---
+
+## 3. Hosting on GitHub (raw links)
+
+### Why you can't just open a raw link
+`raw.githubusercontent.com` serves every file as `text/plain` and tells the browser not to guess otherwise. If you open the raw link to `emulator.html` you
+see its source code, and `<script src="...">` pointing at raw links is refused. Raw links do, however, allow `fetch()` from any website. `loader.js` uses that:
+it downloads `emulator.html`, tells it where `packs/` lives, and runs it from a temporary `blob:` page. The emulator then fetches only the core it needs
+as text and runs it.
+
+### Step by step
+1. Create a repo and add the whole folder (all files are well under 100 MB; Git LFS is **not** needed):
+   ```bash
+   git init && git add . && git commit -m "offline emulator"
+   git branch -M main
+   git remote add origin https://github.com/USER/REPO.git
+   git push -u origin main
+   ```
+   (The upload is about 170 MB. If the web uploader complains, use git on the command line, or push in several commits.)
+2. Your **base URL** is the folder that contains `emulator.html` and `packs/`, with a trailing slash:
+   ```
+   https://raw.githubusercontent.com/USER/REPO/main/
+   https://raw.githubusercontent.com/USER/REPO/main/emulator/     (if it's in a subfolder)
+   ```
+3. Check it: open `BASE + "packs/fceumm-wasm.js"` in a browser. You should see a long line of text starting with `(window.__VFP=`.
+4. Use it from your own page ([section 4](#4-controlling-the-emulator-from-your-own-pages)) or from `controller.html` ([section 5](#5-using-controllerhtml)).
+
+### What to expect
+- First launch of a system downloads that core only (about 1–5 MB typical, up to about 10 MB).
+- Raw files are cached by GitHub for a few minutes after a push, and GitHub may rate-limit heavy use.
+- Popups must be allowed, or use `container` (embedded iframe) mode.
+- Your own page must be able to `fetch()` raw links. Normal websites can. Pages opened from `file://` in Chrome can too.
+- If you later change the files, hard-refresh your page; the emulator also keeps a browser-side core cache (see [section 9](#9-what-gets-stored-in-the-browser)).
+
+---
+
+## 4. Controlling the emulator from your own pages
+
+There are two parts: **getting the emulator open**, and **sending it messages**.
+
+### 4.1 Opening it
+
+**A. With `loader.js` (works for raw links and everything else)**
 
 ```html
 <script src="loader.js"></script>
 <div id="box" style="width:960px;height:720px"></div>
+<input type="file" id="rom">
 
 <script type="module">
   const BASE = "https://raw.githubusercontent.com/USER/REPO/main/";
 
-  // Embedded in a box on your page:
   const emu = await WafflesEmu.open(BASE, { container: document.getElementById("box") });
-  // ...or as a popup (call this from a click handler so it isn't blocked):
-  // const emu = await WafflesEmu.open(BASE);
+  const hello = await emu.ready;          // { systems:[...], cores:[...], running:false }
+  emu.on(m => console.log("emulator says:", m));
 
-  await emu.ready;                           // emulator says hello
-  emu.on(m => console.log("emulator:", m));  // started, error, state, screenshot, ...
-
-  // Load a ROM chosen by the user (File or Blob):
-  document.querySelector("input[type=file]").onchange = e =>
-    emu.load(e.target.files[0], { /* system: "snes", core: "snes9x", bios: arrayBuffer */ });
-
-  // Control it:
-  emu.send("pause"); emu.send("play"); emu.send("reset");
-  emu.send("volume", { value: 0.5 });
-  emu.send("input", { player: 0, index: 8, value: 1 });   // press A (send value:0 to release)
-  emu.send("saveState");                                  // replies {evt:"state", data}
+  document.getElementById("rom").onchange = e =>
+    emu.load(e.target.files[0], { system: "snes" });   // system/core/bios are all optional
 </script>
 ```
 
-### From `controller.html`
-Open `controller.html` anywhere (locally or hosted), paste your base URL into the box next to **Open emulator**
-(e.g. `https://raw.githubusercontent.com/USER/REPO/main/`) and click the button.
+`WafflesEmu.open(base, options)`:
 
-### What to expect from raw links
-- Only the core you launch is downloaded (usually 1–5 MB, up to about 10 MB). The emulator keeps decompressed cores in browser storage, so launching the same
-  system again should be fast. I couldn't verify browser-storage behaviour from the temporary page.
-- GitHub caches raw files for a few minutes after you push changes, and may rate-limit heavy traffic.
-- Popups must be allowed, or use the `container` (iframe) mode.
-- Your *own* page must be served from somewhere that allows `fetch()` of raw links (any normal website, or `file://` pages in Chrome).
+| Option | Meaning |
+|---|---|
+| `container` | A DOM element. If given, the emulator is embedded as an iframe in it. If omitted, a popup window opens (call it from a click). |
+| `name` | Popup window name (default `wi_emulator`). |
+| `features` | Popup window features string (default `width=980,height=760`). |
+
+It returns an object:
+
+| Member | Meaning |
+|---|---|
+| `ready` | Promise that resolves with the `hello` message once the emulator page is up. |
+| `on(fn)` | Register a listener for every message from the emulator. |
+| `send(cmd, fields, transferList)` | Send a command (see 4.2). |
+| `load(file, extra)` | Read a `File`/`Blob`, send it as `load` with `name` filled in. `extra` can contain `system`, `core`, `bios`. |
+| `win`, `frame` | The emulator's window, and the iframe (if embedded). |
+
+`WafflesEmu.prepare(base)` just returns the patched emulator HTML text, if you want to build the page yourself.
+
+**B. Local files / normal static hosting (no loader needed)**
+
+```js
+const w = window.open("emulator.html", "emu");          // or <iframe src="emulator.html">
+```
+`packs/` sits next to `emulator.html`, so cores load automatically. To use a different location for the packs, define
+`window.WI_PACK_BASE = "https://…/packs/"` before the emulator runs.
+
+### 4.2 Messages
+
+Everything is a plain `postMessage` object marked `wi: 1`. Wait for the emulator's **`hello`** (or send `ping`) before anything else.
+
+```js
+win.postMessage({ wi: 1, cmd: "pause" }, "*");
+```
+
+#### Commands (your page to the emulator)
+
+| `cmd` | Fields | What it does |
+|---|---|---|
+| `ping` | | Emulator answers with `hello`. |
+| `load` | `data`, `name`, `system?`, `core?`, `bios?` | Starts a game. `data` = ArrayBuffer, Uint8Array, Blob or File. `name` = file name **with extension** (used for auto-detect and save names). `system` = key from section 6. `core` = exact core name from section 7 (overrides the default). `bios` = optional ArrayBuffer/Blob. |
+| `reload` | | Reloads the emulator page (the only way to switch games). It sends `hello` again. |
+| `pause` / `play` | | Pause or resume. |
+| `reset` | | Restart the game. |
+| `volume` | `value` 0 to 1 | Master volume. |
+| `fullscreen` | `on` | Toggle fullscreen. Browsers may require a click inside the emulator window. |
+| `ff` | `on`, `ratio` | Fast-forward on/off with a speed multiplier. |
+| `input` | `player` 0–3, `index`, `value` 1 or 0 | Press (1) or release (0) a button. Indexes below. |
+| `cheat` | `index`, `on`, `code` | Enable or disable a cheat code. |
+| `saveState` | | Emulator replies with `state` (bytes). |
+| `loadState` | `data` | Load a state previously returned by `saveState`. |
+| `saveFile` | | Replies with `savefile` (the battery/SRAM save), or `error` if none exists yet. |
+| `loadFile` | `data` | Write a battery save into the running game. |
+| `screenshot` | | Replies with `screenshot` (PNG bytes). |
+
+**Button indexes for `input`:**
+`B 0` · `Y 1` · `Select 2` · `Start 3` · `Up 4` · `Down 5` · `Left 6` · `Right 7` · `A 8` · `X 9` · `L 10` · `R 11` · `L2 12` · `R2 13` · `L3 14` · `R3 15`
+
+#### Events (emulator to your page)
+
+| `evt` | Fields | Meaning |
+|---|---|---|
+| `hello` | `systems`, `cores`, `running` | Emulator page is ready. Lists what this build contains. |
+| `loading` | `name`, `system` | A game is being loaded. |
+| `started` | `name`, `system` | The game is running. |
+| `paused` / `playing` | | Result of `pause` / `play`. |
+| `exit` | | The game exited. |
+| `error` | `msg` | Something failed (unknown system, no save file, a download problem...). |
+| `state` | `data`, `name` | Result of `saveState`. |
+| `savefile` | `data`, `name` | Result of `saveFile`. |
+| `screenshot` | `data`, `format`, `name` | Result of `screenshot`. |
+
+Replies go to the window that messaged the emulator most recently, plus its opener and parent.
+
+#### Recipes
+
+```js
+// Load a ROM and a BIOS, forcing a particular core
+emu.load(romFile, { core: "pcsx_rearmed", bios: await biosFile.arrayBuffer() });
+
+// Tap A for a fifth of a second
+emu.send("input", { player: 0, index: 8, value: 1 });
+setTimeout(() => emu.send("input", { player: 0, index: 8, value: 0 }), 200);
+
+// Save a state and download it
+emu.on(m => { if (m.evt === "state") download(new Blob([m.data]), "my.state"); });
+emu.send("saveState");
+
+// Restore it later
+emu.send("loadState", { data: await stateFile.arrayBuffer() });
+
+// Switch games
+emu.send("reload");
+emu.on(async m => { if (m.evt === "hello") emu.load(otherRom); });
+```
+
+Large disc images: `loader.js` already passes the ROM in the transfer list, so it isn't copied. With raw `postMessage`, add the buffer to the third argument.
 
 ---
 
-## 4. Using it from local files or any static host
-`window.open("emulator.html")` or `<iframe src="emulator.html">` works directly because `packs/` sits next to it. Then talk to it with `postMessage`
-exactly as in `PROTOCOL.md`. (To run from another location, set `window.WI_PACK_BASE = "https://…/packs/"` before the emulator script runs;
-`loader.js` does this for you.)
+## 5. Using controller.html
+
+`controller.html` is a ready-made remote that talks to the emulator with the messages above. It works as a template for your own pages.
+
+| Area | What it does |
+|---|---|
+| **Emulator window** | Path box (default `emulator.html`; or a raw folder URL such as `https://raw.githubusercontent.com/USER/REPO/main/`) and **Open emulator**. A dot shows red = not connected, green = connected, orange = game running. |
+| **Game** | Drop or choose a ROM. Dropdowns: **system** (auto-detect by default) and **core** (default core by default). **BIOS** is optional. **Launch game** sends it (reloading the emulator first if a game is already running). |
+| **Controls** | Pause/Resume, Reset, Save state (downloads a `.state` file and keeps the last one for **Load state**; right-click **Load state** to choose a file), Screenshot (PNG), Download save (`.sav`), Load save, Fullscreen, Volume, Fast-forward with a speed selector. |
+| **Virtual gamepad** | On-screen D-pad, A/B/X/Y, L/R, Start, Select, with a **Player 1–4** selector. Tick **Send my keyboard from this window** to use the keyboard: arrows, Z/X/A/S = B/A/Y/X, Q/W = L/R, Enter = Start, Shift = Select. |
+| **Log** | Shows errors and loading messages. |
 
 ---
 
-## 5. Supported systems, default cores and file types
+## 6. Supported systems and file types
 
-The **system key** is what you pass as `system`. If you omit it, the emulator guesses from the file extension. Where a system lists no extension
-(`.zip`, `.bin`, `.iso` are ambiguous), choose the system yourself.
+The **system key** is what you pass as `system`. If you omit it the emulator guesses from the extension. Extensions that don't identify a system
+(`.zip`, `.bin`, `.iso`, `.img`) need you to choose it.
 
 | System key | System | Default core | Other cores for it | Auto-detected extensions |
 |---|---|---|---|---|
@@ -148,107 +285,180 @@ The **system key** is what you pass as `system`. If you omit it, the emulator gu
 | `vic20` | Commodore VIC-20 | `vice_xvic` | — | pick system manually |
 | `intv` | Intellivision | `freeintv` | — | .int |
 
-(Sega CD, Sega Saturn, 3DO, PC-FX, Neo Geo and similar disc systems are usually `.cue/.bin/.iso/.chd` files, so pick the system manually.)
+Disc systems (Sega CD, Saturn, 3DO, PC-FX) usually use `.cue/.bin/.iso/.chd`, so pick the system manually.
+Arcade systems must keep ROMs as `.zip` (the emulator does not unzip them). Other systems unzip automatically.
 
 ---
 
-## 6. Every included core (49)
+## 7. All 49 cores
 
-Each core exists twice in `packs/`:
-- `<core>-wasm.js` — the normal build (used by default).
-- `<core>-legacy-wasm.js` — the legacy build for browsers without WebGL2. The emulator picks it automatically when needed.
+Sizes are the download size of each file. The normal build is used by default. The legacy build is used automatically on browsers without WebGL2.
 
-```
-81  a5200  beetle_vb  bsnes  cap32  crocods  desmume  desmume2015  fbalpha2012_cps1  fbalpha2012_cps2
-fbneo  fceumm  freeintv  fuse  gambatte  gearcoleco  genesis_plus_gx  genesis_plus_gx_wide  handy
-mame2003  mame2003_plus  mednafen_ngp  mednafen_pce  mednafen_pcfx  mednafen_psx_hw  mednafen_wswan
-melonds  mgba  mupen64plus_next  nestopia  opera  parallel_n64  pcsx_rearmed  picodrive  prboom
-prosystem  puae  same_cdi  smsplus  snes9x  stella2014  vice_x128  vice_x64  vice_x64sc  vice_xpet
-vice_xplus4  vice_xvic  virtualjaguar  yabause
-```
+| Core name | Emulates | Normal build | Legacy build |
+|---|---|---|---|
+| `81` | Sinclair ZX81 | 1.0 MB | 1.0 MB |
+| `a5200` | Atari 5200 | 1.0 MB | 1.0 MB |
+| `beetle_vb` | Virtual Boy | 1.0 MB | 1.0 MB |
+| `bsnes` | SNES (accuracy-focused, heavy) | 1.3 MB | 1.3 MB |
+| `cap32` | Amstrad CPC | 1.2 MB | 1.2 MB |
+| `crocods` | Amstrad CPC | 1.1 MB | 1.1 MB |
+| `desmume` | Nintendo DS | 1.3 MB | 1.3 MB |
+| `desmume2015` | Nintendo DS (older, lighter) | 1.1 MB | 1.1 MB |
+| `fbalpha2012_cps1` | Capcom CPS-1 arcade | 1.1 MB | 1.1 MB |
+| `fbalpha2012_cps2` | Capcom CPS-2 arcade | 1.1 MB | 1.1 MB |
+| `fbneo` | FinalBurn Neo arcade (Neo Geo, CPS, etc.) | 10.2 MB | 10.2 MB |
+| `fceumm` | NES / Famicom / FDS | 1.2 MB | 1.2 MB |
+| `freeintv` | Intellivision | 1.5 MB | 1.5 MB |
+| `fuse` | ZX Spectrum | 1.4 MB | 1.4 MB |
+| `gambatte` | Game Boy / Game Boy Color | 1.1 MB | 1.1 MB |
+| `gearcoleco` | ColecoVision | 1.0 MB | 1.0 MB |
+| `genesis_plus_gx` | Genesis, Master System, Game Gear, Sega CD | 1.4 MB | 1.4 MB |
+| `genesis_plus_gx_wide` | Genesis, widescreen variant | 1.3 MB | 1.3 MB |
+| `handy` | Atari Lynx | 1.0 MB | 1.0 MB |
+| `mame2003` | Arcade (MAME 2003) | 5.9 MB | 6.0 MB |
+| `mame2003_plus` | Arcade (MAME 2003-Plus) | 6.4 MB | 6.4 MB |
+| `mednafen_ngp` | Neo Geo Pocket / Color | 1.0 MB | 1.0 MB |
+| `mednafen_pce` | PC Engine / TurboGrafx-16 | 1.1 MB | 1.1 MB |
+| `mednafen_pcfx` | PC-FX | 1.1 MB | 1.1 MB |
+| `mednafen_psx_hw` | PlayStation (hardware-rendered) | 1.3 MB | 1.3 MB |
+| `mednafen_wswan` | WonderSwan / Color | 1.0 MB | 1.0 MB |
+| `melonds` | Nintendo DS | 1.4 MB | 1.4 MB |
+| `mgba` | Game Boy Advance (also GB/GBC) | 1.2 MB | 1.2 MB |
+| `mupen64plus_next` | Nintendo 64 | 2.0 MB | 2.0 MB |
+| `nestopia` | NES / Famicom (accuracy-focused) | 1.4 MB | 1.4 MB |
+| `opera` | 3DO | 1.0 MB | 0.9 MB |
+| `parallel_n64` | Nintendo 64 (alternate) | 1.2 MB | 1.2 MB |
+| `pcsx_rearmed` | PlayStation | 1.2 MB | 1.2 MB |
+| `picodrive` | Sega 32X, Genesis, Master System | 1.2 MB | 1.2 MB |
+| `prboom` | Doom engine | 1.2 MB | 1.2 MB |
+| `prosystem` | Atari 7800 | 1.0 MB | 1.0 MB |
+| `puae` | Amiga | 4.6 MB | 4.6 MB |
+| `same_cdi` | Philips CD-i | 3.4 MB | 3.4 MB |
+| `smsplus` | Master System / Game Gear | 1.0 MB | 1.0 MB |
+| `snes9x` | Super Nintendo | 1.2 MB | 1.2 MB |
+| `stella2014` | Atari 2600 | 1.2 MB | 1.2 MB |
+| `vice_x128` | Commodore 128 | 1.7 MB | 1.7 MB |
+| `vice_x64` | Commodore 64 | 1.6 MB | 1.6 MB |
+| `vice_x64sc` | Commodore 64 (cycle-accurate) | 1.6 MB | 1.6 MB |
+| `vice_xpet` | Commodore PET | 1.5 MB | 1.5 MB |
+| `vice_xplus4` | Commodore Plus/4 | 1.6 MB | 1.6 MB |
+| `vice_xvic` | Commodore VIC-20 | 1.5 MB | 1.5 MB |
+| `virtualjaguar` | Atari Jaguar | 1.1 MB | 1.1 MB |
+| `yabause` | Sega Saturn | 1.1 MB | 1.1 MB |
 
-### How to choose a specific core
-1. **From your code:** pass `core` when loading, e.g. `emu.load(file, { core: "nestopia" })` or `{cmd:"load", name, data, core:"bsnes"}`.
-2. **From the controller:** use the *Default core* dropdown next to the system dropdown.
-3. **From inside a running game:** EmulatorJS's own menu has a core option for systems with alternates (it only offers cores listed for that system).
+### Choosing a specific core
+- **In code:** `{ cmd:"load", name, data, core:"nestopia" }` or `emu.load(file, { core: "bsnes" })`.
+- **In `controller.html`:** the *Default core* dropdown (filled from the emulator's `hello` message).
+- **In the emulator's own menu:** systems with alternates offer a core option.
 
-Core names are exactly the names in the list above.
+`core` overrides `system`. If you set a core, you rarely need the system as well.
 
-### Cores that EmulatorJS doesn't list as a system
-`81`, `cap32`, `crocods`, `fuse`, `prboom` and `vice_x64` are in your data folder, but EmulatorJS 4.2.3 doesn't map any system to them (they're for ZX81,
-Amstrad CPC, ZX Spectrum, Doom and an extra C64 build). They're included and can be forced with the `core` option, but I haven't tested them and
-some EmulatorJS settings may not apply.
+### Cores EmulatorJS doesn't link to any system
+`81`, `cap32`, `crocods`, `fuse`, `prboom` and `vice_x64` are in your data folder but EmulatorJS 4.2.3 doesn't map any system to them. They can be forced
+with `core`. I haven't tested them, and some EmulatorJS options may not apply.
 
 ### Not included
-`ppsspp` (PSP), `azahar` (3DS) and `dosbox_pure` (DOS) need multi-threading (`SharedArrayBuffer`), which browsers only allow on pages served with special
-security headers. That's impossible for local files and for raw GitHub links, so they're omitted. If the emulator asks for a threaded core, it falls back
-to the normal one if it exists.
+**PSP (`ppsspp`), 3DS (`azahar`) and DOS (`dosbox_pure`)** need multi-threading (`SharedArrayBuffer`), which browsers only allow on pages served
+with special security headers. That is not possible for local files or raw GitHub links. If a threaded core is requested, the emulator falls back to the
+normal one when it exists.
 
 ---
 
-## 7. Controls and the in-game menu
-- Keyboard and gamepad mapping is set in the emulator's own menu (gear/settings icon, *Control Settings*). Settings are saved in the browser.
-- The menu also has save/load state, cheats, shaders, screen recording and so on.
-- `controller.html` can send input remotely: a virtual gamepad, plus *Send my keyboard from this window*
-  (Arrows, Z/X/A/S for B/A/Y/X, Q/W for L/R, Enter for Start, Shift for Select).
-- Button numbers for `input`: B 0, Y 1, Select 2, Start 3, Up 4, Down 5, Left 6, Right 7, A 8, X 9, L 10, R 11, L2 12, R2 13, L3 14, R3 15.
+## 8. BIOS files and ROMs
+
+- **No ROMs or BIOS files are included.** Bring your own legally obtained ones.
+- Many disc and computer systems need or work better with a BIOS: commonly Sega CD, Saturn, 3DO, PC-FX, Amiga, Atari 5200/7800, and sometimes PlayStation.
+  Supply it via the controller's **BIOS (optional)** button or the `bios` field. Which file and name each core expects depends on the core.
+- Zipped ROMs are unzipped automatically except for arcade systems (`arcade`, `mame`, and the arcade cores), which need the original zip.
+- Arcade zips must match the version the core expects: try `fbneo`, then `mame2003_plus` if a game doesn't start.
 
 ---
 
-## 8. Messaging API (short version)
+## 9. What gets stored in the browser
 
-Messages are plain `postMessage` objects: `{ wi: 1, cmd: "...", ... }`. Replies come back as `{ wi: 1, evt: "...", ... }` to the last window that
-messaged the emulator, plus its opener or parent.
-
-Commands: `ping`, `load`, `reload`, `pause`, `play`, `reset`, `volume`, `fullscreen`, `ff`, `input`, `cheat`, `saveState`, `loadState`, `saveFile`, `loadFile`, `screenshot`.
-Events: `hello`, `loading`, `started`, `paused`, `playing`, `exit`, `error`, `state`, `savefile`, `screenshot`.
-
-Full field reference: **`PROTOCOL.md`**. Things worth knowing:
-- Wait for `hello` before sending anything.
-- One game per page load. To switch games, send `reload`, wait for the next `hello`, then `load` again (`controller.html` does this automatically).
-- `data` can be an ArrayBuffer, Uint8Array, Blob or File. Pass it in the transfer list to avoid copying large disc images.
-- `hello` tells you which `systems` and `cores` this build contains.
+- **localStorage: not used.** It is disabled in the emulator and replaced by a temporary in-memory stand-in, so menu settings and custom key bindings are not remembered
+  between sessions.
+- **IndexedDB: still used** for (1) a cache of decompressed cores, which makes relaunching a system faster, and (2) save files and states created through the emulator's own menu.
+  Saves and states made through `saveState` / `saveFile` messages come to your page as bytes, and your page decides where to keep them.
+- To clear everything the emulator stored, clear the site data for the page that hosts it (for blob/iframe mode, that is the site of your own page).
 
 ---
 
-## 9. Troubleshooting
+## 10. How the offline part works
+
+1. `emulator.html` replaces `window.fetch` with a guard. It serves the emulator's own files (cores, report files, unpacking helpers) from bundled data, lets
+   `blob:`/`data:` URLs through (your ROM), and answers everything else, including EmulatorJS's CDN and update checks, with a 404. Nothing leaves the page.
+2. A core is requested under a made-up address. The guard maps it to the right file in `packs/`, loads that file (by `<script>` locally, by `fetch()` for
+   raw links), decodes it, and hands the bytes to EmulatorJS exactly as if it came from a server.
+3. The core is then unpacked and started by EmulatorJS as usual.
+
+---
+
+## 11. Security notes
+
+- The emulator accepts `wi` messages from **any** window and replies to the sender. A hostile page that gets a reference to the emulator window could send it
+  commands. Messages can control the emulator only (play, pause, load a ROM, send inputs). They can't run arbitrary code.
+- If you embed it on a sensitive site, check `event.origin`/`event.source` in your own listener, and consider restricting the emulator's listener the same way.
+- The emulator never sends your ROMs or saves anywhere on its own.
+
+---
+
+## 12. Troubleshooting
 
 | Symptom | Likely cause / fix |
 |---|---|
-| Raw link shows source code instead of the emulator | Expected. Use `loader.js` (section 3). |
+| Raw link shows source code instead of the emulator | Expected. Use `loader.js` ([section 3](#3-hosting-on-github-raw-links)). |
 | "Popup blocked" | Allow popups, or use `container` mode. |
-| "Can't tell which system … is for" | Extension is ambiguous. Pass/choose `system`. |
+| "Can't tell which system … is for" | Extension is ambiguous. Send/choose `system` (or `core`). |
 | "System not included in this build" | Typo in the key, or a threaded system (PSP, 3DS, DOS). |
-| Core fails to download / 404 | `packs/` is missing or not next to `emulator.html`, or the base URL is wrong (needs trailing slash and the folder that contains `emulator.html`). |
-| Black screen with a disc game | Needs a BIOS, or the wrong core. Try another core from section 5. |
+| Core fails to download / 404 | `packs/` missing or not next to `emulator.html`; wrong base URL (needs the trailing slash and the folder that contains `emulator.html`). |
+| Works locally, not from raw links | Open `BASE + "packs/fceumm-wasm.js"` in a browser to confirm the file exists; check the repo branch name in the URL. |
+| Black screen with a disc game | Needs a BIOS, or try another core. |
 | No sound | Click inside the emulator window once. |
-| Changes you pushed don't show up | Raw links are cached for a few minutes; hard-refresh and wait. |
-| Arcade game won't start | Arcade ROM sets must be the exact zip for that core's version (try `fbneo`, then `mame2003_plus`). |
+| Settings don't stick | By design; localStorage is disabled ([section 9](#9-what-gets-stored-in-the-browser)). |
+| Arcade game won't start | Wrong ROM set version for that core. Try another arcade core. |
+| Pushed changes don't show | Raw links are cached for a few minutes; hard-refresh. |
+| A game won't switch | One game per page load: send `reload`, wait for `hello`, then `load`. |
 
 ---
 
-## 10. Rebuilding from the original data folder
+## 13. FAQ
 
-```
+**Can I use it without GitHub?** Yes. Any folder works: local files, a USB stick, a web server. Keep `emulator.html` and `packs/` together.
+
+**Do I need the internet?** Not when run locally. For raw links, your page needs to fetch the emulator and the one core you launch from GitHub.
+
+**Why is there a legacy build of every core?** Some browsers lack WebGL2. The emulator asks for the legacy build in that case.
+
+**Why one file per core?** So a raw-link user downloads 1–10 MB per game instead of hundreds of MB, and every file stays far below GitHub's size limit.
+
+**Can I add more cores?** Rebuild with `build.py` from a data folder that contains them ([section 14](#14-rebuilding-from-the-original-data-folder)).
+
+**Does it support gamepads?** The emulator's own menu has gamepad mapping (browser Gamepad API); remote input can be sent with `input` messages.
+
+---
+
+## 14. Rebuilding from the original data folder
+
+```bash
 python3 build-tools/build.py PATH/TO/data --out dist
 ```
-Options:
-- `--profile full` (default): all 49 non-threaded cores. `standard`: one core per system. `lite`: popular consoles only.
-- `--packsize 0` (default): one file per core, best for raw links. A number like `40` groups cores into packs of up to that many MB.
 
-The build embeds the emulator and its helper scripts in `emulator.html` and writes each core as base64 inside a small `.js` file in `packs/`.
+| Option | Meaning |
+|---|---|
+| `--profile full` (default) | All 49 non-threaded cores. |
+| `--profile standard` | One core per system. |
+| `--profile lite` | Popular consoles only. |
+| `--packsize 0` (default) | One file per core build (best for raw links). A number such as `40` groups cores into files up to that many MB. |
+| `--out DIR` | Output folder (default `dist`). |
 
----
-
-## 11. How the offline part works
-- `emulator.html` replaces `window.fetch` with a guard. It answers requests for the emulator's own files (cores, decompression helpers) from the
-  bundled data, lets `blob:`/`data:` URLs through (your ROM), and answers everything else, including EmulatorJS's CDN and update checks, with a 404.
-- Cores are decoded from base64 only when needed.
-- Cores load from `packs/` using a script tag (local/static hosting) or `fetch()` (raw links), picked automatically.
+`build.py` reads `emulator.min.js`, `emulator.min.css`, `src/consts.js`, and the `cores/` and `compression/` folders from `PATH/TO/data`, plus `emulator.tpl.html` and
+`controller.html` from `build-tools/`. Copy `loader.js` into the output folder yourself.
 
 ---
 
-## 12. Legal
-- No ROMs or BIOS files are included. Use only games you own the right to use.
-- EmulatorJS is GPL-3.0, and each core has its own license (mostly GPL/LGPL-style, some non-commercial). If you publish this, keep the license and
-  notice files from the original `data/` folder and check each core's terms, especially if you charge money.
+## 15. Legal
+
+- No ROMs or BIOS files are included. Use only games you have the right to use.
+- EmulatorJS is licensed under GPL-3.0, and each core has its own license (mostly GPL/LGPL-style, some restricting commercial use). If you publish this, keep the license and notice
+  files from the original `data/` folder and check each core's terms, especially if you charge money.

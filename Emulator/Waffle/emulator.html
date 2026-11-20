@@ -21,6 +21,13 @@ html,body{margin:0;height:100%;background:#0e0e12;color:#eee;font-family:system-
   <small id="msg">100% offline — no network access is used.</small>
 </div>
 <script>
+// No persistent localStorage: EmulatorJS gets an in-memory stand-in (lost when the page closes).
+try{const mem=Object.create(null);
+  const ls={getItem:k=>(k in mem?mem[k]:null),setItem:(k,v)=>{mem[k]=String(v)},removeItem:k=>{delete mem[k]},
+    clear:()=>{for(const k in mem)delete mem[k]},key:i=>Object.keys(mem)[i]??null,get length(){return Object.keys(mem).length}};
+  Object.defineProperty(window,"localStorage",{value:ls,configurable:true});}catch(e){}
+</script>
+<script>
 (()=>{
 const VB="https://ejs.offline/"+"2257725d4e"+"/";
 // ---- Offline guard + virtual file system: only blob:/data: and embedded files ever resolve ----
@@ -91,8 +98,8 @@ async function start({system,core,name,data,rom,bios}){
   if(!AVAIL.has(system)){const m="System not included in this build: "+system;msg(m);post({evt:"error",msg:m});return;}
   running=true;$("idle").style.display="none";post({evt:"loading",name,system});
   const cfg={debug:false,dataPath:VB,system,gameName:name.replace(/\.[^.]+$/,""),
-    gameUrl:URL.createObjectURL(new Blob([data])),color:"#2ea3ff",startOnLoad:true,volume:0.5,threads:false,
-    dontExtractRom:system==="arcade"||system==="mame",disableAutoUnload:true,
+    gameUrl:URL.createObjectURL(new Blob([data])),color:"#2ea3ff",startOnLoad:true,disableLocalStorage:true,volume:0.5,threads:false,
+    dontExtractRom:["arcade","mame","fbneo","mame2003","mame2003_plus","fbalpha2012_cps1","fbalpha2012_cps2"].includes(system),disableAutoUnload:true,
     gameId:1};
   if(bios)cfg.biosUrl=URL.createObjectURL(new Blob([bios]));
   emu=new window.__EJS("#game",cfg);
