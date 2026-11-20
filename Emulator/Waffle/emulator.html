@@ -21,6 +21,12 @@ html,body{margin:0;height:100%;background:#0e0e12;color:#eee;font-family:system-
   <small id="msg">100% offline — no network access is used.</small>
 </div>
 <script>
+// If the page embedding us lacks the "gamepad" permission, getGamepads() throws a SecurityError on every poll.
+// Swallow it so the emulator keeps running (gamepads are simply unavailable; keyboard and remote input still work).
+try{if(navigator.getGamepads){const g=navigator.getGamepads.bind(navigator);
+  Object.defineProperty(navigator,"getGamepads",{value:function(){try{return g();}catch(e){return [];}},configurable:true,writable:true});}}catch(e){}
+</script>
+<script>
 // No persistent localStorage: EmulatorJS gets an in-memory stand-in (lost when the page closes).
 try{const mem=Object.create(null);
   const ls={getItem:k=>(k in mem?mem[k]:null),setItem:(k,v)=>{mem[k]=String(v)},removeItem:k=>{delete mem[k]},

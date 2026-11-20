@@ -27,7 +27,7 @@
     const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
     if (opts.container) {
       frame = document.createElement("iframe");
-      frame.allow = "autoplay; fullscreen; gamepad";
+      frame.allow = "autoplay; fullscreen; gamepad; clipboard-write";
       frame.style.cssText = "border:0;width:100%;height:100%";
       frame.src = url; opts.container.appendChild(frame); win = frame.contentWindow;
     } else win.location.href = url;
