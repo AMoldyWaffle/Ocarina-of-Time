@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Game</title>
+<title>Super Mario World</title>
 
 <style>
 * {
@@ -24,6 +24,79 @@ html, body, #game {
     position: fixed;
     inset: 0;
 }
+
+/* Console toggle */
+
+#consoleToggle {
+    position: fixed;
+    z-index: 999999;
+    top: 10px;
+    right: 10px;
+    padding: 9px 14px;
+    border: 1px solid #777;
+    border-radius: 5px;
+    background: #222;
+    color: white;
+    font: 13px Arial;
+    cursor: pointer;
+}
+
+/* Console panel */
+
+#consolePanel {
+    position: fixed;
+    z-index: 999998;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    height: min(40vh, 320px);
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    background: rgba(10,10,10,.97);
+    border: 1px solid #777;
+    border-radius: 7px;
+    color: white;
+    font-family: monospace;
+}
+
+#consolePanel.hidden {
+    display: none;
+}
+
+#consoleHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: #252525;
+    border-bottom: 1px solid #555;
+    font: bold 12px Arial;
+}
+
+#consoleHeader span {
+    flex: 1;
+}
+
+#consoleHeader button {
+    padding: 5px 10px;
+    background: #444;
+    color: white;
+    border: 1px solid #777;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#consoleOutput {
+    flex: 1;
+    overflow: auto;
+    padding: 9px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: 11px/1.5 monospace;
+    color: #ddd;
+}
+
 </style>
 </head>
 
@@ -31,7 +104,143 @@ html, body, #game {
 
 <div id="game"></div>
 
+<button id="consoleToggle">Show console</button>
+
+<div id="consolePanel">
+    <div id="consoleHeader">
+        <span>EmulatorJS Console</span>
+        <button id="clearConsole">Clear</button>
+        <button id="hideConsole">Hide</button>
+    </div>
+    <div id="consoleOutput">Starting launcher...</div>
+</div>
+
 <script>
+
+/* ==============================
+   ON-SCREEN CONSOLE
+============================== */
+
+const consolePanel = document.getElementById("consolePanel");
+const consoleOutput = document.getElementById("consoleOutput");
+const consoleToggle = document.getElementById("consoleToggle");
+
+let consoleLines = [];
+
+function addLog(message, type = "INFO") {
+    const time = new Date().toLocaleTimeString();
+
+    consoleLines.push(
+        "[" + time + "] [" + type + "] " + String(message)
+    );
+
+    if (consoleLines.length > 500) {
+        consoleLines.shift();
+    }
+
+    consoleOutput.textContent = consoleLines.join("\n");
+    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+}
+
+function formatArgument(value) {
+    if (value instanceof Error) {
+        return value.stack || value.message;
+    }
+
+    if (typeof value === "string") {
+        return value;
+    }
+
+    try {
+        return JSON.stringify(value);
+    } catch (error) {
+        return String(value);
+    }
+}
+
+/* Capture normal browser console messages */
+
+["log", "info", "warn", "error", "debug"].forEach(function(method) {
+    const original = console[method];
+
+    console[method] = function() {
+        const args = Array.from(arguments);
+
+        try {
+            original.apply(console, args);
+        } catch (error) {}
+
+        addLog(
+            args.map(formatArgument).join(" "),
+            method.toUpperCase()
+        );
+    };
+});
+
+/* Console controls */
+
+consoleToggle.addEventListener("click", function() {
+    consolePanel.classList.remove("hidden");
+    consoleToggle.style.display = "none";
+});
+
+document.getElementById("hideConsole").addEventListener("click", function() {
+    consolePanel.classList.add("hidden");
+    consoleToggle.style.display = "block";
+});
+
+document.getElementById("clearConsole").addEventListener("click", function() {
+    consoleLines = [];
+    consoleOutput.textContent = "";
+    addLog("Console cleared.");
+});
+
+/* Capture JavaScript errors */
+
+window.addEventListener("error", function(event) {
+    addLog(
+        "JavaScript error: " + (event.message || "Unknown error"),
+        "ERROR"
+    );
+
+    if (event.filename) {
+        addLog("File: " + event.filename, "ERROR");
+    }
+
+    if (event.lineno) {
+        addLog("Line: " + event.lineno, "ERROR");
+    }
+
+    if (event.error && event.error.stack) {
+        addLog(event.error.stack, "ERROR");
+    }
+});
+
+/* Capture failed resource requests */
+
+window.addEventListener("error", function(event) {
+    if (event.target && event.target !== window) {
+        const resource =
+            event.target.src ||
+            event.target.href ||
+            event.target.tagName;
+
+        addLog("Failed resource: " + resource, "RESOURCE ERROR");
+    }
+}, true);
+
+/* Capture rejected promises */
+
+window.addEventListener("unhandledrejection", function(event) {
+    const reason = event.reason;
+
+    addLog(
+        "Unhandled rejection: " +
+        (reason && reason.stack ? reason.stack : String(reason)),
+        "PROMISE ERROR"
+    );
+});
+
 /* ==============================
    GAME CONFIGURATION
 ============================== */
@@ -70,12 +279,12 @@ if (!CORE) {
 }
 
 /* ==============================
-   SELF-HOSTED EMULATORJS
+   EMULATORJS CDN
 ============================== */
-
 
 const DATA =
 "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Emulator/data/";
+
 window.EJS_player = "#game";
 window.EJS_core = CORE;
 window.EJS_gameName = GAME_NAME;
@@ -110,10 +319,31 @@ window.EJS_Buttons = {
     exitEmulation: false
 };
 
-/* Load the locally hosted engine */
+/* ==============================
+   LOAD EMULATORJS
+============================== */
+
+addLog("Game: " + GAME_NAME);
+addLog("ROM: " + ROM_URL);
+addLog("Core: " + CORE);
+addLog("Emulator data: " + DATA);
+addLog("Browser: " + navigator.userAgent);
+addLog("WebAssembly: " + (typeof WebAssembly !== "undefined"));
+
+addLog("Loading EmulatorJS loader...");
 
 const loader = document.createElement("script");
+
 loader.src = DATA + "loader.js";
+
+loader.onload = function() {
+    addLog("EmulatorJS loader downloaded successfully.");
+};
+
+loader.onerror = function() {
+    addLog("FAILED TO LOAD EMULATORJS LOADER: " + loader.src, "FATAL ERROR");
+};
+
 document.body.appendChild(loader);
 
 </script>
