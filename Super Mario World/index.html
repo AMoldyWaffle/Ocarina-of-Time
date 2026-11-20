@@ -12,17 +12,19 @@
     <div id="game"></div>
 
     <script>
-        // ---------- Your ROM (confirmed reachable on your Chromebook) ----------
+        // Your ROM (confirmed reachable on your Chromebook)
         EJS_gameUrl = "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Super%20Mario%20World/Super%20Mario%20World%20(USA).sfc";
         EJS_core   = "snes";
         EJS_player = "#game";
 
-        // ---------- Mirror data paths on jsDelivr ----------
+        // Mirror paths on jsDelivr to try in order
         const DATA_PATHS = [
-            // 1. Unofficial mirror of the EmulatorJS stable CDN
-            "https://cdn.jsdelivr.net/gh/joethun/emulatorjs-cdn-mirror@main/stable/data/",
-            // 2. Another community mirror that has worked in the past
-            "https://cdn.jsdelivr.net/gh/ethanaobrien/emulatorjs@main/data/"
+            // 1. Official EmulatorJS GitHub repo via jsDelivr
+            "https://cdn.jsdelivr.net/gh/EmulatorJS/EmulatorJS@4.3.0-pre/data/",
+            // 2. The original ethanaobrien fork (often used as a fallback)
+            "https://cdn.jsdelivr.net/gh/ethanaobrien/emulatorjs@main/data/",
+            // 3. The joethun mirror (in case it was a temporary glitch)
+            "https://cdn.jsdelivr.net/gh/joethun/emulatorjs-cdn-mirror@main/stable/"
         ];
 
         let pathIndex = 0;
@@ -31,8 +33,11 @@
             if (pathIndex >= DATA_PATHS.length) {
                 console.error("All EmulatorJS data sources failed.");
                 document.getElementById("game").innerHTML =
-                    '<p style="color:white;padding:20px;">Could not load EmulatorJS from any mirror. ' +
-                    'You may need to self‑host the data folder.</p>';
+                    '<p style="color:white;padding:20px;font-family:sans-serif;">' +
+                    'Could not load EmulatorJS from any mirror. ' +
+                    'The only remaining option is to self‑host the EmulatorJS data folder ' +
+                    'on a server your Chromebook can access.' +
+                    '</p>';
                 return;
             }
 
@@ -56,7 +61,7 @@
             };
             document.body.appendChild(script);
 
-            // Give it a moment; if nothing initialises, try the next mirror
+            // If nothing initialises within 8 seconds, try the next path
             setTimeout(function() {
                 if (typeof EJS_emulator === "undefined") {
                     console.warn("EmulatorJS did not initialise from " + path);
