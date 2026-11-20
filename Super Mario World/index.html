@@ -1,0 +1,352 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Super Mario World</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+#game {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#loading {
+    position: absolute;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #080808;
+    padding: 25px;
+    text-align: center;
+}
+
+#loading h2 {
+    font-size: 26px;
+}
+
+#status {
+    color: #aaa;
+    margin: 12px;
+    font-size: 14px;
+}
+
+#barOuter {
+    width: min(400px, 85vw);
+    height: 9px;
+    background: #292929;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#bar {
+    width: 0%;
+    height: 100%;
+    background: #e63946;
+    transition: width .15s;
+}
+
+#error {
+    color: #ff6565;
+    max-width: 600px;
+    font-size: 13px;
+    white-space: pre-wrap;
+}
+
+#retry {
+    display: none;
+    padding: 12px 25px;
+    background: #e63946;
+    color: white;
+    border: 0;
+    border-radius: 5px;
+    margin-top: 20px;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div id="game"></div>
+
+<div id="loading">
+    <h2>SUPER MARIO WORLD</h2>
+    <div id="status">Initializing...</div>
+
+    <div id="barOuter">
+        <div id="bar"></div>
+    </div>
+
+    <p id="error"></p>
+    <button id="retry" onclick="start()">Retry</button>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================
+   CONFIGURATION
+========================================= */
+
+const ROM_URLS = [
+    "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Super%20Mario%20World/Super%20Mario%20World%20%28USA%29.sfc",
+
+    "https://raw.githack.com/AMoldyWaffle/Ocarina-of-Time/main/Super%20Mario%20World/Super%20Mario%20World%20%28USA%29.sfc"
+];
+
+/*
+ Alternative EmulatorJS distribution.
+
+ This is a third-party mirror, not the official
+ EmulatorJS CDN.
+*/
+
+const EMULATOR_HOSTS = [
+    "https://cdn.jsdelivr.net/gh/bluejamgit/Emulator-For-GSites@main/data/",
+    "https://raw.githack.com/bluejamgit/Emulator-For-GSites/main/data/"
+];
+
+/* =========================================
+   UI
+========================================= */
+
+const loading = document.getElementById("loading");
+const statusText = document.getElementById("status");
+const progressBar = document.getElementById("bar");
+const errorText = document.getElementById("error");
+const retryButton = document.getElementById("retry");
+
+function status(message) {
+    statusText.textContent = message;
+}
+
+function progress(value) {
+    progressBar.style.width =
+        Math.max(0, Math.min(100, value)) + "%";
+}
+
+function fail(message) {
+    status("Loading failed");
+    errorText.textContent = message;
+    retryButton.style.display = "block";
+}
+
+/* =========================================
+   DOWNLOAD ROM
+========================================= */
+
+async function downloadROM() {
+    let lastError;
+
+    for (let i = 0; i < ROM_URLS.length; i++) {
+        try {
+            status("Downloading game ROM (" + (i + 1) +
+                "/" + ROM_URLS.length + ")...");
+
+            const response = await fetch(ROM_URLS[i], {
+                cache: "no-store"
+            });
+
+            if (!response.ok) {
+                throw new Error("HTTP " + response.status);
+            }
+
+            const total = Number(
+                response.headers.get("content-length")
+            ) || 0;
+
+            if (!response.body) {
+                const data = await response.arrayBuffer();
+                progress(25);
+                return new Blob([data], {
+                    type: "application/octet-stream"
+                });
+            }
+
+            const reader = response.body.getReader();
+            const chunks = [];
+            let received = 0;
+
+            while (true) {
+                const result = await reader.read();
+
+                if (result.done) break;
+
+                chunks.push(result.value);
+                received += result.value.length;
+
+                if (total) {
+                    progress((received / total) * 25);
+                }
+            }
+
+            const blob = new Blob(chunks, {
+                type: "application/octet-stream"
+            });
+
+            if (!blob.size) {
+                throw new Error("The ROM file was empty.");
+            }
+
+            return blob;
+
+        } catch (error) {
+            lastError = error;
+            console.warn("ROM source failed:", error);
+        }
+    }
+
+    throw new Error(
+        "Could not download the ROM.\n" +
+        "Check GitHub access and CORS permissions.\n\n" +
+        String(lastError)
+    );
+}
+
+/* =========================================
+   LOAD EMULATORJS
+========================================= */
+
+function loadEmulator(base) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+
+        script.src = base + "loader.js";
+        script.async = true;
+
+        script.onload = () => resolve();
+        script.onerror = () => {
+            script.remove();
+            reject(new Error("Could not load " + script.src));
+        };
+
+        document.head.appendChild(script);
+    });
+}
+
+async function initializeEmulator(romURL) {
+    let lastError;
+
+    for (let i = 0; i < EMULATOR_HOSTS.length; i++) {
+        const base = EMULATOR_HOSTS[i];
+
+        try {
+            status("Loading emulator engine (" +
+                (i + 1) + "/" + EMULATOR_HOSTS.length + ")...");
+
+            window.EJS_player = "#game";
+            window.EJS_core = "snes";
+            window.EJS_gameName = "Super Mario World";
+            window.EJS_gameUrl = romURL;
+            window.EJS_pathtodata = base;
+            window.EJS_biosUrl = "";
+            window.EJS_startOnLoaded = true;
+            window.EJS_DEBUG_XX = false;
+            window.EJS_disableDatabases = true;
+            window.EJS_threads = false;
+
+            await loadEmulator(base);
+
+            status("Emulator engine loaded. Starting game...");
+            progress(100);
+
+            return;
+
+        } catch (error) {
+            lastError = error;
+            console.warn("Emulator source failed:", error);
+        }
+    }
+
+    throw new Error(
+        "All emulator sources failed.\n\n" +
+        String(lastError)
+    );
+}
+
+/* =========================================
+   START GAME
+========================================= */
+
+let currentROMURL = null;
+
+async function start() {
+    retryButton.style.display = "none";
+    errorText.textContent = "";
+    progress(0);
+
+    loading.style.display = "flex";
+
+    if (currentROMURL) {
+        URL.revokeObjectURL(currentROMURL);
+        currentROMURL = null;
+    }
+
+    /*
+      Reset the game element and remove old scripts
+      before another attempt.
+    */
+
+    document.getElementById("game").innerHTML = "";
+
+    try {
+        status("Preparing game...");
+
+        const romBlob = await downloadROM();
+
+        status("Preparing ROM...");
+        progress(30);
+
+        currentROMURL = URL.createObjectURL(romBlob);
+
+        await initializeEmulator(currentROMURL);
+
+        /*
+          The emulator will render directly inside
+          this document. No popup or new tab.
+        */
+
+        loading.style.display = "none";
+
+    } catch (error) {
+        console.error(error);
+
+        fail(
+            error.message +
+            "\n\nIf this is a CDN error, the alternate " +
+            "emulator host may also be blocked."
+        );
+    }
+}
+
+/* =========================================
+   START AUTOMATICALLY
+========================================= */
+
+window.addEventListener("load", start);
+
+</script>
+
+</body>
+</html>
