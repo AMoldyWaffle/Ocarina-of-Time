@@ -33,6 +33,7 @@ small,.mut{color:var(--mut)}input[type=range]{width:140px}
   <div id="drop">Drop a ROM / disc image here or <button id="pickRom">choose file…</button><input id="rom" type="file" hidden><div id="romName" class="mut"></div></div>
   <div class="row" style="margin-top:10px">
     <select id="sys"><option value="">Auto-detect system</option></select>
+    <select id="core" title="Advanced: force a specific core"><option value="">Default core</option></select>
     <button id="pickBios">BIOS (optional)…</button><input id="bios" type="file" hidden><span id="biosName" class="mut"></span>
     <button class="pri" id="launch" disabled>Launch game</button>
   </div>
@@ -92,6 +93,7 @@ addEventListener("message",e=>{
   switch(m.evt){
     case"hello":
       $("sys").length=1;(m.systems||[]).forEach(([k,l])=>{const o=document.createElement("option");o.value=k;o.textContent=l;$("sys").appendChild(o);});
+      $("core").length=1;(m.cores||[]).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=k;$("core").appendChild(o);});
       if(m.running){setState("running","Game running");}else{setState("idle","Connected — ready");}
       if(pending&&!m.running)deliver();
       break;
@@ -117,7 +119,7 @@ dz.addEventListener("drop",e=>e.dataTransfer.files[0]&&setRom(e.dataTransfer.fil
 $("launch").onclick=async()=>{
   if(!files.rom)return;
   const data=await files.rom.arrayBuffer(),bios=files.bios?await files.bios.arrayBuffer():null;
-  pending={cmd:"load",system:$("sys").value,name:files.rom.name,data,bios};
+  pending={cmd:"load",system:$("sys").value,core:$("core").value,name:files.rom.name,data,bios};
   if(!alive()){openEmu();return;}                        // 'hello' will deliver the pending game
   if(state==="idle")deliver();
   else send({cmd:"reload"});                             // swap games: reload, then 'hello' delivers
