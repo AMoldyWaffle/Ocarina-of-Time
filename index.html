@@ -200,7 +200,9 @@
       const OWNER = 'AMoldyWaffle';
       const REPO  = 'Ocarina-of-Time';
 
-      
+      // All game folders now live inside this directory.
+      const GAMES_DIR = 'Games';
+
       const BLOBSHA_KEY = `oot_blobsha_${OWNER}_${REPO}`;
       let blobShaMap = {};
       try { blobShaMap = JSON.parse(localStorage.getItem(BLOBSHA_KEY) || '{}'); } catch (e) {}
@@ -304,7 +306,6 @@
 
       function fromWrapContents(wrap) {
         if (!wrap) return null;
-        
         const b64 = wrap.contents;
         if (!b64) return null;
         const bytes = b64ToBytes(b64);
@@ -314,7 +315,6 @@
         return { bytes, mime, sha: null };
       }
 
-      
       const stealthPath = (p) =>
         p.split('/').map((seg) =>
           encodeURIComponent(seg).replace(/\./g, '%2E')
@@ -327,7 +327,6 @@
         const ref  = contentRef();
         const sha  = item.blobSha || blobShaMap[path] || null;
 
-        
         if (sha) {
           const j = await getJson(
             `https://api.github.com/repos/${OWNER}/${REPO}/git/blobs/${sha}`
@@ -342,28 +341,24 @@
           if (r2) return r2;
         }
 
-        
         const j3 = await getJson(
           `https://api.github.com/repos/${OWNER}/${REPO}/contents/${stl}?ref=${ref}`
         );
         const r3 = fromJsonBlob(j3);
         if (r3) { if (r3.sha) rememberBlobSha(path, r3.sha); return r3; }
 
-        
         const j4 = await getJson(
           `https://api.github.com/repos/${OWNER}/${REPO}/contents/${enc}?ref=${ref}`
         );
         const r4 = fromJsonBlob(j4);
         if (r4) { if (r4.sha) rememberBlobSha(path, r4.sha); return r4; }
 
-        
         const j5 = await getJsonViaAllorigins(
           `https://api.github.com/repos/${OWNER}/${REPO}/contents/${stl}?ref=${ref}`
         );
         const r5 = fromJsonBlob(j5);
         if (r5) { if (r5.sha) rememberBlobSha(path, r5.sha); return r5; }
 
-        
         const raw = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${stl}`;
         const j6 = await getJsonViaAllorigins(raw);
         const r6 = fromWrapContents(j6);
@@ -372,7 +367,6 @@
         return null;
       }
 
-      
       async function decodeBlob(blob) {
         try {
           const bmp = await createImageBitmap(blob);
@@ -421,7 +415,6 @@
         } finally { decoded.cleanup(); }
       }
 
-      
       async function paintCover(card) {
         const cover = card.querySelector('.cover');
         const item  = card._item;
@@ -453,7 +446,6 @@
         cover.classList.remove('loading');
       }
 
-      
       async function loadFavicon(path) {
         const bytes = await fetchImageBytes({ imagePath: path });
         if (!bytes) return;
@@ -463,9 +455,6 @@
         fr.readAsDataURL(blob);
       }
 
-      
-      
-      
       async function getLatestSha() {
         try {
           const r = await fetch(
@@ -540,7 +529,6 @@
         }
       }
 
-      
       try {
         const res = await fetch(
           bust(`https://api.github.com/repos/${OWNER}/${REPO}`),
@@ -552,13 +540,11 @@
         console.warn('[repo] info unavailable, keeping branch:', BRANCH);
       }
 
-      
       try {
         const s = await getLatestSha();
         if (s) { SHA = s; console.log('[cache] pinned to commit', SHA); }
       } catch (err) {}
 
-      
       let tree;
       try {
         const res = await fetch(
@@ -573,7 +559,6 @@
         return;
       }
 
-      
       const childrenOf = new Map();
       const allDirs = new Set();
       for (const item of tree) {
@@ -584,29 +569,39 @@
         childrenOf.get(parent).push(item);
       }
 
-      
       const rootChildren = childrenOf.get('') || [];
-      const rootCoverDir = rootChildren.find(
-        (c) => c.type === 'tree' && c.path === 'favicon'
-      );
+      const findRootTree = (p) =>
+        rootChildren.find((c) => c.type === 'tree' && c.path === p);
 
-      if (rootCoverDir) {
-        const coverImages = (childrenOf.get(rootCoverDir.path) || [])
+      // The "Games" directory is now the container for all game folders.
+      const gamesRoot = findRootTree(GAMES_DIR);
+
+      // Favicon can live at the repo root or inside the Games folder.
+      const faviconDirs = ['favicon', `${GAMES_DIR}/favicon`]
+        .filter((p) => childrenOf.has(p));
+
+      for (const favDir of faviconDirs) {
+        const coverImages = (childrenOf.get(favDir) || [])
           .filter((c) => c.type === 'blob' && isImage(c.path))
           .sort((a, b) => a.path.localeCompare(b.path));
+        if (!coverImages.length) continue;
         const pick = (re) => coverImages.find((f) => re.test(f.path.split('/').pop()));
         const faviconFile = pick(/^favicon\./i) || pick(/^icon\./i) || coverImages[0];
         if (faviconFile) {
           if (faviconFile.sha) rememberBlobSha(faviconFile.path, faviconFile.sha);
           loadFavicon(faviconFile.path);
+          break;
         }
       }
 
-      
+      // Scan only directories inside "Games" for game folders
+      // (each needs a "Cover" sub-folder and an .html file).
       const results = [];
+      const gamesPrefix = GAMES_DIR + '/';
       for (const dirPath of allDirs) {
         if (dirPath === '') continue;
-        if (rootCoverDir && dirPath === rootCoverDir.path) continue;
+        if (!dirPath.startsWith(gamesPrefix)) continue;   // must be inside Games/
+        if (faviconDirs.includes(dirPath)) continue;      // skip the favicon folder
 
         const children = childrenOf.get(dirPath) || [];
         const coverDir = children.find(
@@ -641,13 +636,12 @@
         results.push({
           folderName: dirPath.split('/').pop(),
           imagePath:  imageFile.path,
-          blobSha:    imageFile.sha || null,   
+          blobSha:    imageFile.sha || null,
           htmlPath:   htmlFile.path,
           isBeta,
         });
       }
 
-      
       const coverObserver = ('IntersectionObserver' in window)
         ? new IntersectionObserver((entries) => {
             for (const entry of entries) {
@@ -716,9 +710,17 @@
       }
       searchInput.addEventListener('input', applyFilter);
 
+      if (!gamesRoot) {
+        statusEl.textContent =
+          `No "${GAMES_DIR}" folder found in the repository root.`;
+        statusEl.classList.add('error');
+        return;
+      }
+
       if (results.length === 0) {
         statusEl.textContent =
-          'No folders found that contain a Cover sub-folder and an HTML file.';
+          `No game folders found inside "${GAMES_DIR}" that contain a Cover ` +
+          `sub-folder and an HTML file.`;
         return;
       }
 
