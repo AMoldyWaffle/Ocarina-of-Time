@@ -144,7 +144,89 @@ body {
   display: none !important;
 }
 
-@media (max-width: 700px), (max-height: 500px) {
+/* Diagnostic console */
+
+#error-console {
+  position: fixed;
+  z-index: 100000;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  max-height: 42vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(8, 8, 12, .96);
+  color: #eee;
+  border: 1px solid #777;
+  border-radius: 9px;
+  font: 12px/1.45 monospace;
+  box-shadow: 0 4px 24px #000;
+}
+
+#error-console[hidden] {
+  display: none !important;
+}
+
+#error-console header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #24242b;
+  border-bottom: 1px solid #555;
+}
+
+#error-console header strong {
+  color: #ffcf55;
+}
+
+#error-console header div {
+  display: flex;
+  gap: 5px;
+}
+
+#error-console button {
+  padding: 5px 9px;
+  color: white;
+  background: #444;
+  border: 1px solid #777;
+  border-radius: 4px;
+  font: inherit;
+}
+
+#error-log {
+  padding: 9px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-height: 65px;
+  max-height: 30vh;
+}
+
+.error-entry {
+  padding: 3px 0;
+  border-bottom: 1px solid #333;
+}
+
+.error-entry.error {
+  color: #ff7777;
+}
+
+.error-entry.warn {
+  color: #ffd36a;
+}
+
+.error-entry.info {
+  color: #8ed5ff;
+}
+
+#error-console.collapsed #error-log {
+  display: none;
+}
+
+@media(max-width:600px) {
   #loading {
     padding: 12px;
   }
@@ -163,6 +245,14 @@ body {
 
   #load-message {
     font-size: 13px;
+  }
+
+  #error-console {
+    left: 5px;
+    right: 5px;
+    bottom: 5px;
+    max-height: 38vh;
+    font-size: 11px;
   }
 }
 </style>
@@ -269,6 +359,138 @@ body {
 </section>
 
 <div id="debug" hidden></div>
+
+<!-- On-screen diagnostic console -->
+<div id="error-console">
+  <header>
+    <strong>GAME DIAGNOSTICS</strong>
+    <div>
+      <button id="copy-log">Copy Log</button>
+      <button id="clear-log">Clear</button>
+      <button id="toggle-log">Hide</button>
+    </div>
+  </header>
+  <div id="error-log">
+    <div class="error-entry info">Diagnostic console started. Waiting for game...</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const panel = document.getElementById("error-console");
+  const output = document.getElementById("error-log");
+  const toggle = document.getElementById("toggle-log");
+
+  function log(message, type = "info") {
+    const entry = document.createElement("div");
+    entry.className = "error-entry " + type;
+    entry.textContent = "[" + new Date().toLocaleTimeString() + "] " + message;
+    output.appendChild(entry);
+    output.scrollTop = output.scrollHeight;
+
+    while (output.children.length > 250) {
+      output.removeChild(output.firstChild);
+    }
+
+    if (type === "error") {
+      panel.hidden = false;
+      panel.classList.remove("collapsed");
+      toggle.textContent = "Hide";
+    }
+  }
+
+  window.addEventListener("error", function (event) {
+    if (event.target && event.target !== window) {
+      const target = event.target;
+      log(
+        "RESOURCE FAILED: " +
+        (target.src || target.href || target.tagName || "Unknown resource"),
+        "error"
+      );
+      return;
+    }
+
+    log(
+      "JAVASCRIPT ERROR: " + (event.message || "Unknown error") +
+      (event.filename ? "\nFile: " + event.filename : "") +
+      (event.lineno ? "\nLine: " + event.lineno : "") +
+      (event.colno ? "\nColumn: " + event.colno : "") +
+      (event.error && event.error.stack ? "\n" + event.error.stack : ""),
+      "error"
+    );
+  }, true);
+
+  window.addEventListener("unhandledrejection", function (event) {
+    const reason = event.reason;
+    log(
+      "UNHANDLED PROMISE: " +
+      (reason && reason.stack ? reason.stack :
+       reason && reason.message ? reason.message : String(reason)),
+      "error"
+    );
+  });
+
+  window.addEventListener("load", function () {
+    log("Page load event completed.", "info");
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    log("HTML document initialized.", "info");
+  });
+
+  const originalFetch = window.fetch;
+
+  window.fetch = async function (...args) {
+    const url = String(
+      args[0] && args[0].url ? args[0].url : args[0]
+    );
+
+    try {
+      const response = await originalFetch.apply(this, args);
+
+      if (!response.ok) {
+        log(
+          "HTTP " + response.status + " " + response.statusText +
+          "\n" + url,
+          "error"
+        );
+      }
+
+      return response;
+    } catch (error) {
+      log("FETCH FAILED: " + url + "\n" + error, "error");
+      throw error;
+    }
+  };
+
+  document.getElementById("clear-log").onclick = function () {
+    output.replaceChildren();
+    log("Log cleared.", "info");
+  };
+
+  document.getElementById("copy-log").onclick = async function () {
+    const content = Array.from(output.children)
+      .map(entry => entry.textContent)
+      .join("\n");
+
+    try {
+      await navigator.clipboard.writeText(content);
+      log("Log copied to clipboard.", "info");
+    } catch (error) {
+      log("Clipboard unavailable: " + error, "warn");
+    }
+  };
+
+  toggle.onclick = function () {
+    panel.classList.toggle("collapsed");
+    toggle.textContent = panel.classList.contains("collapsed")
+      ? "Show"
+      : "Hide";
+  };
+
+  log("Error and resource monitoring enabled.", "info");
+})();
+</script>
 
 <script src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@4b7e794c2b9271bac69f421ce08572a33aed3004/offline/app.js"></script>
 
