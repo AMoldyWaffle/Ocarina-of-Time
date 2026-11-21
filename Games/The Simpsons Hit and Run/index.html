@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#000000">
 <title>The Simpsons: Hit &amp; Run</title>
 
-<!-- CSS via jsDelivr (was: raw.githubusercontent.com) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@f1fc1e8b6b2d9be5f6578edf31923decf6bf1692/offline/app.css">
+<!-- CSS will be injected by the fallback loader below -->
+<link id="dynamic-css" rel="stylesheet" href="">
 <link rel="icon" href="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/user.png">
 
 <style>
@@ -263,7 +263,11 @@ body {
 <main id="game" aria-label="Hit and Run driving game"></main>
 
 <div id="loading" role="status">
-  <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/gamelogo.png" alt="The Simpsons Hit and Run">
+  <img
+    id="game-logo"
+    src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/gamelogo.png"
+    alt="The Simpsons Hit and Run"
+  >
   <div class="loading-track">
     <i id="load-progress"></i>
   </div>
@@ -303,16 +307,32 @@ body {
     </div>
     <div>
       <button data-key="KeyE" aria-label="Enter or exit car">
-        <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_actn.png" alt="">
+        <img
+          src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_actn.png"
+          alt=""
+          data-fallback-asset="but_actn.png"
+        >
       </button>
       <button data-key="Space" aria-label="Handbrake or jump">
-        <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_hand.png" alt="">
+        <img
+          src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_hand.png"
+          alt=""
+          data-fallback-asset="but_hand.png"
+        >
       </button>
       <button data-key="KeyS" aria-label="Brake or reverse">
-        <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_brak.png" alt="">
+        <img
+          src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_brak.png"
+          alt=""
+          data-fallback-asset="but_brak.png"
+        >
       </button>
       <button data-key="KeyW" aria-label="Accelerate">
-        <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_gas.png" alt="">
+        <img
+          src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_gas.png"
+          alt=""
+          data-fallback-asset="but_gas.png"
+        >
       </button>
     </div>
   </div>
@@ -491,20 +511,282 @@ body {
 })();
 </script>
 
-<!-- Main game script via jsDelivr, with automatic CDN fallback -->
-<script
-  src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@4b7e794c2b9271bac69f421ce08572a33aed3004/offline/app.js"
-  onerror="
-    (function(){
-      var fb = document.createElement('script');
-      fb.src = 'https://cdn.statically.io/gh/AMoldyWaffle/Hit-and-Run/4b7e794c2b9271bac69f421ce08572a33aed3004/offline/app.js';
-      fb.onerror = function(){
-        document.getElementById('load-message').textContent =
-          'Failed to load game script from all CDNs. Check the diagnostics console.';
+<script>
+/**
+ * Multi-CDN fallback engine.
+ *
+ * For each logical asset we define an ordered list of candidate URLs.
+ * The loader tries them one-by-one. If a candidate fails (404, 403,
+ * rate-limit, MIME mismatch, network error), it automatically moves
+ * to the next one. Only when every candidate has failed does it
+ * report an error and stop.
+ *
+ * The chain for JS/CSS is:
+ *   1. jsDelivr (primary)
+ *   2. jsDelivr fastly mirror
+ *   3. jsDelivr gcore mirror
+ *   4. Statically
+ *   5. raw.githack (production / CDN)
+ *   6. raw.githack (development)
+ *   7. GitHub API (raw media type) – last resort before giving up
+ *
+ * Images use a shorter chain (CDNs → GitHub API) and are handled
+ * individually via data-fallback-asset attributes.
+ */
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------
+   *  Shared constants
+   * ------------------------------------------------------------------ */
+  var REPO_OWNER  = "AMoldyWaffle";
+  var REPO_NAME   = "Hit-and-Run";
+  var COMMIT_CSS  = "f1fc1e8b6b2d9be5f6578edf31923decf6bf1692";
+  var COMMIT_JS   = "4b7e794c2b9271bac69f421ce08572a33aed3004";
+  var COMMIT_UI   = "184c4231f02a984aa2d783affdaed843af4631d0";
+
+  /* ------------------------------------------------------------------
+   *  Asset candidate lists
+   * ------------------------------------------------------------------ */
+  var CSS_CANDIDATES = [
+    // jsDelivr – primary
+    "https://cdn.jsdelivr.net/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_CSS + "/offline/app.css",
+    // jsDelivr – Fastly edge
+    "https://fastly.jsdelivr.net/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_CSS + "/offline/app.css",
+    // jsDelivr – Gcore edge
+    "https://gcore.jsdelivr.net/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_CSS + "/offline/app.css",
+    // Statically
+    "https://cdn.statically.io/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_CSS + "/offline/app.css",
+    // raw.githack – production CDN
+    "https://rawcdn.githack.com/" + REPO_OWNER + "/" + REPO_NAME + "/" + COMMIT_CSS + "/offline/app.css",
+    // raw.githack – development
+    "https://raw.githack.com/" + REPO_OWNER + "/" + REPO_NAME + "/" + COMMIT_CSS + "/offline/app.css",
+    // GitHub API – raw media type (last resort)
+    {
+      type: "api",
+      url: "https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/contents/offline/app.css?ref=" + COMMIT_CSS,
+      accept: "application/vnd.github.raw+json"
+    }
+  ];
+
+  var JS_CANDIDATES = [
+    // jsDelivr – primary
+    "https://cdn.jsdelivr.net/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_JS + "/offline/app.js",
+    // jsDelivr – Fastly edge
+    "https://fastly.jsdelivr.net/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_JS + "/offline/app.js",
+    // jsDelivr – Gcore edge
+    "https://gcore.jsdelivr.net/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_JS + "/offline/app.js",
+    // Statically
+    "https://cdn.statically.io/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_JS + "/offline/app.js",
+    // raw.githack – production CDN
+    "https://rawcdn.githack.com/" + REPO_OWNER + "/" + REPO_NAME + "/" + COMMIT_JS + "/offline/app.js",
+    // raw.githack – development
+    "https://raw.githack.com/" + REPO_OWNER + "/" + REPO_NAME + "/" + COMMIT_JS + "/offline/app.js",
+    // GitHub API – raw media type (last resort)
+    {
+      type: "api",
+      url: "https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/contents/offline/app.js?ref=" + COMMIT_JS,
+      accept: "application/vnd.github.raw+json"
+    }
+  ];
+
+  /* ------------------------------------------------------------------
+   *  Generic loader
+   * ------------------------------------------------------------------ */
+  function loadAsset(candidates, tagName, injectFn, onAllFailed) {
+    var index = 0;
+
+    function tryNext() {
+      if (index >= candidates.length) {
+        if (onAllFailed) onAllFailed();
+        return;
+      }
+
+      var candidate = candidates[index++];
+      var isApi = typeof candidate === "object" && candidate.type === "api";
+      var url   = isApi ? candidate.url : candidate;
+
+      console.log("[Fallback] Trying " + tagName + ": " + url);
+
+      if (isApi) {
+        // GitHub API path: fetch raw content with the correct Accept header
+        fetch(url, {
+          headers: { Accept: candidate.accept || "application/vnd.github.raw+json" }
+        })
+          .then(function (response) {
+            if (!response.ok) {
+              throw new Error("HTTP " + response.status);
+            }
+            return response.text();
+          })
+          .then(function (content) {
+            injectFn(content, url);
+          })
+          .catch(function (err) {
+            console.warn("[Fallback] GitHub API failed for " + tagName + ": " + err);
+            tryNext();
+          });
+        return;
+      }
+
+      // Normal URL path: use a <script>/<link> element with onerror
+      var el;
+      if (tagName === "script") {
+        el = document.createElement("script");
+        el.src = url;
+      } else if (tagName === "link") {
+        el = document.createElement("link");
+        el.rel = "stylesheet";
+        el.href = url;
+      } else {
+        return tryNext();
+      }
+
+      el.onload = function () {
+        console.log("[Fallback] Successfully loaded " + tagName + " from: " + url);
       };
-      document.body.appendChild(fb);
-    })();
-  ">
+
+      el.onerror = function () {
+        console.warn("[Fallback] Failed to load " + tagName + " from: " + url);
+        el.remove();
+        tryNext();
+      };
+
+      if (tagName === "link") {
+        // <link> does not fire onload/onerror reliably in all browsers,
+        // so we also set a timeout to advance the chain.
+        var timeout = setTimeout(function () {
+          console.warn("[Fallback] Timeout for " + tagName + ": " + url);
+          el.remove();
+          tryNext();
+        }, 8000);
+        el.onload = function () {
+          clearTimeout(timeout);
+          console.log("[Fallback] Successfully loaded " + tagName + " from: " + url);
+        };
+        el.onerror = function () {
+          clearTimeout(timeout);
+          el.remove();
+          tryNext();
+        };
+      }
+
+      document.head.appendChild(el);
+    }
+
+    tryNext();
+  }
+
+  /* ------------------------------------------------------------------
+   *  Inject helpers for API-loaded content
+   * ------------------------------------------------------------------ */
+  function injectScript(content, sourceUrl) {
+    var script = document.createElement("script");
+    script.textContent = content;
+    document.head.appendChild(script);
+    console.log("[Fallback] Executed script from GitHub API: " + sourceUrl);
+  }
+
+  function injectCss(content, sourceUrl) {
+    var style = document.createElement("style");
+    style.textContent = content;
+    document.head.appendChild(style);
+    console.log("[Fallback] Injected CSS from GitHub API: " + sourceUrl);
+  }
+
+  /* ------------------------------------------------------------------
+   *  Kick off CSS and JS loading
+   * ------------------------------------------------------------------ */
+  var loadMessage = document.getElementById("load-message");
+
+  loadAsset(
+    CSS_CANDIDATES,
+    "link",
+    injectCss,
+    function () {
+      console.error("[Fallback] All CSS sources failed.");
+      loadMessage.textContent = "Warning: stylesheet could not be loaded from any source. The game may look broken.";
+    }
+  );
+
+  loadAsset(
+    JS_CANDIDATES,
+    "script",
+    injectScript,
+    function () {
+      console.error("[Fallback] All JavaScript sources failed.");
+      loadMessage.textContent = "Error: game script could not be loaded from any source (CDN + GitHub API). Check the diagnostics console.";
+    }
+  );
+
+  /* ------------------------------------------------------------------
+   *  Image fallback chain
+   *
+   *  Every <img> that carries a data-fallback-asset attribute gets its
+   *  own retry chain. The original src is already the first jsDelivr
+   *  URL in the HTML, so we start from the next candidate.
+   * ------------------------------------------------------------------ */
+  var IMAGE_CANDIDATES = [
+    // jsDelivr – Fastly edge
+    "https://fastly.jsdelivr.net/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_UI + "/public/assets/ui/",
+    // jsDelivr – Gcore edge
+    "https://gcore.jsdelivr.net/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_UI + "/public/assets/ui/",
+    // Statically
+    "https://cdn.statically.io/gh/" + REPO_OWNER + "/" + REPO_NAME + "@" + COMMIT_UI + "/public/assets/ui/",
+    // raw.githack – production
+    "https://rawcdn.githack.com/" + REPO_OWNER + "/" + REPO_NAME + "/" + COMMIT_UI + "/public/assets/ui/",
+    // raw.githack – development
+    "https://raw.githack.com/" + REPO_OWNER + "/" + REPO_NAME + "/" + COMMIT_UI + "/public/assets/ui/"
+  ];
+
+  function setupImageFallbacks() {
+    var images = document.querySelectorAll("img[data-fallback-asset]");
+    images.forEach(function (img) {
+      var filename = img.getAttribute("data-fallback-asset");
+      var attempt  = 0;
+
+      img.addEventListener("error", function onImageError() {
+        if (attempt >= IMAGE_CANDIDATES.length) {
+          console.warn("[Fallback] All image sources failed for: " + filename);
+          img.removeEventListener("error", onImageError);
+          // Optionally show a placeholder or hide the image
+          img.alt = "Image unavailable";
+          return;
+        }
+        var base = IMAGE_CANDIDATES[attempt++];
+        var newUrl = base + filename;
+        console.log("[Fallback] Trying image fallback for " + filename + ": " + newUrl);
+        img.src = newUrl;
+      });
+    });
+  }
+
+  // Run image fallbacks after DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupImageFallbacks);
+  } else {
+    setupImageFallbacks();
+  }
+
+  /* ------------------------------------------------------------------
+   *  Also fallback for the main logo (no data attribute needed)
+   * ------------------------------------------------------------------ */
+  var logo = document.getElementById("game-logo");
+  if (logo) {
+    var logoAttempt = 0;
+    logo.addEventListener("error", function onLogoError() {
+      if (logoAttempt >= IMAGE_CANDIDATES.length) {
+        logo.removeEventListener("error", onLogoError);
+        console.warn("[Fallback] All logo sources failed.");
+        return;
+      }
+      var base = IMAGE_CANDIDATES[logoAttempt++];
+      var newUrl = base + "gamelogo.png";
+      console.log("[Fallback] Trying logo fallback: " + newUrl);
+      logo.src = newUrl;
+    });
+  }
+})();
 </script>
 
 </body>
