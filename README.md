@@ -1,0 +1,1 @@
+It is the End of Life, end of civilization as we know it. Time to rise to the glory and accept victory for all the triumphs.
