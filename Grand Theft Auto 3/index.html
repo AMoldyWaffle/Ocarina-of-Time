@@ -2,405 +2,439 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GTA III</title>
-
 <style>
-* { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: black;
-}
-
-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-canvas.emscripten {
-  display: block;
-  width: min(100vw, calc(100vh * 16 / 9));
-  height: min(100vh, calc(100vw * 9 / 16));
-}
-
-#loading {
-  position: absolute;
-  z-index: 10;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font: 14px monospace;
-  text-align: center;
-  white-space: pre-wrap;
-  max-width: 90%;
-}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+body{display:flex;align-items:center;justify-content:center}
+canvas.emscripten{display:block;width:100vw;height:100vh;object-fit:contain}
+#loading{position:absolute;z-index:10;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font:14px monospace;text-align:center;white-space:pre-wrap;max-width:90%;line-height:1.6}
 </style>
 </head>
-
 <body>
-
 <div id="loading">Loading GTA III...</div>
 
 <script>
-(function() {
-  var original = Element.prototype.requestPointerLock;
-
-  if (original) {
-    Element.prototype.requestPointerLock = function() {
-      try {
-        var result = original.call(this);
-        if (result && result.catch) result.catch(function(){});
-        return result;
-      } catch(e) {}
-    };
-  }
+(function(){
+  var original=Element.prototype.requestPointerLock;
+  if(original)Element.prototype.requestPointerLock=function(){
+    try{
+      var result=original.call(this);
+      if(result&&result.catch)result.catch(function(){});
+      return result;
+    }catch(e){}
+  };
 })();
 
-Element.prototype.requestFullscreen =
-Element.prototype.webkitRequestFullscreen = function() {
+Element.prototype.requestFullscreen=
+Element.prototype.webkitRequestFullscreen=function(){
   return Promise.reject(new DOMException('blocked'));
 };
+document.exitFullscreen=document.webkitExitFullscreen=function(){};
 
-document.exitFullscreen =
-document.webkitExitFullscreen = function() {};
-
-Object.defineProperty(document, 'fullscreenElement', {
-  get: function() { return null; }
+[
+  'fullscreenElement',
+  'webkitFullscreenElement'
+].forEach(function(name){
+  Object.defineProperty(document,name,{
+    configurable:true,get:function(){return null}
+  });
 });
 
-Object.defineProperty(document, 'webkitFullscreenElement', {
-  get: function() { return null; }
+[
+  'fullscreenEnabled',
+  'webkitFullscreenEnabled'
+].forEach(function(name){
+  Object.defineProperty(document,name,{
+    configurable:true,get:function(){return false}
+  });
 });
 
-Object.defineProperty(document, 'fullscreenEnabled', {
-  get: function() { return false; }
-});
-
-Object.defineProperty(document, 'webkitFullscreenEnabled', {
-  get: function() { return false; }
-});
-
-(function() {
-  var RealAC = window.AudioContext || window.webkitAudioContext;
-  if (!RealAC) return;
-
-  var contexts = [];
-
-  function resumeAll() {
-    contexts.forEach(function(ctx) {
-      if (ctx.state === 'suspended') {
-        ctx.resume().catch(function(){});
-      }
+(function(){
+  var RealAC=window.AudioContext||window.webkitAudioContext;
+  if(!RealAC)return;
+  var contexts=[];
+  function resumeAll(){
+    contexts.forEach(function(ctx){
+      if(ctx.state==='suspended')ctx.resume().catch(function(){});
     });
   }
-
-  document.addEventListener('click', resumeAll);
-  document.addEventListener('touchstart', resumeAll);
-  document.addEventListener('keydown', resumeAll);
-
-  var Wrapper = function(options) {
-    var ctx = new RealAC(options);
+  document.addEventListener('click',resumeAll);
+  document.addEventListener('touchstart',resumeAll);
+  document.addEventListener('keydown',resumeAll);
+  var Wrapper=function(options){
+    var ctx=new RealAC(options);
     contexts.push(ctx);
-
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(function(){});
-    }
-
+    if(ctx.state==='suspended')ctx.resume().catch(function(){});
     return ctx;
   };
-
-  Wrapper.prototype = RealAC.prototype;
-  window.AudioContext = Wrapper;
-
-  if (window.webkitAudioContext) {
-    window.webkitAudioContext = Wrapper;
-  }
+  Wrapper.prototype=RealAC.prototype;
+  window.AudioContext=Wrapper;
+  if(window.webkitAudioContext)window.webkitAudioContext=Wrapper;
 })();
 
-window.addEventListener('unhandledrejection', function(e) {
-  var loading = document.getElementById('loading');
-
-  if (loading && e.reason) {
-    loading.textContent = 'ERROR: ' +
-      (e.reason.message || e.reason);
+window.addEventListener('unhandledrejection',function(event){
+  console.error('[GTA III]',event.reason);
+  var loading=document.getElementById('loading');
+  if(loading&&event.reason){
+    loading.textContent='ERROR:\n'+
+      (event.reason.message||event.reason);
   }
 });
 </script>
 
 <script>
-var Module = {
-  preRun: [],
-  postRun: [],
-
-  canvas: (function() {
-    var canvas = document.createElement('canvas');
-    canvas.id = 'canvas';
-    canvas.className = 'emscripten';
+var Module={
+  preRun:[],
+  postRun:[],
+  canvas:(function(){
+    var canvas=document.createElement('canvas');
+    canvas.id='canvas';
+    canvas.className='emscripten';
     document.body.appendChild(canvas);
     return canvas;
   })(),
-
-  setStatus: function(message) {
-    var loading = document.getElementById('loading');
-    if (loading) loading.textContent = message;
+  setStatus:function(message){
+    var loading=document.getElementById('loading');
+    if(loading)loading.textContent=message;
   },
-
-  totalDependencies: 0,
-
-  monitorRunDependencies: function(left) {
-    this.totalDependencies = Math.max(this.totalDependencies, left);
-
-    Module.setStatus(
-      left
-        ? 'Preparing... (' +
-          (this.totalDependencies - left) +
-          '/' + this.totalDependencies + ')'
-        : ''
-    );
+  totalDependencies:0,
+  monitorRunDependencies:function(left){
+    this.totalDependencies=Math.max(this.totalDependencies,left);
+    Module.setStatus(left
+      ?'Preparing game...\n'+
+        (this.totalDependencies-left)+' / '+this.totalDependencies
+      :'');
   }
 };
-
-Module.setStatus('Loading GTA III...');
+Module.setStatus('Initializing GTA III...');
 </script>
 
 <script>
-(function() {
-  var REPO = 'AMoldyWaffle/GTA3';
-  var BRANCH = 'main';
+(function(){
+'use strict';
 
-  var HOSTS = [
-    'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/',
-    'https://cdn.jsdelivr.net/gh/' + REPO + '@' + BRANCH + '/',
-    'https://raw.githack.com/' + REPO + '/' + BRANCH + '/'
-  ];
+var REPO='AMoldyWaffle/GTA3';
+var BRANCH='main';
 
-  
-  var CHUNKS_PER_BATCH = 3;
+var HOSTS=[
+  'https://raw.githubusercontent.com/'+REPO+'/'+BRANCH+'/',
+  'https://cdn.jsdelivr.net/gh/'+REPO+'@'+BRANCH+'/',
+  'https://raw.githack.com/'+REPO+'/'+BRANCH+'/'
+];
 
-  function status(message) {
-    Module.setStatus(message);
-  }
+var CHUNKS_PER_BATCH=3;
+var REQUEST_TIMEOUT=300000;
 
-  function b64ToBytes(b64) {
-    if (Uint8Array.fromBase64) {
-      return Uint8Array.fromBase64(b64);
+function status(message){
+  Module.setStatus(message);
+}
+
+function makeUrl(host,file){
+  return host+file+'?t='+Date.now();
+}
+
+function fetchText(url){
+  var controller=new AbortController();
+  var timeout=setTimeout(function(){
+    controller.abort();
+  },REQUEST_TIMEOUT);
+
+  return fetch(url,{
+    signal:controller.signal,
+    cache:'no-store',
+    credentials:'omit'
+  }).then(function(response){
+    if(!response.ok){
+      throw new Error('HTTP '+response.status);
     }
+    return response.text();
+  }).finally(function(){
+    clearTimeout(timeout);
+  });
+}
 
-    var binary = atob(b64);
-    var output = new Uint8Array(binary.length);
+async function getText(file){
+  var errors=[];
 
-    for (var i = 0; i < binary.length; i++) {
-      output[i] = binary.charCodeAt(i);
-    }
+  for(var i=0;i<HOSTS.length;i++){
+    var url=makeUrl(HOSTS[i],file);
 
-    return output;
-  }
-
-  async function loadScript(file) {
-    var lastError;
-
-    for (var i = 0; i < HOSTS.length; i++) {
-      var script = document.createElement('script');
-
-      try {
-        await new Promise(function(resolve, reject) {
-          script.async = false;
-          script.src = HOSTS[i] + file;
-          script.onload = resolve;
-          script.onerror = function() {
-            reject(new Error('Could not load ' + file));
-          };
-          document.head.appendChild(script);
-        });
-
-        script.remove();
-        return;
-
-      } catch(error) {
-        script.remove();
-        lastError = error;
-      }
-    }
-
-    throw new Error(
-      'Unable to load ' + file + '. ' +
-      (lastError ? lastError.message : '')
+    status(
+      'Downloading '+file+'...\n'+
+      'Source '+(i+1)+' of '+HOSTS.length
     );
-  }
 
-  async function fetchChunk(index) {
-    var file = 're3.chunk.' + index + '.js';
-    var lastError;
-
-    for (var i = 0; i < HOSTS.length; i++) {
-      var source = null;
-
-      try {
-        var response = await fetch(HOSTS[i] + file, {
-          cache: 'force-cache'
-        });
-
-        if (!response.ok) {
-          throw new Error('HTTP ' + response.status);
-        }
-
-        source = await response.text();
-
-        
-        var isolatedWindow = {};
-
-        new Function('window', source)(isolatedWindow);
-
-        source = null;
-
-        if (!isolatedWindow.__CHUNK) {
-          throw new Error('No chunk data found in ' + file);
-        }
-
-        var encoded = isolatedWindow.__CHUNK;
-        isolatedWindow.__CHUNK = null;
-
-        var bytes = b64ToBytes(encoded);
-        encoded = null;
-
-        return bytes;
-
-      } catch(error) {
-        source = null;
-        lastError = error;
-      }
-    }
-
-    throw new Error(
-      'Failed to download chunk ' + index + ': ' +
-      (lastError ? lastError.message : 'Unknown error')
-    );
-  }
-
-  async function start() {
-    try {
-      status('Loading GTA III engine...');
-
-      await loadScript('re3.wasm.js');
-
-      if (!window.__WASM_B64) {
-        throw new Error('WASM data was not found.');
-      }
-
-      var wasmEncoded = window.__WASM_B64;
-      window.__WASM_B64 = null;
-
-      Module.wasmBinary = b64ToBytes(wasmEncoded).buffer;
-
-      wasmEncoded = null;
-
-      status('Loading game-data information...');
-
-      await loadScript('chunks.json.js');
-
-      var count = Number(window.__CHUNK_COUNT);
-      var dataSize = Number(window.__DATA_SIZE);
-
-      if (!Number.isInteger(count) || count < 1 ||
-          !Number.isSafeInteger(dataSize) || dataSize < 1) {
-        throw new Error('Invalid game-data information.');
-      }
-
-      
-      status('Allocating game memory...');
-
-      var buffer = new Uint8Array(dataSize);
-      var offset = 0;
-      var completed = 0;
-
-      
-      for (var startIndex = 0; startIndex < count;
-           startIndex += CHUNKS_PER_BATCH) {
-
-        var endIndex = Math.min(
-          startIndex + CHUNKS_PER_BATCH,
-          count
-        );
-
-        status(
-          'Downloading GTA III data...\n' +
-          completed + ' / ' + count + ' chunks\n'
-        );
-
-        var batch = await Promise.all(
-          Array.from(
-            { length: endIndex - startIndex },
-            function(_, position) {
-              return fetchChunk(startIndex + position);
-            }
-          )
-        );
-
-        
-        for (var j = 0; j < batch.length; j++) {
-          var bytes = batch[j];
-
-          if (offset + bytes.length > dataSize) {
-            throw new Error(
-              'Game data exceeded expected size at chunk ' +
-              (startIndex + j)
-            );
-          }
-
-          buffer.set(bytes, offset);
-          offset += bytes.length;
-
-          batch[j] = null;
-          completed++;
-        }
-
-        batch = null;
-      }
-
-      if (offset !== dataSize) {
-        throw new Error(
-          'Incomplete game data: ' + offset +
-          ' / ' + dataSize + ' bytes'
-        );
-      }
-
-      
-      delete window.__CHUNK_COUNT;
-      delete window.__DATA_SIZE;
-
-      status('Preparing game data...');
-
-      Module.getPreloadedPackage = function(name) {
-        if (/re3\.data$/.test(name)) {
-          return buffer.buffer;
-        }
-
-        return undefined;
-      };
-
-      status('Starting GTA III...');
-
-      await loadScript('re3.js');
-
-    } catch(error) {
-      console.error('[GTA III Launcher]', error);
-
-      status(
-        'GTA III ERROR:\n\n' +
-        (error && error.message ? error.message : error)
+    try{
+      var text=await fetchText(url);
+      if(!text)throw new Error('Empty response');
+      return text;
+    }catch(error){
+      errors.push(
+        HOSTS[i]+' '+(error.message||String(error))
       );
     }
   }
 
-  start();
+  throw new Error(
+    'Could not download '+file+'.\n\n'+
+    errors.join('\n')
+  );
+}
+
+async function loadScript(file){
+  var errors=[];
+
+  for(var i=0;i<HOSTS.length;i++){
+    var url=makeUrl(HOSTS[i],file);
+
+    status(
+      'Loading '+file+'...\n'+
+      'Source '+(i+1)+' of '+HOSTS.length
+    );
+
+    try{
+      await new Promise(function(resolve,reject){
+        var script=document.createElement('script');
+        var finished=false;
+
+        var timeout=setTimeout(function(){
+          if(finished)return;
+          finished=true;
+          script.remove();
+          reject(new Error('Download timed out'));
+        },REQUEST_TIMEOUT);
+
+        script.async=false;
+
+        script.onload=function(){
+          if(finished)return;
+          finished=true;
+          clearTimeout(timeout);
+          script.remove();
+          resolve();
+        };
+
+        script.onerror=function(){
+          if(finished)return;
+          finished=true;
+          clearTimeout(timeout);
+          script.remove();
+          reject(new Error('Browser could not load script'));
+        };
+
+        script.src=url;
+        document.head.appendChild(script);
+      });
+
+      return;
+    }catch(error){
+      errors.push(HOSTS[i]+': '+error.message);
+    }
+  }
+
+  throw new Error(
+    'Unable to load '+file+'.\n\n'+errors.join('\n')
+  );
+}
+
+function extractBase64(source,variable){
+  var marker='window.'+variable;
+  var start=source.indexOf(marker);
+
+  if(start<0){
+    marker=variable;
+    start=source.indexOf(marker);
+  }
+
+  if(start<0){
+    throw new Error(variable+' was not found in downloaded file');
+  }
+
+  var equals=source.indexOf('=',start);
+  var quote=source.indexOf('"',equals);
+
+  if(quote<0){
+    quote=source.indexOf("'",equals);
+  }
+
+  if(quote<0){
+    throw new Error('Invalid '+variable+' format');
+  }
+
+  var end=source.indexOf(source.charAt(quote),quote+1);
+
+  if(end<0){
+    throw new Error('Incomplete '+variable+' data');
+  }
+
+  return source.substring(quote+1,end);
+}
+
+function decodeBase64(base64){
+  if(typeof Uint8Array.fromBase64==='function'){
+    return Uint8Array.fromBase64(base64);
+  }
+
+  var binary=atob(base64);
+  var bytes=new Uint8Array(binary.length);
+
+  for(var i=0;i<binary.length;i++){
+    bytes[i]=binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+async function fetchChunk(index){
+  var file='re3.chunk.'+index+'.js';
+  var errors=[];
+
+  for(var i=0;i<HOSTS.length;i++){
+    var source=null;
+
+    try{
+      source=await fetchText(makeUrl(HOSTS[i],file));
+
+      var encoded=extractBase64(source,'__CHUNK');
+      source=null;
+
+      var bytes=decodeBase64(encoded);
+      encoded=null;
+
+      return bytes;
+    }catch(error){
+      source=null;
+      errors.push(HOSTS[i]+': '+(error.message||String(error)));
+    }
+  }
+
+  throw new Error(
+    'Failed to download chunk '+index+'.\n'+
+    errors.join('\n')
+  );
+}
+
+async function start(){
+  try{
+    status('Downloading WebAssembly data...');
+
+    var wasmSource=await getText('re3.wasm.js');
+    var wasmEncoded=extractBase64(wasmSource,'__WASM_B64');
+    wasmSource=null;
+
+    status('Preparing WebAssembly...');
+
+    var wasmBytes=decodeBase64(wasmEncoded);
+    wasmEncoded=null;
+
+    Module.wasmBinary=wasmBytes.buffer;
+    wasmBytes=null;
+
+    status('Loading game-data information...');
+
+    var infoSource=await getText('chunks.json.js');
+
+    var countMatch=infoSource.match(/__CHUNK_COUNT\s*=\s*(\d+)/);
+    var sizeMatch=infoSource.match(/__DATA_SIZE\s*=\s*(\d+)/);
+
+    infoSource=null;
+
+    if(!countMatch||!sizeMatch){
+      throw new Error('Could not read chunks.json.js');
+    }
+
+    var count=Number(countMatch[1]);
+    var dataSize=Number(sizeMatch[1]);
+
+    if(!Number.isSafeInteger(count)||count<1||
+       !Number.isSafeInteger(dataSize)||dataSize<1){
+      throw new Error('Invalid game-data information');
+    }
+
+    status(
+      'Allocating game memory...\n'+
+      Math.round(dataSize/1048576)+' MB required'
+    );
+
+    var gameBuffer=new Uint8Array(dataSize);
+    var offset=0;
+    var completed=0;
+
+    for(var batchStart=0;batchStart<count;batchStart+=CHUNKS_PER_BATCH){
+      var batchEnd=Math.min(
+        batchStart+CHUNKS_PER_BATCH,
+        count
+      );
+
+      status(
+        'Downloading GTA III data...\n'+
+        completed+' / '+count+' chunks complete\n'+
+        Math.round(offset/1048576)+' / '+
+        Math.round(dataSize/1048576)+' MB assembled'
+      );
+
+      var batch=await Promise.all(
+        Array.from(
+          {length:batchEnd-batchStart},
+          function(_,position){
+            return fetchChunk(batchStart+position);
+          }
+        )
+      );
+
+      for(var j=0;j<batch.length;j++){
+        var chunk=batch[j];
+
+        if(offset+chunk.length>dataSize){
+          throw new Error(
+            'Unexpected data size in chunk '+
+            (batchStart+j)
+          );
+        }
+
+        gameBuffer.set(chunk,offset);
+        offset+=chunk.length;
+
+        batch[j]=null;
+        completed++;
+      }
+
+      batch=null;
+    }
+
+    if(offset!==dataSize){
+      throw new Error(
+        'Game data is incomplete: '+
+        offset+' / '+dataSize+' bytes'
+      );
+    }
+
+    status('Preparing game files...');
+
+    Module.getPreloadedPackage=function(name){
+      if(/re3\.data$/.test(name)){
+        return gameBuffer.buffer;
+      }
+      return undefined;
+    };
+
+    status('Starting GTA III...');
+
+    await loadScript('re3.js');
+
+  }catch(error){
+    console.error('[GTA III Launcher]',error);
+    status(
+      'GTA III ERROR:\n\n'+
+      (error&&error.message?error.message:String(error))
+    );
+  }
+}
+
+start();
 })();
 </script>
-
 </body>
 </html>
