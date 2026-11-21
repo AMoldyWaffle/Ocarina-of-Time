@@ -1,14 +1,14 @@
-
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>The Simpsons: Hit & Run</title>
+<title>The Simpsons: Hit &amp; Run</title>
 
+<!-- CSS via jsDelivr (was: raw.githubusercontent.com) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@f1fc1e8b6b2d9be5f6578edf31923decf6bf1692/offline/app.css">
-<link rel="icon" href="https://raw.githubusercontent.com/AMoldyWaffle/Hit-and-Run/184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/user.png">
+<link rel="icon" href="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/user.png">
 
 <style>
 * {
@@ -263,7 +263,7 @@ body {
 <main id="game" aria-label="Hit and Run driving game"></main>
 
 <div id="loading" role="status">
-  <img src="https://raw.githubusercontent.com/AMoldyWaffle/Hit-and-Run/184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/gamelogo.png" alt="The Simpsons Hit and Run">
+  <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/gamelogo.png" alt="The Simpsons Hit and Run">
   <div class="loading-track">
     <i id="load-progress"></i>
   </div>
@@ -303,16 +303,16 @@ body {
     </div>
     <div>
       <button data-key="KeyE" aria-label="Enter or exit car">
-        <img src="https://raw.githubusercontent.com/AMoldyWaffle/Hit-and-Run/184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_actn.png" alt="">
+        <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_actn.png" alt="">
       </button>
       <button data-key="Space" aria-label="Handbrake or jump">
-        <img src="https://raw.githubusercontent.com/AMoldyWaffle/Hit-and-Run/184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_hand.png" alt="">
+        <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_hand.png" alt="">
       </button>
       <button data-key="KeyS" aria-label="Brake or reverse">
-        <img src="https://raw.githubusercontent.com/AMoldyWaffle/Hit-and-Run/184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_brak.png" alt="">
+        <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_brak.png" alt="">
       </button>
       <button data-key="KeyW" aria-label="Accelerate">
-        <img src="https://raw.githubusercontent.com/AMoldyWaffle/Hit-and-Run/184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_gas.png" alt="">
+        <img src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@184c4231f02a984aa2d783affdaed843af4631d0/public/assets/ui/but_gas.png" alt="">
       </button>
     </div>
   </div>
@@ -491,6 +491,21 @@ body {
 })();
 </script>
 
-<script src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@4b7e794c2b9271bac69f421ce08572a33aed3004/offline/app.js"></script>
+<!-- Main game script via jsDelivr, with automatic CDN fallback -->
+<script
+  src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hit-and-Run@4b7e794c2b9271bac69f421ce08572a33aed3004/offline/app.js"
+  onerror="
+    (function(){
+      var fb = document.createElement('script');
+      fb.src = 'https://cdn.statically.io/gh/AMoldyWaffle/Hit-and-Run/4b7e794c2b9271bac69f421ce08572a33aed3004/offline/app.js';
+      fb.onerror = function(){
+        document.getElementById('load-message').textContent =
+          'Failed to load game script from all CDNs. Check the diagnostics console.';
+      };
+      document.body.appendChild(fb);
+    })();
+  ">
+</script>
+
 </body>
 </html>
