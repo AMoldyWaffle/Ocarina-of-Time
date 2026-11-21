@@ -1,14 +1,3 @@
-/* WafflesEmu loader — lets ANY page run the emulator straight from raw.githubusercontent.com links.
-   raw.githubusercontent.com refuses to render HTML / run <script src>, so this fetches the files as text instead.
-
-   const emu = await WafflesEmu.open("https://raw.githubusercontent.com/USER/REPO/main/", {container: someDiv});
-   //  Cores are fetched as plain .data files from BASE + "cores/<core>.data" (or BASE + "data/cores/..."). Override with {dataBase: "https://.../folder-containing-cores/"}.
-   //  or popup:  await WafflesEmu.open(base)   (call from a click handler)
-   await emu.ready;                       // emulator said "hello"
-   await emu.load(romFile);               // File/Blob; optional 2nd arg {system:"snes", core:"snes9x", bios:ArrayBuffer}
-   emu.on(m => console.log(m));           // events: started, state, screenshot, error ...
-   emu.send("pause"); emu.send("input",{player:0,index:8,value:1});   // see PROTOCOL.md
-*/
 (function (g) {
   const norm = b => b.replace(/emulator\.html.*$/, "").replace(/\/?$/, "/");
   async function prepare(base, opts = {}) {
@@ -16,12 +5,12 @@
     const r = await fetch(base + "emulator.html");
     if (!r.ok) throw new Error("HTTP " + r.status + " fetching emulator.html");
     const html = await r.text();
-    const db = opts.dataBase ? norm(opts.dataBase) : base;     // folder that contains cores/*.data
+    const db = opts.dataBase ? norm(opts.dataBase) : base;  
     return html.replace("<head>", "<head><script>window.WI_PACK_BASE=" + JSON.stringify(base + "packs/") + ";window.WI_DATA_BASE=" + JSON.stringify(db) + ";<\/script>");
   }
   async function open(base, opts = {}) {
     let win, frame;
-    if (!opts.container) {                              // open popup synchronously (keeps the click's permission)
+    if (!opts.container) {                   
       win = g.open("about:blank", opts.name || "wi_emulator", opts.features || "width=980,height=760");
       if (!win) throw new Error("Popup blocked");
     }
