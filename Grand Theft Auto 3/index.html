@@ -17,96 +17,96 @@ canvas.emscripten{display:block;width:100vw;height:100vh;object-fit:contain}
 
 <script>
 (function(){
-  var original=Element.prototype.requestPointerLock;
-  if(original)Element.prototype.requestPointerLock=function(){
-    try{
-      var result=original.call(this);
-      if(result&&result.catch)result.catch(function(){});
-      return result;
-    }catch(e){}
-  };
+var original=Element.prototype.requestPointerLock;
+if(original)Element.prototype.requestPointerLock=function(){
+try{
+var result=original.call(this);
+if(result&&result.catch)result.catch(function(){});
+return result;
+}catch(e){}
+};
 })();
 
 Element.prototype.requestFullscreen=
 Element.prototype.webkitRequestFullscreen=function(){
-  return Promise.reject(new DOMException('blocked'));
+return Promise.reject(new DOMException('blocked'));
 };
 document.exitFullscreen=document.webkitExitFullscreen=function(){};
 
 [
-  'fullscreenElement',
-  'webkitFullscreenElement'
+'fullscreenElement',
+'webkitFullscreenElement'
 ].forEach(function(name){
-  Object.defineProperty(document,name,{
-    configurable:true,get:function(){return null}
-  });
+Object.defineProperty(document,name,{
+configurable:true,get:function(){return null}
+});
 });
 
 [
-  'fullscreenEnabled',
-  'webkitFullscreenEnabled'
+'fullscreenEnabled',
+'webkitFullscreenEnabled'
 ].forEach(function(name){
-  Object.defineProperty(document,name,{
-    configurable:true,get:function(){return false}
-  });
+Object.defineProperty(document,name,{
+configurable:true,get:function(){return false}
+});
 });
 
 (function(){
-  var RealAC=window.AudioContext||window.webkitAudioContext;
-  if(!RealAC)return;
-  var contexts=[];
-  function resumeAll(){
-    contexts.forEach(function(ctx){
-      if(ctx.state==='suspended')ctx.resume().catch(function(){});
-    });
-  }
-  document.addEventListener('click',resumeAll);
-  document.addEventListener('touchstart',resumeAll);
-  document.addEventListener('keydown',resumeAll);
-  var Wrapper=function(options){
-    var ctx=new RealAC(options);
-    contexts.push(ctx);
-    if(ctx.state==='suspended')ctx.resume().catch(function(){});
-    return ctx;
-  };
-  Wrapper.prototype=RealAC.prototype;
-  window.AudioContext=Wrapper;
-  if(window.webkitAudioContext)window.webkitAudioContext=Wrapper;
+var RealAC=window.AudioContext||window.webkitAudioContext;
+if(!RealAC)return;
+var contexts=[];
+function resumeAll(){
+contexts.forEach(function(ctx){
+if(ctx.state==='suspended')ctx.resume().catch(function(){});
+});
+}
+document.addEventListener('click',resumeAll);
+document.addEventListener('touchstart',resumeAll);
+document.addEventListener('keydown',resumeAll);
+var Wrapper=function(options){
+var ctx=new RealAC(options);
+contexts.push(ctx);
+if(ctx.state==='suspended')ctx.resume().catch(function(){});
+return ctx;
+};
+Wrapper.prototype=RealAC.prototype;
+window.AudioContext=Wrapper;
+if(window.webkitAudioContext)window.webkitAudioContext=Wrapper;
 })();
 
 window.addEventListener('unhandledrejection',function(event){
-  console.error('[GTA III]',event.reason);
-  var loading=document.getElementById('loading');
-  if(loading&&event.reason){
-    loading.textContent='ERROR:\n'+
-      (event.reason.message||event.reason);
-  }
+console.error(event.reason);
+var loading=document.getElementById('loading');
+if(loading&&event.reason){
+loading.textContent='ERROR:\n'+
+(event.reason.message||event.reason);
+}
 });
 </script>
 
 <script>
 var Module={
-  preRun:[],
-  postRun:[],
-  canvas:(function(){
-    var canvas=document.createElement('canvas');
-    canvas.id='canvas';
-    canvas.className='emscripten';
-    document.body.appendChild(canvas);
-    return canvas;
-  })(),
-  setStatus:function(message){
-    var loading=document.getElementById('loading');
-    if(loading)loading.textContent=message;
-  },
-  totalDependencies:0,
-  monitorRunDependencies:function(left){
-    this.totalDependencies=Math.max(this.totalDependencies,left);
-    Module.setStatus(left
-      ?'Preparing game...\n'+
-        (this.totalDependencies-left)+' / '+this.totalDependencies
-      :'');
-  }
+preRun:[],
+postRun:[],
+canvas:(function(){
+var canvas=document.createElement('canvas');
+canvas.id='canvas';
+canvas.className='emscripten';
+document.body.appendChild(canvas);
+return canvas;
+})(),
+setStatus:function(message){
+var loading=document.getElementById('loading');
+if(loading)loading.textContent=message;
+},
+totalDependencies:0,
+monitorRunDependencies:function(left){
+this.totalDependencies=Math.max(this.totalDependencies,left);
+Module.setStatus(left
+?'Preparing game...\n'+
+(this.totalDependencies-left)+' / '+this.totalDependencies
+:'');
+}
 };
 Module.setStatus('Initializing GTA III...');
 </script>
@@ -119,318 +119,355 @@ var REPO='AMoldyWaffle/GTA3';
 var BRANCH='main';
 
 var HOSTS=[
-  'https://raw.githubusercontent.com/'+REPO+'/'+BRANCH+'/',
-  'https://cdn.jsdelivr.net/gh/'+REPO+'@'+BRANCH+'/',
-  'https://raw.githack.com/'+REPO+'/'+BRANCH+'/'
+'https://raw.githubusercontent.com/'+REPO+'/'+BRANCH+'/',
+'https://cdn.jsdelivr.net/gh/'+REPO+'@'+BRANCH+'/',
+'https://raw.githack.com/'+REPO+'/'+BRANCH+'/'
 ];
 
 var CHUNKS_PER_BATCH=3;
 var REQUEST_TIMEOUT=300000;
 
 function status(message){
-  Module.setStatus(message);
+Module.setStatus(message);
 }
 
 function makeUrl(host,file){
-  return host+file+'?t='+Date.now();
+return host+file+'?t='+Date.now();
 }
 
 function fetchText(url){
-  var controller=new AbortController();
-  var timeout=setTimeout(function(){
-    controller.abort();
-  },REQUEST_TIMEOUT);
+var controller=new AbortController();
+var timeout=setTimeout(function(){
+controller.abort();
+},REQUEST_TIMEOUT);
 
-  return fetch(url,{
-    signal:controller.signal,
-    cache:'no-store',
-    credentials:'omit'
-  }).then(function(response){
-    if(!response.ok){
-      throw new Error('HTTP '+response.status);
-    }
-    return response.text();
-  }).finally(function(){
-    clearTimeout(timeout);
-  });
+return fetch(url,{
+signal:controller.signal,
+cache:'no-store',
+credentials:'omit'
+}).then(function(response){
+if(!response.ok){
+throw new Error('HTTP '+response.status);
+}
+return response.text();
+}).finally(function(){
+clearTimeout(timeout);
+});
 }
 
 async function getText(file){
-  var errors=[];
+var errors=[];
 
-  for(var i=0;i<HOSTS.length;i++){
-    var url=makeUrl(HOSTS[i],file);
+for(var i=0;i<HOSTS.length;i++){
+var url=makeUrl(HOSTS[i],file);
 
-    status(
-      'Downloading '+file+'...\n'+
-      'Source '+(i+1)+' of '+HOSTS.length
-    );
+status(
+'Downloading '+file+'...\n'+
+'Source '+(i+1)+' of '+HOSTS.length
+);
 
-    try{
-      var text=await fetchText(url);
-      if(!text)throw new Error('Empty response');
-      return text;
-    }catch(error){
-      errors.push(
-        HOSTS[i]+' '+(error.message||String(error))
-      );
-    }
-  }
+try{
+var text=await fetchText(url);
+if(!text)throw new Error('Empty response');
+if(/^\s*(<!DOCTYPE|<html)/i.test(text)){
+throw new Error('Invalid file response');
+}
+return text;
+}catch(error){
+errors.push(
+'Source '+(i+1)+': '+(error.message||String(error))
+);
+}
+}
 
-  throw new Error(
-    'Could not download '+file+'.\n\n'+
-    errors.join('\n')
-  );
+throw new Error(
+'Could not download '+file+'.\n\n'+
+errors.join('\n')
+);
 }
 
 async function loadScript(file){
-  var errors=[];
+var errors=[];
+var source=null;
 
-  for(var i=0;i<HOSTS.length;i++){
-    var url=makeUrl(HOSTS[i],file);
+for(var i=0;i<HOSTS.length;i++){
+try{
+status(
+'Downloading '+file+'...\n'+
+'Source '+(i+1)+' of '+HOSTS.length
+);
 
-    status(
-      'Loading '+file+'...\n'+
-      'Source '+(i+1)+' of '+HOSTS.length
-    );
+source=await fetchText(makeUrl(HOSTS[i],file));
 
-    try{
-      await new Promise(function(resolve,reject){
-        var script=document.createElement('script');
-        var finished=false;
+if(!source||source.length<1000){
+throw new Error('Invalid JavaScript response');
+}
 
-        var timeout=setTimeout(function(){
-          if(finished)return;
-          finished=true;
-          script.remove();
-          reject(new Error('Download timed out'));
-        },REQUEST_TIMEOUT);
+if(/^\s*(<!DOCTYPE|<html)/i.test(source)){
+throw new Error('Invalid file response');
+}
 
-        script.async=false;
+break;
 
-        script.onload=function(){
-          if(finished)return;
-          finished=true;
-          clearTimeout(timeout);
-          script.remove();
-          resolve();
-        };
+}catch(error){
+errors.push(
+'Source '+(i+1)+': '+(error.message||String(error))
+);
+source=null;
+}
+}
 
-        script.onerror=function(){
-          if(finished)return;
-          finished=true;
-          clearTimeout(timeout);
-          script.remove();
-          reject(new Error('Browser could not load script'));
-        };
+if(!source){
+throw new Error(
+'Unable to download '+file+'.\n'+errors.join('\n')
+);
+}
 
-        script.src=url;
-        document.head.appendChild(script);
-      });
+status(
+'Starting game...\n'+
+Math.round(source.length/1024)+' KB downloaded'
+);
 
-      return;
-    }catch(error){
-      errors.push(HOSTS[i]+': '+error.message);
-    }
-  }
+var blob=new Blob(
+[source],
+{type:'text/javascript'}
+);
 
-  throw new Error(
-    'Unable to load '+file+'.\n\n'+errors.join('\n')
-  );
+source=null;
+
+var blobUrl=URL.createObjectURL(blob);
+
+try{
+await new Promise(function(resolve,reject){
+var script=document.createElement('script');
+var finished=false;
+
+var timeout=setTimeout(function(){
+if(finished)return;
+finished=true;
+script.remove();
+reject(new Error('Script execution timed out'));
+},REQUEST_TIMEOUT);
+
+script.onload=function(){
+if(finished)return;
+finished=true;
+clearTimeout(timeout);
+script.remove();
+resolve();
+};
+
+script.onerror=function(){
+if(finished)return;
+finished=true;
+clearTimeout(timeout);
+script.remove();
+reject(new Error('Could not start game'));
+};
+
+script.src=blobUrl;
+document.head.appendChild(script);
+});
+}finally{
+URL.revokeObjectURL(blobUrl);
+}
 }
 
 function extractBase64(source,variable){
-  var marker='window.'+variable;
-  var start=source.indexOf(marker);
+var marker='window.'+variable;
+var start=source.indexOf(marker);
 
-  if(start<0){
-    marker=variable;
-    start=source.indexOf(marker);
-  }
+if(start<0){
+marker=variable;
+start=source.indexOf(marker);
+}
 
-  if(start<0){
-    throw new Error(variable+' was not found in downloaded file');
-  }
+if(start<0){
+throw new Error('Invalid game data');
+}
 
-  var equals=source.indexOf('=',start);
-  var quote=source.indexOf('"',equals);
+var equals=source.indexOf('=',start);
+var quote=source.indexOf('"',equals);
 
-  if(quote<0){
-    quote=source.indexOf("'",equals);
-  }
+if(quote<0){
+quote=source.indexOf("'",equals);
+}
 
-  if(quote<0){
-    throw new Error('Invalid '+variable+' format');
-  }
+if(quote<0){
+throw new Error('Invalid game data format');
+}
 
-  var end=source.indexOf(source.charAt(quote),quote+1);
+var end=source.indexOf(source.charAt(quote),quote+1);
 
-  if(end<0){
-    throw new Error('Incomplete '+variable+' data');
-  }
+if(end<0){
+throw new Error('Incomplete game data');
+}
 
-  return source.substring(quote+1,end);
+return source.substring(quote+1,end);
 }
 
 function decodeBase64(base64){
-  if(typeof Uint8Array.fromBase64==='function'){
-    return Uint8Array.fromBase64(base64);
-  }
+if(typeof Uint8Array.fromBase64==='function'){
+return Uint8Array.fromBase64(base64);
+}
 
-  var binary=atob(base64);
-  var bytes=new Uint8Array(binary.length);
+var binary=atob(base64);
+var bytes=new Uint8Array(binary.length);
 
-  for(var i=0;i<binary.length;i++){
-    bytes[i]=binary.charCodeAt(i);
-  }
+for(var i=0;i<binary.length;i++){
+bytes[i]=binary.charCodeAt(i);
+}
 
-  return bytes;
+return bytes;
 }
 
 async function fetchChunk(index){
-  var file='re3.chunk.'+index+'.js';
-  var errors=[];
+var file='re3.chunk.'+index+'.js';
+var errors=[];
 
-  for(var i=0;i<HOSTS.length;i++){
-    var source=null;
+for(var i=0;i<HOSTS.length;i++){
+var source=null;
 
-    try{
-      source=await fetchText(makeUrl(HOSTS[i],file));
+try{
+source=await fetchText(makeUrl(HOSTS[i],file));
 
-      var encoded=extractBase64(source,'__CHUNK');
-      source=null;
+var encoded=extractBase64(source,'__CHUNK');
+source=null;
 
-      var bytes=decodeBase64(encoded);
-      encoded=null;
+var bytes=decodeBase64(encoded);
+encoded=null;
 
-      return bytes;
-    }catch(error){
-      source=null;
-      errors.push(HOSTS[i]+': '+(error.message||String(error)));
-    }
-  }
+return bytes;
 
-  throw new Error(
-    'Failed to download chunk '+index+'.\n'+
-    errors.join('\n')
-  );
+}catch(error){
+source=null;
+errors.push(
+'Source '+(i+1)+': '+(error.message||String(error))
+);
+}
+}
+
+throw new Error(
+'Failed to download game data part '+index+'.\n'+
+errors.join('\n')
+);
 }
 
 async function start(){
-  try{
-    status('Downloading WebAssembly data...');
+try{
+status('Downloading WebAssembly data...');
 
-    var wasmSource=await getText('re3.wasm.js');
-    var wasmEncoded=extractBase64(wasmSource,'__WASM_B64');
-    wasmSource=null;
+var wasmSource=await getText('re3.wasm.js');
+var wasmEncoded=extractBase64(wasmSource,'__WASM_B64');
+wasmSource=null;
 
-    status('Preparing WebAssembly...');
+status('Preparing WebAssembly...');
 
-    var wasmBytes=decodeBase64(wasmEncoded);
-    wasmEncoded=null;
+var wasmBytes=decodeBase64(wasmEncoded);
+wasmEncoded=null;
 
-    Module.wasmBinary=wasmBytes.buffer;
-    wasmBytes=null;
+Module.wasmBinary=wasmBytes.buffer;
+wasmBytes=null;
 
-    status('Loading game-data information...');
+status('Loading game-data information...');
 
-    var infoSource=await getText('chunks.json.js');
+var infoSource=await getText('chunks.json.js');
 
-    var countMatch=infoSource.match(/__CHUNK_COUNT\s*=\s*(\d+)/);
-    var sizeMatch=infoSource.match(/__DATA_SIZE\s*=\s*(\d+)/);
+var countMatch=infoSource.match(/__CHUNK_COUNT\s*=\s*(\d+)/);
+var sizeMatch=infoSource.match(/__DATA_SIZE\s*=\s*(\d+)/);
 
-    infoSource=null;
+infoSource=null;
 
-    if(!countMatch||!sizeMatch){
-      throw new Error('Could not read chunks.json.js');
-    }
+if(!countMatch||!sizeMatch){
+throw new Error('Could not read game-data information');
+}
 
-    var count=Number(countMatch[1]);
-    var dataSize=Number(sizeMatch[1]);
+var count=Number(countMatch[1]);
+var dataSize=Number(sizeMatch[1]);
 
-    if(!Number.isSafeInteger(count)||count<1||
-       !Number.isSafeInteger(dataSize)||dataSize<1){
-      throw new Error('Invalid game-data information');
-    }
+if(!Number.isSafeInteger(count)||count<1||
+!Number.isSafeInteger(dataSize)||dataSize<1){
+throw new Error('Invalid game-data information');
+}
 
-    status(
-      'Allocating game memory...\n'+
-      Math.round(dataSize/1048576)+' MB required'
-    );
+status(
+'Allocating game memory...\n'+
+Math.round(dataSize/1048576)+' MB required'
+);
 
-    var gameBuffer=new Uint8Array(dataSize);
-    var offset=0;
-    var completed=0;
+var gameBuffer=new Uint8Array(dataSize);
+var offset=0;
+var completed=0;
 
-    for(var batchStart=0;batchStart<count;batchStart+=CHUNKS_PER_BATCH){
-      var batchEnd=Math.min(
-        batchStart+CHUNKS_PER_BATCH,
-        count
-      );
+for(var batchStart=0;batchStart<count;batchStart+=CHUNKS_PER_BATCH){
+var batchEnd=Math.min(
+batchStart+CHUNKS_PER_BATCH,
+count
+);
 
-      status(
-        'Downloading GTA III data...\n'+
-        completed+' / '+count+' chunks complete\n'+
-        Math.round(offset/1048576)+' / '+
-        Math.round(dataSize/1048576)+' MB assembled'
-      );
+status(
+'Downloading GTA III data...\n'+
+completed+' / '+count+' parts complete\n'+
+Math.round(offset/1048576)+' / '+
+Math.round(dataSize/1048576)+' MB assembled'
+);
 
-      var batch=await Promise.all(
-        Array.from(
-          {length:batchEnd-batchStart},
-          function(_,position){
-            return fetchChunk(batchStart+position);
-          }
-        )
-      );
+var batch=await Promise.all(
+Array.from(
+{length:batchEnd-batchStart},
+function(_,position){
+return fetchChunk(batchStart+position);
+}
+)
+);
 
-      for(var j=0;j<batch.length;j++){
-        var chunk=batch[j];
+for(var j=0;j<batch.length;j++){
+var chunk=batch[j];
 
-        if(offset+chunk.length>dataSize){
-          throw new Error(
-            'Unexpected data size in chunk '+
-            (batchStart+j)
-          );
-        }
+if(offset+chunk.length>dataSize){
+throw new Error(
+'Unexpected data size in part '+
+(batchStart+j)
+);
+}
 
-        gameBuffer.set(chunk,offset);
-        offset+=chunk.length;
+gameBuffer.set(chunk,offset);
+offset+=chunk.length;
 
-        batch[j]=null;
-        completed++;
-      }
+batch[j]=null;
+completed++;
+}
 
-      batch=null;
-    }
+batch=null;
+}
 
-    if(offset!==dataSize){
-      throw new Error(
-        'Game data is incomplete: '+
-        offset+' / '+dataSize+' bytes'
-      );
-    }
+if(offset!==dataSize){
+throw new Error(
+'Game data is incomplete: '+
+offset+' / '+dataSize+' bytes'
+);
+}
 
-    status('Preparing game files...');
+status('Preparing game files...');
 
-    Module.getPreloadedPackage=function(name){
-      if(/re3\.data$/.test(name)){
-        return gameBuffer.buffer;
-      }
-      return undefined;
-    };
+Module.getPreloadedPackage=function(name){
+if(/re3\.data$/.test(name)){
+return gameBuffer.buffer;
+}
+return undefined;
+};
 
-    status('Starting GTA III...');
+status('Starting GTA III...');
 
-    await loadScript('re3.js');
+await loadScript('re3.js');
 
-  }catch(error){
-    console.error('[GTA III Launcher]',error);
-    status(
-      'GTA III ERROR:\n\n'+
-      (error&&error.message?error.message:String(error))
-    );
-  }
+}catch(error){
+console.error(error);
+status(
+'GTA III ERROR:\n\n'+
+(error&&error.message?error.message:String(error))
+);
+}
 }
 
 start();
