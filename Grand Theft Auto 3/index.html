@@ -38,7 +38,8 @@ document.exitFullscreen=document.webkitExitFullscreen=function(){};
 'webkitFullscreenElement'
 ].forEach(function(name){
 Object.defineProperty(document,name,{
-configurable:true,get:function(){return null}
+configurable:true,
+get:function(){return null}
 });
 });
 
@@ -47,7 +48,8 @@ configurable:true,get:function(){return null}
 'webkitFullscreenEnabled'
 ].forEach(function(name){
 Object.defineProperty(document,name,{
-configurable:true,get:function(){return false}
+configurable:true,
+get:function(){return false}
 });
 });
 
@@ -159,15 +161,13 @@ async function getText(file){
 var errors=[];
 
 for(var i=0;i<HOSTS.length;i++){
-var url=makeUrl(HOSTS[i],file);
-
 status(
 'Downloading '+file+'...\n'+
 'Source '+(i+1)+' of '+HOSTS.length
 );
 
 try{
-var text=await fetchText(url);
+var text=await fetchText(makeUrl(HOSTS[i],file));
 if(!text)throw new Error('Empty response');
 if(/^\s*(<!DOCTYPE|<html)/i.test(text)){
 throw new Error('Invalid file response');
@@ -193,7 +193,7 @@ var source=null;
 for(var i=0;i<HOSTS.length;i++){
 try{
 status(
-'Downloading '+file+'...\n'+
+'Downloading game engine...\n'+
 'Source '+(i+1)+' of '+HOSTS.length
 );
 
@@ -219,20 +219,13 @@ source=null;
 
 if(!source){
 throw new Error(
-'Unable to download '+file+'.\n'+errors.join('\n')
+'Unable to download game engine.\n'+errors.join('\n')
 );
 }
 
-status(
-'Starting game...\n'+
-Math.round(source.length/1024)+' KB downloaded'
-);
+status('Starting game...');
 
-var blob=new Blob(
-[source],
-{type:'text/javascript'}
-);
-
+var blob=new Blob([source],{type:'text/javascript'});
 source=null;
 
 var blobUrl=URL.createObjectURL(blob);
@@ -390,6 +383,9 @@ if(!Number.isSafeInteger(count)||count<1||
 throw new Error('Invalid game-data information');
 }
 
+countMatch=null;
+sizeMatch=null;
+
 status(
 'Allocating game memory...\n'+
 Math.round(dataSize/1048576)+' MB required'
@@ -399,11 +395,10 @@ var gameBuffer=new Uint8Array(dataSize);
 var offset=0;
 var completed=0;
 
-for(var batchStart=0;batchStart<count;batchStart+=CHUNKS_PER_BATCH){
-var batchEnd=Math.min(
-batchStart+CHUNKS_PER_BATCH,
-count
-);
+for(var batchStart=0;batchStart<count;){
+var remaining=count-batchStart;
+var batchSize=remaining<=3?1:CHUNKS_PER_BATCH;
+var batchEnd=Math.min(batchStart+batchSize,count);
 
 status(
 'Downloading GTA III data...\n'+
@@ -426,19 +421,18 @@ var chunk=batch[j];
 
 if(offset+chunk.length>dataSize){
 throw new Error(
-'Unexpected data size in part '+
-(batchStart+j)
+'Unexpected data size in part '+(batchStart+j)
 );
 }
 
 gameBuffer.set(chunk,offset);
 offset+=chunk.length;
-
 batch[j]=null;
 completed++;
 }
 
 batch=null;
+batchStart=batchEnd;
 }
 
 if(offset!==dataSize){
