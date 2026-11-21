@@ -200,7 +200,7 @@
       const OWNER = 'AMoldyWaffle';
       const REPO  = 'Ocarina-of-Time';
 
-      // Persist blob SHAs so we can hit the opaque-URL endpoint next time.
+      
       const BLOBSHA_KEY = `oot_blobsha_${OWNER}_${REPO}`;
       let blobShaMap = {};
       try { blobShaMap = JSON.parse(localStorage.getItem(BLOBSHA_KEY) || '{}'); } catch (e) {}
@@ -304,7 +304,7 @@
 
       function fromWrapContents(wrap) {
         if (!wrap) return null;
-        // allorigins /get on binary files returns { contents: "<base64>" }
+        
         const b64 = wrap.contents;
         if (!b64) return null;
         const bytes = b64ToBytes(b64);
@@ -314,7 +314,7 @@
         return { bytes, mime, sha: null };
       }
 
-      // Encode dots as %2E so a path-based URL filter can't read ".png".
+      
       const stealthPath = (p) =>
         p.split('/').map((seg) =>
           encodeURIComponent(seg).replace(/\./g, '%2E')
@@ -327,7 +327,7 @@
         const ref  = contentRef();
         const sha  = item.blobSha || blobShaMap[path] || null;
 
-        // 1. Opaque blob API — URL is only a hex hash, body is JSON+base64
+        
         if (sha) {
           const j = await getJson(
             `https://api.github.com/repos/${OWNER}/${REPO}/git/blobs/${sha}`
@@ -342,28 +342,28 @@
           if (r2) return r2;
         }
 
-        // 2. Contents API with encoded dots (no ".png" substring in URL)
+        
         const j3 = await getJson(
           `https://api.github.com/repos/${OWNER}/${REPO}/contents/${stl}?ref=${ref}`
         );
         const r3 = fromJsonBlob(j3);
         if (r3) { if (r3.sha) rememberBlobSha(path, r3.sha); return r3; }
 
-        // 3. Contents API (plain path — fallback in case %2E is rejected)
+        
         const j4 = await getJson(
           `https://api.github.com/repos/${OWNER}/${REPO}/contents/${enc}?ref=${ref}`
         );
         const r4 = fromJsonBlob(j4);
         if (r4) { if (r4.sha) rememberBlobSha(path, r4.sha); return r4; }
 
-        // 4. Contents API via allorigins (encoded dots)
+        
         const j5 = await getJsonViaAllorigins(
           `https://api.github.com/repos/${OWNER}/${REPO}/contents/${stl}?ref=${ref}`
         );
         const r5 = fromJsonBlob(j5);
         if (r5) { if (r5.sha) rememberBlobSha(path, r5.sha); return r5; }
 
-        // 5. allorigins /get on raw URL — returns JSON with base64 contents
+        
         const raw = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${stl}`;
         const j6 = await getJsonViaAllorigins(raw);
         const r6 = fromWrapContents(j6);
@@ -372,7 +372,7 @@
         return null;
       }
 
-      // ---------- bytes → decoded drawable source ----------
+      
       async function decodeBlob(blob) {
         try {
           const bmp = await createImageBitmap(blob);
@@ -421,7 +421,7 @@
         } finally { decoded.cleanup(); }
       }
 
-      // ---------- paint one card ----------
+      
       async function paintCover(card) {
         const cover = card.querySelector('.cover');
         const item  = card._item;
@@ -453,7 +453,7 @@
         cover.classList.remove('loading');
       }
 
-      // ---------- favicon, same pipeline ----------
+      
       async function loadFavicon(path) {
         const bytes = await fetchImageBytes({ imagePath: path });
         if (!bytes) return;
@@ -463,9 +463,9 @@
         fr.readAsDataURL(blob);
       }
 
-      // ============================================================
-      // Tree / SHA / game launch — unchanged logic
-      // ============================================================
+      
+      
+      
       async function getLatestSha() {
         try {
           const r = await fetch(
@@ -540,7 +540,7 @@
         }
       }
 
-      // ---------- 1. default branch ----------
+      
       try {
         const res = await fetch(
           bust(`https://api.github.com/repos/${OWNER}/${REPO}`),
@@ -552,13 +552,13 @@
         console.warn('[repo] info unavailable, keeping branch:', BRANCH);
       }
 
-      // ---------- 2. SHA (best effort) ----------
+      
       try {
         const s = await getLatestSha();
         if (s) { SHA = s; console.log('[cache] pinned to commit', SHA); }
       } catch (err) {}
 
-      // ---------- 3. tree ----------
+      
       let tree;
       try {
         const res = await fetch(
@@ -573,7 +573,7 @@
         return;
       }
 
-      // ---------- group by parent ----------
+      
       const childrenOf = new Map();
       const allDirs = new Set();
       for (const item of tree) {
@@ -584,7 +584,7 @@
         childrenOf.get(parent).push(item);
       }
 
-      // ---------- root Cover → favicon ----------
+      
       const rootChildren = childrenOf.get('') || [];
       const rootCoverDir = rootChildren.find(
         (c) => c.type === 'tree' && c.path === 'favicon'
@@ -602,7 +602,7 @@
         }
       }
 
-      // ---------- find qualifying folders ----------
+      
       const results = [];
       for (const dirPath of allDirs) {
         if (dirPath === '') continue;
@@ -641,13 +641,13 @@
         results.push({
           folderName: dirPath.split('/').pop(),
           imagePath:  imageFile.path,
-          blobSha:    imageFile.sha || null,   // ← opaque URL for the API
+          blobSha:    imageFile.sha || null,   
           htmlPath:   htmlFile.path,
           isBeta,
         });
       }
 
-      // ---------- lazy decode ----------
+      
       const coverObserver = ('IntersectionObserver' in window)
         ? new IntersectionObserver((entries) => {
             for (const entry of entries) {
