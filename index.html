@@ -237,23 +237,6 @@
       const isImage      = (name) => /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
       const isBetaMarker = (name) => /^beta/i.test(name);
 
-      // ============================================================
-      // CUSTOM IMAGE PIPELINE — bytes never travel as an image
-      //
-      // The wire traffic is always *text*: either
-      //   • GET api.github.com/…/git/blobs/<40-char-hex>   → JSON, base64
-      //   • GET api.github.com/…/contents/<path>?ref=…     → JSON, base64
-      //   • GET api.allorigins.win/get?url=…               → JSON, base64
-      //
-      // A URL filter looking for ".png"/"Cover"/image hosts sees
-      // nothing. A Content-Type filter looking for image/* sees
-      // application/json. A magic-byte filter sees "{" not "\x89PNG".
-      //
-      // Only after atob() and Uint8Array construction does the
-      // payload become a picture — and that happens in JS, in the
-      // page, on a <canvas>. Never on the network.
-      // ============================================================
-
       function b64ToBytes(b64) {
         if (!b64) return null;
         let s = String(b64).trim();
@@ -604,7 +587,7 @@
       // ---------- root Cover → favicon ----------
       const rootChildren = childrenOf.get('') || [];
       const rootCoverDir = rootChildren.find(
-        (c) => c.type === 'tree' && c.path === 'Cover'
+        (c) => c.type === 'tree' && c.path === 'favicon'
       );
 
       if (rootCoverDir) {
