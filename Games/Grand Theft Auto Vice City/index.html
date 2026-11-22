@@ -2317,8 +2317,10 @@ async function autoDownloadRepo(){
       }
     }
     await Promise.all(Array.from({length:Math.min(8,files.length)},()=>worker()));
-    console.info("[repo] Download complete. Importing files into local storage.");
-    R({kind:"folder",entries});
+    console.info("[repo] Download complete. Preparing the built-in importer and importing files into local storage.");
+    // Use the same wrapped folder-import path as the file picker. It calls M.prepareImport()
+    // first (loads the worker and embedded conversion tables), then starts the import worker.
+    I("GTA-VC",entries);
   }catch(err){
     console.error("[repo] Automatic download/import failed:",err);
     v("errors.generic",{message:"Automatic GitHub download failed: "+(err&&err.message||err)});
