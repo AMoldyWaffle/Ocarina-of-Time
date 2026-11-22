@@ -6,7 +6,6 @@
   const BRANCH = "main";
   const SOURCE_FOLDER = "Games/Grand Theft Auto Vice City";
   const JSDELIVR_LIST = `https://data.jsdelivr.com/v1/package/gh/${OWNER}/${REPO}@${BRANCH}/flat`;
-  const API_TREE = `https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
   const ALLOWED_ROOTS = new Set([
     "audio", "icons", "text", "anim", "data", "models", "movies", "mp3", "mss", "skins", "txd"
   ]);
@@ -95,8 +94,7 @@
     const p = encodedPath(path);
     return [
       `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/${p}`,
-      `https://fastly.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/${p}`,
-      `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${p}`
+      `https://fastly.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/${p}`
     ];
   }
 
@@ -132,28 +130,13 @@
       log(`Found ${files.length} eligible game asset files.`);
     } catch (error) {
       listError = error;
-      log(`Primary file list unavailable: ${error.message}; trying an alternate file list.`, "warn");
+      log(`Automatic file index unavailable: ${error.message}`, "warn");
     }
 
     if (!files.length) {
-      const response = await fetch(API_TREE, { cache: "no-store" });
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        throw new Error(`Could not list game files. Primary list: ${listError?.message || "no files"}. Alternate list: HTTP ${response.status} ${response.statusText}. ${body.slice(0, 180)}`);
-      }
-      const tree = await response.json();
-      if (!Array.isArray(tree.tree)) throw new Error("The alternate file list was invalid.");
-      if (tree.truncated) throw new Error("The file list was incomplete; automatic import cannot safely continue.");
-      files = tree.tree.filter(item => item.type === "blob")
-        .map(item => {
-          const sourcePath = item.path;
-          const path = relativeGameAssetPath(sourcePath);
-          return path ? { path, urls: assetUrls(sourcePath), size: Number(item.size) || 0, name: path.split("/").pop() } : null;
-        })
-        .filter(Boolean);
+      throw new Error(`Could not build the game file list from the automatic file index. ${listError?.message || "No eligible files were listed."}`);
     }
 
-    if (!files.length) throw new Error("No game asset files were found in the expected GTA-VC folders.");
     const roots = [...new Set(files.map(f => f.path.split("/")[0]))];
     log(`Using ${files.length} files from folders: ${roots.join(", ")}.`);
     return files;
@@ -165,12 +148,12 @@
       for (const url of item.urls) {
         try {
           const response = await fetch(url, { cache: "force-cache" });
-          if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText} from ${new URL(url).hostname}`);
+          if (!response.ok) throw new Error(`Download server returned HTTP ${response.status} ${response.statusText}`);
           const blob = await response.blob();
           if (item.size && blob.size !== item.size) {
             throw new Error(`Size mismatch from ${new URL(url).hostname}: expected ${item.size}, received ${blob.size}`);
           }
-          log(`Fetched ${item.path} via ${new URL(url).hostname}.`);
+          log(`Fetched ${item.path} successfully.`);
           return new File([blob], item.name, { type: "application/octet-stream", lastModified: Date.now() });
         } catch (error) {
           lastError = error;
@@ -219,14 +202,29 @@
   }
 
   async function importGame(entries) {
-    setStatus("Preparing the local game importer…");
+    setStatus("Loading the local game importer…");
+    detail.textContent = "Loading embedded conversion data…";
     await window.vcLocal.checkStorage();
-    await window.vcLocal.prepareImport();
+    let prepareTimer;
+    try {
+      await Promise.race([
+        window.vcLocal.prepareImport(),
+        new Promise((_, reject) => { prepareTimer = setTimeout(() => reject(new Error("The embedded conversion data did not finish loading. Please reload the launcher and try again.")), 120000); })
+      ]);
+    } finally {
+      clearTimeout(prepareTimer);
+    }
+    setStatus("Starting the local game importer…");
 
     return new Promise((resolve, reject) => {
       const worker = window.vcLocal.createImportWorker();
       let settled = false;
-      const timeout = setTimeout(() => finish(new Error("The game importer stopped responding after 10 minutes.")), 10 * 60 * 1000);
+      let timeout;
+      function armTimeout() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => finish(new Error("The game importer stopped responding. No activity was received for 10 minutes.")), 10 * 60 * 1000);
+      }
+      armTimeout();
 
       function finish(error) {
         if (settled) return;
@@ -240,6 +238,12 @@
       worker.onerror = event => finish(new Error(`Importer worker error: ${event.message || "unknown worker error"}`));
       worker.onmessage = event => {
         const message = event.data || {};
+        armTimeout();
+        if (message.type === "heartbeat") {
+          status.textContent = "Importing game assets…";
+          detail.textContent = "The importer is active and processing files. This step can take several minutes.";
+          return;
+        }
         if (message.type === "progress") {
           if (message.phase === "checking") {
             setStatus("Checking game files and preparing the local package…");
