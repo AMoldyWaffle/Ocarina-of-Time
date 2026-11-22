@@ -9,7 +9,7 @@
   const ALLOWED_ROOTS = new Set([
     "audio", "icons", "text", "anim", "data", "models", "movies", "mp3", "mss", "skins", "txd"
   ]);
-  const CONCURRENCY = 8;
+  const CONCURRENCY = 16;
 
   const panel = document.getElementById("auto-download-panel");
   const status = document.getElementById("auto-status");
@@ -107,35 +107,35 @@
   }
 
   async function getRepositoryFiles() {
-    setStatus("Finding GTA-VC files through the jsDelivr package index…");
+    setStatus("Finding GTA-VC game files…");
     let files = [];
     let listError = null;
     try {
       const response = await fetch(JSDELIVR_LIST, { cache: "no-store" });
-      if (!response.ok) throw new Error(`jsDelivr package index: HTTP ${response.status}`);
+      if (!response.ok) throw new Error(`File list request: HTTP ${response.status}`);
       const manifest = await response.json();
-      if (!Array.isArray(manifest.files)) throw new Error("jsDelivr returned an invalid package manifest.");
+      if (!Array.isArray(manifest.files)) throw new Error("The file list was invalid.");
       files = manifest.files
         .filter(item => item && typeof item.name === "string" && isGameAsset(item.name))
         .map(item => {
           const path = item.name.replace(/^\/+/, "");
           return { path, urls: assetUrls(path), size: Number(item.size) || 0, name: path.split("/").pop() };
         });
-      log(`jsDelivr package index returned ${files.length} eligible game asset files.`);
+      log(`Found ${files.length} eligible game asset files.`);
     } catch (error) {
       listError = error;
-      log(`jsDelivr manifest unavailable: ${error.message}; trying GitHub's Git tree API.`, "warn");
+      log(`Primary file list unavailable: ${error.message}; trying an alternate file list.`, "warn");
     }
 
     if (!files.length) {
       const response = await fetch(API_TREE, { cache: "no-store" });
       if (!response.ok) {
         const body = await response.text().catch(() => "");
-        throw new Error(`Could not list repository files. jsDelivr: ${listError?.message || "no files"}. GitHub API: HTTP ${response.status} ${response.statusText}. ${body.slice(0, 180)}`);
+        throw new Error(`Could not list game files. Primary list: ${listError?.message || "no files"}. Alternate list: HTTP ${response.status} ${response.statusText}. ${body.slice(0, 180)}`);
       }
       const tree = await response.json();
-      if (!Array.isArray(tree.tree)) throw new Error("GitHub returned an invalid repository file list.");
-      if (tree.truncated) throw new Error("GitHub truncated the repository file list; automatic import cannot safely continue.");
+      if (!Array.isArray(tree.tree)) throw new Error("The alternate file list was invalid.");
+      if (tree.truncated) throw new Error("The file list was incomplete; automatic import cannot safely continue.");
       files = tree.tree.filter(item => item.type === "blob" && isGameAsset(item.path))
         .map(item => ({ path: item.path, urls: assetUrls(item.path), size: Number(item.size) || 0, name: item.path.split("/").pop() }));
     }
@@ -166,7 +166,7 @@
       }
       if (attempt < 3) await sleep(350 * attempt);
     }
-    throw new Error(`Could not download ${item.path} from jsDelivr or raw GitHub: ${lastError?.message || "unknown error"}`);
+    throw new Error(`Could not download ${item.path}: ${lastError?.message || "unknown error"}`);
   }
 
   async function downloadRepositoryFiles(files) {
@@ -177,9 +177,9 @@
     const entries = new Array(files.length);
     const started = Date.now();
 
-    setStatus(`Downloading ${files.length.toLocaleString()} game files from GitHub…`);
+    setStatus(`Downloading ${files.length.toLocaleString()} game files…`);
     detail.textContent = `0 / ${files.length} files · ${formatBytes(totalBytes)} total`;
-    log(`Download plan: ${files.length} files, approximately ${formatBytes(totalBytes)}, ${CONCURRENCY} parallel connections.`);
+    log(`Download plan: ${files.length} files, approximately ${formatBytes(totalBytes)}, up to ${CONCURRENCY} parallel connections.`);
 
     async function worker() {
       while (true) {
@@ -319,7 +319,7 @@
     }
   }
 
-  log(`Automatic local downloader initialized for ${OWNER}/${REPO}@${BRANCH}.`);
-  log("No local server is used. GitHub is contacted directly from this local HTML page.");
+  log(`Automatic local game downloader initialized.`);
+  log("The game files are retrieved automatically by this local launcher.");
   run();
 })();

@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="assets/style.css" />
 
 <style>
-/* Automatic GitHub setup UI */
+/* Automatic game setup UI */
 #auto-download-panel {
   position: fixed; z-index: 99999; inset: 0; display:flex; flex-direction:column;
   align-items:center; justify-content:center; gap:14px; padding:24px;
@@ -367,7 +367,7 @@ body.auto-downloading #canvas {display:none!important}
       <div class="auto-title">GTA: Vice City</div>
       <div id="auto-status">Preparing automatic download…</div>
       <div class="auto-progress-wrap"><div id="auto-progress-bar"></div></div>
-      <div id="auto-progress-detail">Connecting to GitHub…</div>
+      <div id="auto-progress-detail">Preparing game files…</div>
       <div class="auto-controls">
         <button id="auto-log-toggle" type="button" aria-expanded="false" onclick="if(window.__toggleGtaDebugConsole){window.__toggleGtaDebugConsole()}else{const p=document.getElementById('auto-console');p.hidden=!p.hidden;p.style.display=p.hidden?'none':'block';this.textContent=p.hidden?'Show console':'Hide console';this.setAttribute('aria-expanded',String(!p.hidden))}">Show console</button>
       </div>
