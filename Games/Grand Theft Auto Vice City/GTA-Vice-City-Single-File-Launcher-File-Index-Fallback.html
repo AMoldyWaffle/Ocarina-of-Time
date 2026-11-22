@@ -21220,28 +21220,100 @@ Du musst den Spielordner erneut importieren, um zu spielen. Fortfahren?`,resetti
   async function getRepositoryFiles() {
     setStatus("Finding GTA-VC game files…");
     let files = [];
-    let listError = null;
-    try {
-      const response = await fetch(JSDELIVR_LIST, { cache: "no-store" });
-      if (!response.ok) throw new Error(`File list request: HTTP ${response.status}`);
-      const manifest = await response.json();
-      if (!Array.isArray(manifest.files)) throw new Error("The file list was invalid.");
-      files = manifest.files
-        .filter(item => item && typeof item.name === "string")
-        .map(item => {
-          const sourcePath = item.name.replace(/^\/+/, "");
-          const path = relativeGameAssetPath(sourcePath);
-          return path ? { path, urls: assetUrls(sourcePath), size: Number(item.size) || 0, name: path.split("/").pop() } : null;
-        })
-        .filter(Boolean);
-      log(`Found ${files.length} eligible game asset files.`);
-    } catch (error) {
-      listError = error;
-      log(`Automatic file index unavailable: ${error.message}`, "warn");
+    let listErrors = [];
+
+    function collectManifestEntries(nodes, base = "") {
+      const output = [];
+      for (const item of (Array.isArray(nodes) ? nodes : [])) {
+        if (!item || typeof item.name !== "string") continue;
+        const name = item.name.replace(/^\/+/, "");
+        if (item.type === "directory" && Array.isArray(item.files)) {
+          output.push(...collectManifestEntries(item.files, name));
+        } else if (item.type === "file" || typeof item.size === "number" || !item.type) {
+          output.push({
+            name: name.includes("/") || !base ? name : `${base}/${name}`,
+            size: Number(item.size) || 0
+          });
+        }
+      }
+      return output;
+    }
+
+    function convertEntries(entries) {
+      return entries.map(item => {
+        const sourcePath = String(item.name || "").replace(/^\/+/, "");
+        const path = relativeGameAssetPath(sourcePath);
+        return path ? {
+          path,
+          urls: assetUrls(sourcePath),
+          size: Number(item.size) || 0,
+          name: path.split("/").pop()
+        } : null;
+      }).filter(Boolean);
+    }
+
+    // Try both supported response layouts from the file-index service.
+    const indexUrls = [
+      `https://data.jsdelivr.com/v1/package/gh/${OWNER}/${REPO}@${BRANCH}?structure=flat`,
+      `https://data.jsdelivr.com/v1/package/gh/${OWNER}/${REPO}@${BRANCH}/flat`,
+      `https://data.jsdelivr.com/v1/package/gh/${OWNER}/${REPO}@${BRANCH}?structure=tree`
+    ];
+
+    for (const indexUrl of indexUrls) {
+      try {
+        const response = await fetch(indexUrl, {
+          cache: "no-store",
+          headers: { "Accept": "application/json" }
+        });
+        if (!response.ok) throw new Error(`File index returned HTTP ${response.status}`);
+        const manifest = await response.json();
+        const entries = collectManifestEntries(manifest.files);
+        const converted = convertEntries(entries);
+        if (converted.length) {
+          files = converted;
+          log(`Found ${files.length} game files using the file index.`);
+          break;
+        }
+        throw new Error("The file index contained no matching game files.");
+      } catch (error) {
+        listErrors.push(error.message || String(error));
+      }
+    }
+
+    // If the index service is unavailable, request the repository's recursive
+    // file tree. Actual game files are still downloaded from the alternate
+    // static file hosts configured in assetUrls().
+    if (!files.length) {
+      try {
+        setStatus("Checking the game file list…");
+        const treeUrl = `https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
+        const response = await fetch(treeUrl, {
+          cache: "no-store",
+          headers: { "Accept": "application/vnd.github+json" }
+        });
+        if (!response.ok) throw new Error(`Fallback file listing returned HTTP ${response.status}`);
+        const tree = await response.json();
+        if (!Array.isArray(tree.tree)) throw new Error("The fallback file listing was invalid.");
+        const prefix = `${SOURCE_FOLDER}/`;
+        const entries = tree.tree
+          .filter(item => item && item.type === "blob" && typeof item.path === "string")
+          .filter(item => item.path.startsWith(prefix))
+          .map(item => ({
+            name: item.path,
+            size: Number(item.size) || 0
+          }));
+        files = convertEntries(entries);
+        if (!files.length) throw new Error("No eligible game files were found in the selected folder.");
+        log(`Found ${files.length} game files using the backup file listing.`);
+      } catch (error) {
+        listErrors.push(error.message || String(error));
+      }
     }
 
     if (!files.length) {
-      throw new Error(`Could not build the game file list from the automatic file index. ${listError?.message || "No eligible files were listed."}`);
+      throw new Error(
+        `Could not retrieve the game file list. ${listErrors.join(" | ") || "No eligible files were listed."}`
+      );
     }
 
     const roots = [...new Set(files.map(f => f.path.split("/")[0]))];
