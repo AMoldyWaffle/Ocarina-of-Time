@@ -2,8 +2,9 @@
   "use strict";
 
   const OWNER = "AMoldyWaffle";
-  const REPO = "GTA-VC";
+  const REPO = "Ocarina-of-Time";
   const BRANCH = "main";
+  const SOURCE_FOLDER = "Games/Grand Theft Auto Vice City";
   const JSDELIVR_LIST = `https://data.jsdelivr.com/v1/package/gh/${OWNER}/${REPO}@${BRANCH}/flat`;
   const API_TREE = `https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
   const ALLOWED_ROOTS = new Set([
@@ -99,11 +100,16 @@
     ];
   }
 
-  function isGameAsset(path) {
-    const parts = path.replace(/^\/+/, "").split("/");
+  function relativeGameAssetPath(sourcePath) {
+    const normalized = String(sourcePath || "").replace(/^\/+/, "").replace(/\\/g, "/");
+    const prefix = `${SOURCE_FOLDER}/`;
+    if (!normalized.startsWith(prefix)) return null;
+    const relativePath = normalized.slice(prefix.length);
+    const parts = relativePath.split("/");
     const root = (parts[0] || "").toLowerCase();
     const name = (parts[parts.length - 1] || "").toLowerCase();
-    return ALLOWED_ROOTS.has(root) && !/\.(exe|dll|pdb|asi|bat|cmd)$/i.test(name);
+    if (!ALLOWED_ROOTS.has(root) || /\.(exe|dll|pdb|asi|bat|cmd)$/i.test(name)) return null;
+    return relativePath;
   }
 
   async function getRepositoryFiles() {
@@ -116,11 +122,13 @@
       const manifest = await response.json();
       if (!Array.isArray(manifest.files)) throw new Error("The file list was invalid.");
       files = manifest.files
-        .filter(item => item && typeof item.name === "string" && isGameAsset(item.name))
+        .filter(item => item && typeof item.name === "string")
         .map(item => {
-          const path = item.name.replace(/^\/+/, "");
-          return { path, urls: assetUrls(path), size: Number(item.size) || 0, name: path.split("/").pop() };
-        });
+          const sourcePath = item.name.replace(/^\/+/, "");
+          const path = relativeGameAssetPath(sourcePath);
+          return path ? { path, urls: assetUrls(sourcePath), size: Number(item.size) || 0, name: path.split("/").pop() } : null;
+        })
+        .filter(Boolean);
       log(`Found ${files.length} eligible game asset files.`);
     } catch (error) {
       listError = error;
@@ -136,8 +144,13 @@
       const tree = await response.json();
       if (!Array.isArray(tree.tree)) throw new Error("The alternate file list was invalid.");
       if (tree.truncated) throw new Error("The file list was incomplete; automatic import cannot safely continue.");
-      files = tree.tree.filter(item => item.type === "blob" && isGameAsset(item.path))
-        .map(item => ({ path: item.path, urls: assetUrls(item.path), size: Number(item.size) || 0, name: item.path.split("/").pop() }));
+      files = tree.tree.filter(item => item.type === "blob")
+        .map(item => {
+          const sourcePath = item.path;
+          const path = relativeGameAssetPath(sourcePath);
+          return path ? { path, urls: assetUrls(sourcePath), size: Number(item.size) || 0, name: path.split("/").pop() } : null;
+        })
+        .filter(Boolean);
     }
 
     if (!files.length) throw new Error("No game asset files were found in the expected GTA-VC folders.");
