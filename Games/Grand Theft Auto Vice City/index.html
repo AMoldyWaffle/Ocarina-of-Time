@@ -2265,13 +2265,14 @@ function githubRequest(url,responseType="text"){
   return new Promise((resolve,reject)=>{
     const xhr=new XMLHttpRequest();
     xhr.open("GET",url,true);
-    xhr.responseType=responseType;
+    // Keep responseType as text. responseText cannot be read when responseType is json.
+    xhr.responseType="text";
     xhr.setRequestHeader("Accept","application/vnd.github+json");
     xhr.onload=()=>{
       if(xhr.status>=200&&xhr.status<300){
-        try{resolve(responseType==="json"?JSON.parse(xhr.responseText):xhr.response);}
+        try{resolve(responseType==="json"?JSON.parse(xhr.responseText):xhr.responseText);}
         catch(error){reject(new Error("Invalid response from "+url+": "+error.message));}
-      }else reject(new Error("Request failed (HTTP "+xhr.status+"): "+url));
+      }else reject(new Error("Request failed (HTTP "+xhr.status+"): "+url+" — "+(xhr.responseText||"").slice(0,300)));
     };
     xhr.onerror=()=>reject(new Error("Network/CORS error while requesting "+url));
     xhr.ontimeout=()=>reject(new Error("Request timed out: "+url));
