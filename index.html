@@ -8,6 +8,7 @@
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       background: #1a1a2e;
@@ -15,6 +16,7 @@
       min-height: 100vh;
       padding: 2rem;
     }
+
     h1 {
       text-align: center;
       font-weight: 600;
@@ -22,12 +24,14 @@
       font-size: 1.8rem;
       color: #f0c040;
     }
+
     #searchWrap {
       max-width: 1200px;
       margin: 0 auto 2rem;
       display: flex;
       justify-content: center;
     }
+
     #search {
       width: 100%;
       max-width: 520px;
@@ -40,19 +44,24 @@
       outline: none;
       transition: border-color 0.15s, box-shadow 0.15s;
     }
+
     #search:focus {
       border-color: #f0c040;
       box-shadow: 0 0 0 3px rgba(240, 192, 64, 0.15);
     }
+
     #search::placeholder { color: #888; }
     #search:disabled { opacity: 0.5; cursor: not-allowed; }
+
     #status {
       text-align: center;
       font-size: 1.1rem;
       margin-top: 3rem;
       color: #aaa;
     }
+
     .section { max-width: 1200px; margin: 0 auto 2.5rem; }
+
     .section-title {
       font-size: 1.3rem;
       font-weight: 600;
@@ -61,12 +70,15 @@
       padding-bottom: 0.5rem;
       border-bottom: 1px solid #0f3460;
     }
+
     #betaSection .section-title { color: #ff9966; }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
       gap: 1.5rem;
     }
+
     .card {
       background: #16213e;
       border-radius: 12px;
@@ -78,10 +90,12 @@
       cursor: pointer;
       user-select: none;
     }
+
     .card:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 20px rgba(240, 192, 64, 0.25);
     }
+
     .card .cover {
       position: relative;
       width: 100%;
@@ -89,37 +103,52 @@
       background: #0f0f1a;
       overflow: hidden;
     }
+
     .card .cover > canvas,
     .card .cover > img {
-      width: 100%; height: 100%;
-      display: block; object-fit: cover;
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
     }
+
     .card .cover.ready > canvas,
     .card .cover.ready > img {
       animation: decodeIn 0.65s cubic-bezier(.2, .7, .2, 1) both;
     }
+
     @keyframes decodeIn {
-      0%   { filter: blur(18px) brightness(0.35) saturate(0.15); transform: scale(1.08); }
-      55%  { filter: blur(4px)  brightness(0.80) saturate(0.75); transform: scale(1.02); }
+      0% { filter: blur(18px) brightness(0.35) saturate(0.15); transform: scale(1.08); }
+      55% { filter: blur(4px) brightness(0.80) saturate(0.75); transform: scale(1.02); }
       100% { filter: none; transform: scale(1); }
     }
+
     .cover-shimmer {
-      position: absolute; inset: 0;
+      position: absolute;
+      inset: 0;
       background: linear-gradient(100deg, #0f0f1a 20%, #1c2a4a 42%, #0f0f1a 64%);
       background-size: 220% 100%;
       animation: shimmer 1.4s linear infinite;
     }
+
     @keyframes shimmer {
-      0%   { background-position: 160% 0; }
+      0% { background-position: 160% 0; }
       100% { background-position: -60% 0; }
     }
+
     .cover-placeholder {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      color: #4a4a5a; font-size: 0.8rem;
-      letter-spacing: 0.1em; text-transform: uppercase;
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #4a4a5a;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       background: repeating-linear-gradient(45deg, #0f0f1a 0 10px, #12121f 10px 20px);
     }
+
     .card .folder-name {
       padding: 0.75rem 1rem;
       text-align: center;
@@ -129,44 +158,70 @@
       background: #0f3460;
       word-break: break-word;
     }
+
     #betaSection .card .folder-name { color: #ff9966; }
+
     .error { color: #ff6b6b; }
+
     #noResults {
-      text-align: center; color: #aaa;
-      font-size: 1.05rem; padding: 2rem 1rem;
+      text-align: center;
+      color: #aaa;
+      font-size: 1.05rem;
+      padding: 2rem 1rem;
     }
+
     #viewer {
-      display: none; position: fixed; inset: 0;
-      background: #000; z-index: 1000;
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 1000;
       flex-direction: column;
     }
+
     #viewer.open { display: flex; }
+
     #viewerBar {
-      display: flex; align-items: center; gap: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
       padding: 0.75rem 1rem;
       background: #16213e;
       border-bottom: 1px solid #0f3460;
       flex-shrink: 0;
     }
+
     #viewerBar button {
-      background: #0f3460; color: #f0c040;
-      border: none; padding: 0.5rem 1rem;
-      border-radius: 6px; cursor: pointer;
-      font-size: 1rem; font-weight: 500;
+      background: #0f3460;
+      color: #f0c040;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
       transition: background 0.15s;
     }
+
     #viewerBar button:hover { background: #1a4a80; }
+
     #viewerTitle {
-      color: #e0e0e0; font-weight: 500;
-      overflow: hidden; text-overflow: ellipsis;
+      color: #e0e0e0;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
     }
+
     #viewerFrame {
-      flex: 1; border: 0;
-      width: 100%; background: #000;
+      flex: 1;
+      border: 0;
+      width: 100%;
+      background: #000;
     }
   </style>
 </head>
+
 <body>
   <h1>Ocarina of Time</h1>
 
@@ -186,6 +241,7 @@
       <button id="closeViewer" type="button">← Back</button>
       <span id="viewerTitle"></span>
     </div>
+
     <iframe
       id="viewerFrame"
       title="Preview"
@@ -198,87 +254,143 @@
   <script>
     (async function () {
       const OWNER = 'AMoldyWaffle';
-      const REPO  = 'Ocarina-of-Time';
+      const REPO = 'Ocarina-of-Time';
 
       // All game folders now live inside this directory.
       const GAMES_DIR = 'Games';
 
       const BLOBSHA_KEY = `oot_blobsha_${OWNER}_${REPO}`;
       let blobShaMap = {};
-      try { blobShaMap = JSON.parse(localStorage.getItem(BLOBSHA_KEY) || '{}'); } catch (e) {}
+
+      try {
+        blobShaMap = JSON.parse(localStorage.getItem(BLOBSHA_KEY) || '{}');
+      } catch (e) {}
+
       function rememberBlobSha(path, sha) {
         if (!sha || !path) return;
         blobShaMap[path] = sha;
-        try { localStorage.setItem(BLOBSHA_KEY, JSON.stringify(blobShaMap)); } catch (e) {}
+
+        try {
+          localStorage.setItem(BLOBSHA_KEY, JSON.stringify(blobShaMap));
+        } catch (e) {}
       }
 
-      const statusEl    = document.getElementById('status');
+      const statusEl = document.getElementById('status');
       const searchInput = document.getElementById('search');
       const betaSection = document.getElementById('betaSection');
       const mainSection = document.getElementById('mainSection');
-      const noResults   = document.getElementById('noResults');
-      const viewer      = document.getElementById('viewer');
+      const noResults = document.getElementById('noResults');
+      const viewer = document.getElementById('viewer');
       const viewerFrame = document.getElementById('viewerFrame');
       const viewerTitle = document.getElementById('viewerTitle');
-      const closeBtn    = document.getElementById('closeViewer');
-      const faviconEl   = document.getElementById('favicon');
+      const closeBtn = document.getElementById('closeViewer');
+      const faviconEl = document.getElementById('favicon');
 
       const bust = (url) =>
         url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
 
       let BRANCH = 'main';
-      let SHA    = null;
+      let SHA = null;
+
       const contentRef = () => SHA || BRANCH;
       const encPath = (p) => p.split('/').map(encodeURIComponent).join('/');
+
       const rawFile = (p) =>
         `https://raw.githubusercontent.com/${OWNER}/${REPO}/${contentRef()}/${encPath(p)}`;
+
       const cdnDir = (dir) =>
         `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${contentRef()}/` +
         (dir ? encPath(dir) + '/' : '');
 
-      const isImage      = (name) => /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
+      const isImage = (name) => /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
       const isBetaMarker = (name) => /^beta/i.test(name);
 
       function b64ToBytes(b64) {
         if (!b64) return null;
+
         let s = String(b64).trim();
         const comma = s.indexOf(',');
-        if (comma >= 0 && s.slice(0, comma).includes('base64')) s = s.slice(comma + 1);
+
+        if (comma >= 0 && s.slice(0, comma).includes('base64')) {
+          s = s.slice(comma + 1);
+        }
+
         s = s.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+
         while (s.length % 4) s += '=';
+
         try {
           const bin = atob(s);
           const out = new Uint8Array(bin.length);
-          for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+
+          for (let i = 0; i < bin.length; i++) {
+            out[i] = bin.charCodeAt(i);
+          }
+
           return out;
-        } catch (e) { return null; }
+        } catch (e) {
+          return null;
+        }
       }
 
       function sniffImageMime(b) {
         if (!b || b.length < 16) return null;
-        if (b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47 &&
-            b[4]===0x0D && b[5]===0x0A && b[6]===0x1A && b[7]===0x0A) return 'image/png';
-        if (b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF) return 'image/jpeg';
-        if (b[0]===0x47 && b[1]===0x49 && b[2]===0x46 && b[3]===0x38) return 'image/gif';
-        if (b.length>=12 && b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 &&
-            b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50) return 'image/webp';
-        if (b[0]===0x42 && b[1]===0x4D) return 'image/bmp';
-        if (b[0]===0x00 && b[1]===0x00 && b[2]===0x01 && b[3]===0x00) return 'image/x-icon';
+
+        if (
+          b[0] === 0x89 && b[1] === 0x50 &&
+          b[2] === 0x4E && b[3] === 0x47 &&
+          b[4] === 0x0D && b[5] === 0x0A &&
+          b[6] === 0x1A && b[7] === 0x0A
+        ) return 'image/png';
+
+        if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) {
+          return 'image/jpeg';
+        }
+
+        if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) {
+          return 'image/gif';
+        }
+
+        if (
+          b.length >= 12 &&
+          b[0] === 0x52 && b[1] === 0x49 &&
+          b[2] === 0x46 && b[3] === 0x46 &&
+          b[8] === 0x57 && b[9] === 0x45 &&
+          b[10] === 0x42 && b[11] === 0x50
+        ) return 'image/webp';
+
+        if (b[0] === 0x42 && b[1] === 0x4D) return 'image/bmp';
+
+        if (b[0] === 0x00 && b[1] === 0x00 && b[2] === 0x01 && b[3] === 0x00) {
+          return 'image/x-icon';
+        }
+
         try {
           const head = new TextDecoder('utf-8', { fatal: false })
             .decode(b.subarray(0, Math.min(256, b.length)))
-            .replace(/^\uFEFF/, '').trimStart();
-          if (/^<svg[\s>]/i.test(head) || /^<\?xml[\s>]/i.test(head)) return 'image/svg+xml';
+            .replace(/^\uFEFF/, '')
+            .trimStart();
+
+          if (/^<svg[\s>]/i.test(head) || /^<\?xml[\s>]/i.test(head)) {
+            return 'image/svg+xml';
+          }
         } catch (e) {}
+
         return null;
       }
 
       async function getJson(url) {
         try {
-          const r = await fetch(bust(url), { cache: 'no-store', credentials: 'omit' });
+          const r = await fetch(bust(url), {
+            cache: 'no-store',
+            credentials: 'omit'
+          });
+
           if (!r.ok) return null;
           return await r.json();
-        } catch (e) { return null; }
+        } catch (e) {
+          return null;
+        }
       }
 
       async function getJsonViaAllorigins(innerUrl) {
@@ -287,31 +399,46 @@
             `https://api.allorigins.win/get?url=${encodeURIComponent(innerUrl)}`,
             { cache: 'no-store' }
           );
+
           if (!r.ok) return null;
+
           const wrap = await r.json();
           if (!wrap || !wrap.contents) return null;
-          try { return JSON.parse(wrap.contents); } catch (e) {}
+
+          try {
+            return JSON.parse(wrap.contents);
+          } catch (e) {}
+
           return { __raw: wrap.contents };
-        } catch (e) { return null; }
+        } catch (e) {
+          return null;
+        }
       }
 
       function fromJsonBlob(j) {
         if (!j || j.encoding !== 'base64' || !j.content) return null;
+
         const bytes = b64ToBytes(j.content);
         if (!bytes) return null;
+
         const mime = sniffImageMime(bytes);
         if (!mime) return null;
+
         return { bytes, mime, sha: j.sha || null };
       }
 
       function fromWrapContents(wrap) {
         if (!wrap) return null;
+
         const b64 = wrap.contents;
         if (!b64) return null;
+
         const bytes = b64ToBytes(b64);
         if (!bytes) return null;
+
         const mime = sniffImageMime(bytes);
         if (!mime) return null;
+
         return { bytes, mime, sha: null };
       }
 
@@ -322,21 +449,23 @@
 
       async function fetchImageBytes(item) {
         const path = item.imagePath;
-        const enc  = encPath(path);
-        const stl  = stealthPath(path);
-        const ref  = contentRef();
-        const sha  = item.blobSha || blobShaMap[path] || null;
+        const enc = encPath(path);
+        const stl = stealthPath(path);
+        const ref = contentRef();
+        const sha = item.blobSha || blobShaMap[path] || null;
 
         if (sha) {
           const j = await getJson(
             `https://api.github.com/repos/${OWNER}/${REPO}/git/blobs/${sha}`
           );
+
           const r = fromJsonBlob(j);
           if (r) return r;
 
           const j2 = await getJsonViaAllorigins(
             `https://api.github.com/repos/${OWNER}/${REPO}/git/blobs/${sha}`
           );
+
           const r2 = fromJsonBlob(j2);
           if (r2) return r2;
         }
@@ -344,23 +473,36 @@
         const j3 = await getJson(
           `https://api.github.com/repos/${OWNER}/${REPO}/contents/${stl}?ref=${ref}`
         );
+
         const r3 = fromJsonBlob(j3);
-        if (r3) { if (r3.sha) rememberBlobSha(path, r3.sha); return r3; }
+        if (r3) {
+          if (r3.sha) rememberBlobSha(path, r3.sha);
+          return r3;
+        }
 
         const j4 = await getJson(
           `https://api.github.com/repos/${OWNER}/${REPO}/contents/${enc}?ref=${ref}`
         );
+
         const r4 = fromJsonBlob(j4);
-        if (r4) { if (r4.sha) rememberBlobSha(path, r4.sha); return r4; }
+        if (r4) {
+          if (r4.sha) rememberBlobSha(path, r4.sha);
+          return r4;
+        }
 
         const j5 = await getJsonViaAllorigins(
           `https://api.github.com/repos/${OWNER}/${REPO}/contents/${stl}?ref=${ref}`
         );
+
         const r5 = fromJsonBlob(j5);
-        if (r5) { if (r5.sha) rememberBlobSha(path, r5.sha); return r5; }
+        if (r5) {
+          if (r5.sha) rememberBlobSha(path, r5.sha);
+          return r5;
+        }
 
         const raw = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${ref}/${stl}`;
         const j6 = await getJsonViaAllorigins(raw);
+
         const r6 = fromWrapContents(j6);
         if (r6) return r6;
 
@@ -370,26 +512,34 @@
       async function decodeBlob(blob) {
         try {
           const bmp = await createImageBitmap(blob);
+
           return {
             source: bmp,
-            width: bmp.width || 300, height: bmp.height || 300,
-            cleanup: () => { if (bmp.close) bmp.close(); },
+            width: bmp.width || 300,
+            height: bmp.height || 300,
+            cleanup: () => {
+              if (bmp.close) bmp.close();
+            }
           };
         } catch (e) {}
 
         const url = URL.createObjectURL(blob);
+
         try {
           const img = new Image();
           img.decoding = 'async';
+
           await new Promise((res, rej) => {
-            img.onload  = () => res();
+            img.onload = () => res();
             img.onerror = () => rej(new Error('decode failed'));
             img.src = url;
           });
+
           return {
             source: img,
-            width: img.naturalWidth || 300, height: img.naturalHeight || 300,
-            cleanup: () => URL.revokeObjectURL(url),
+            width: img.naturalWidth || 300,
+            height: img.naturalHeight || 300,
+            cleanup: () => URL.revokeObjectURL(url)
           };
         } catch (err) {
           URL.revokeObjectURL(url);
@@ -401,34 +551,58 @@
         const SIZE = 480;
         const blob = new Blob([bytes], { type: mime });
         const decoded = await decodeBlob(blob);
+
         try {
           const canvas = document.createElement('canvas');
-          canvas.width = SIZE; canvas.height = SIZE;
+          canvas.width = SIZE;
+          canvas.height = SIZE;
+
           const ctx = canvas.getContext('2d');
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
-          const scale = Math.max(SIZE / decoded.width, SIZE / decoded.height);
+
+          const scale = Math.max(
+            SIZE / decoded.width,
+            SIZE / decoded.height
+          );
+
           const dw = decoded.width * scale;
           const dh = decoded.height * scale;
-          ctx.drawImage(decoded.source, (SIZE - dw) / 2, (SIZE - dh) / 2, dw, dh);
+
+          ctx.drawImage(
+            decoded.source,
+            (SIZE - dw) / 2,
+            (SIZE - dh) / 2,
+            dw,
+            dh
+          );
+
           return canvas;
-        } finally { decoded.cleanup(); }
+        } finally {
+          decoded.cleanup();
+        }
       }
 
       async function paintCover(card) {
         const cover = card.querySelector('.cover');
-        const item  = card._item;
+        const item = card._item;
+
         if (!cover || !item || cover.dataset.painted === '1') return;
         cover.dataset.painted = '1';
 
         const bytes = await fetchImageBytes(item);
-        if (!bytes) { showCoverFallback(cover); return; }
+
+        if (!bytes) {
+          showCoverFallback(cover);
+          return;
+        }
 
         try {
           const canvas = await bytesToCoverCanvas(bytes.bytes, bytes.mime);
           canvas.className = 'cover-canvas';
           canvas.setAttribute('role', 'img');
           canvas.setAttribute('aria-label', `Cover for ${item.folderName}`);
+
           cover.replaceChildren(canvas);
           cover.classList.remove('loading');
           cover.classList.add('ready');
@@ -449,9 +623,14 @@
       async function loadFavicon(path) {
         const bytes = await fetchImageBytes({ imagePath: path });
         if (!bytes) return;
+
         const blob = new Blob([bytes.bytes], { type: bytes.mime });
         const fr = new FileReader();
-        fr.onload = () => { faviconEl.href = fr.result; };
+
+        fr.onload = () => {
+          faviconEl.href = fr.result;
+        };
+
         fr.readAsDataURL(blob);
       }
 
@@ -461,47 +640,64 @@
             bust(`https://api.github.com/repos/${OWNER}/${REPO}/commits/${encodeURIComponent(BRANCH)}`),
             { cache: 'no-store' }
           );
+
           if (r.ok) {
             const j = await r.json();
             if (j.sha) return j.sha;
           }
         } catch (e) {}
+
         return null;
       }
 
       async function refreshSha() {
-        try { const s = await getLatestSha(); if (s) SHA = s; } catch (e) {}
+        try {
+          const s = await getLatestSha();
+          if (s) SHA = s;
+        } catch (e) {}
       }
 
       function showLoading(name) {
         viewerTitle.textContent = name + ' — loading…';
+
         viewerFrame.srcdoc =
           '<!DOCTYPE html><html><body style="margin:0;height:100vh;display:flex;' +
           'align-items:center;justify-content:center;background:#111;color:#ccc;' +
           'font-family:sans-serif">Loading game…</body></html>';
+
         viewer.classList.add('open');
         document.body.style.overflow = 'hidden';
       }
+
       function closeViewerFn() {
         viewer.classList.remove('open');
         viewerFrame.srcdoc = '';
         document.body.style.overflow = '';
       }
+
       closeBtn.addEventListener('click', closeViewerFn);
+
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && viewer.classList.contains('open')) closeViewerFn();
+        if (e.key === 'Escape' && viewer.classList.contains('open')) {
+          closeViewerFn();
+        }
       });
 
       function injectBase(html, baseHref) {
         const baseTag = `<base href="${baseHref}">`;
         html = html.replace(/<base\b[^>]*>/gi, '');
+
         if (/<head[^>]*>/i.test(html)) {
           return html.replace(/<head[^>]*>/i, (m) => m + '\n' + baseTag);
         }
+
         if (/<html[^>]*>/i.test(html)) {
-          return html.replace(/<html[^>]*>/i,
-            (m) => m + '\n<head>' + baseTag + '</head>');
+          return html.replace(
+            /<html[^>]*>/i,
+            (m) => m + '\n<head>' + baseTag + '</head>'
+          );
         }
+
         return baseTag + '\n' + html;
       }
 
@@ -514,8 +710,14 @@
           : '';
 
         try {
-          const res = await fetch(bust(rawFile(htmlPath)), { cache: 'no-store' });
-          if (!res.ok) throw new Error(`Could not fetch HTML (HTTP ${res.status})`);
+          const res = await fetch(bust(rawFile(htmlPath)), {
+            cache: 'no-store'
+          });
+
+          if (!res.ok) {
+            throw new Error(`Could not fetch HTML (HTTP ${res.status})`);
+          }
+
           let html = await res.text();
           html = injectBase(html, cdnDir(dirPath));
           viewerFrame.srcdoc = html;
@@ -524,7 +726,9 @@
           viewerFrame.srcdoc =
             '<!DOCTYPE html><html><body style="margin:0;padding:2rem;background:#111;' +
             'color:#ff6b6b;font-family:sans-serif">Failed to load game:<br>' +
-            String(err.message).replace(/[<>&]/g, '') + '</body></html>';
+            String(err.message).replace(/[<>&]/g, '') +
+            '</body></html>';
+
           viewerTitle.textContent = folderName;
         }
       }
@@ -534,7 +738,11 @@
           bust(`https://api.github.com/repos/${OWNER}/${REPO}`),
           { cache: 'no-store' }
         );
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+
+        if (!res.ok) {
+          throw new Error(`${res.status} ${res.statusText}`);
+        }
+
         BRANCH = (await res.json()).default_branch || BRANCH;
       } catch (err) {
         console.warn('[repo] info unavailable, keeping branch:', BRANCH);
@@ -542,16 +750,24 @@
 
       try {
         const s = await getLatestSha();
-        if (s) { SHA = s; console.log('[cache] pinned to commit', SHA); }
+        if (s) {
+          SHA = s;
+          console.log('[cache] pinned to commit', SHA);
+        }
       } catch (err) {}
 
       let tree;
+
       try {
         const res = await fetch(
           bust(`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${contentRef()}?recursive=1`),
           { cache: 'no-store' }
         );
-        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+
+        if (!res.ok) {
+          throw new Error(`${res.status} ${res.statusText}`);
+        }
+
         tree = (await res.json()).tree;
       } catch (err) {
         statusEl.textContent = 'Failed to load repository tree: ' + err.message;
@@ -561,15 +777,24 @@
 
       const childrenOf = new Map();
       const allDirs = new Set();
+
       for (const item of tree) {
         if (item.type === 'tree') allDirs.add(item.path);
+
         const parts = item.path.split('/');
-        const parent = parts.length === 1 ? '' : parts.slice(0, -1).join('/');
-        if (!childrenOf.has(parent)) childrenOf.set(parent, []);
+        const parent = parts.length === 1
+          ? ''
+          : parts.slice(0, -1).join('/');
+
+        if (!childrenOf.has(parent)) {
+          childrenOf.set(parent, []);
+        }
+
         childrenOf.get(parent).push(item);
       }
 
       const rootChildren = childrenOf.get('') || [];
+
       const findRootTree = (p) =>
         rootChildren.find((c) => c.type === 'tree' && c.path === p);
 
@@ -584,11 +809,22 @@
         const coverImages = (childrenOf.get(favDir) || [])
           .filter((c) => c.type === 'blob' && isImage(c.path))
           .sort((a, b) => a.path.localeCompare(b.path));
+
         if (!coverImages.length) continue;
-        const pick = (re) => coverImages.find((f) => re.test(f.path.split('/').pop()));
-        const faviconFile = pick(/^favicon\./i) || pick(/^icon\./i) || coverImages[0];
+
+        const pick = (re) =>
+          coverImages.find((f) => re.test(f.path.split('/').pop()));
+
+        const faviconFile =
+          pick(/^favicon\./i) ||
+          pick(/^icon\./i) ||
+          coverImages[0];
+
         if (faviconFile) {
-          if (faviconFile.sha) rememberBlobSha(faviconFile.path, faviconFile.sha);
+          if (faviconFile.sha) {
+            rememberBlobSha(faviconFile.path, faviconFile.sha);
+          }
+
           loadFavicon(faviconFile.path);
           break;
         }
@@ -598,29 +834,36 @@
       // (each needs a "Cover" sub-folder and an .html file).
       const results = [];
       const gamesPrefix = GAMES_DIR + '/';
+
       for (const dirPath of allDirs) {
         if (dirPath === '') continue;
-        if (!dirPath.startsWith(gamesPrefix)) continue;   // must be inside Games/
-        if (faviconDirs.includes(dirPath)) continue;      // skip the favicon folder
+        if (!dirPath.startsWith(gamesPrefix)) continue;
+        if (faviconDirs.includes(dirPath)) continue;
 
         const children = childrenOf.get(dirPath) || [];
+
         const coverDir = children.find(
           (c) => c.type === 'tree' && c.path === `${dirPath}/Cover`
         );
+
         if (!coverDir) continue;
 
         const htmlFiles = children.filter(
-          (c) => c.type === 'blob' &&
+          (c) =>
+            c.type === 'blob' &&
             c.path.startsWith(`${dirPath}/`) &&
             !c.path.slice(dirPath.length + 1).includes('/') &&
             c.path.toLowerCase().endsWith('.html')
         );
+
         if (htmlFiles.length === 0) continue;
 
         const coverChildren = childrenOf.get(coverDir.path) || [];
+
         const imageFile = coverChildren.find(
           (c) => c.type === 'blob' && isImage(c.path)
         );
+
         if (!imageFile) continue;
 
         const htmlFile =
@@ -628,17 +871,18 @@
           htmlFiles.slice().sort((a, b) => a.path.localeCompare(b.path))[0];
 
         const isBeta = children.some(
-          (c) => c.type === 'blob' &&
+          (c) =>
+            c.type === 'blob' &&
             !c.path.slice(dirPath.length + 1).includes('/') &&
             isBetaMarker(c.path.split('/').pop())
         );
 
         results.push({
           folderName: dirPath.split('/').pop(),
-          imagePath:  imageFile.path,
-          blobSha:    imageFile.sha || null,
-          htmlPath:   htmlFile.path,
-          isBeta,
+          imagePath: imageFile.path,
+          blobSha: imageFile.sha || null,
+          htmlPath: htmlFile.path,
+          isBeta
         });
       }
 
@@ -669,24 +913,36 @@
 
         card.appendChild(cover);
         card.appendChild(name);
+
         card.addEventListener('click', () =>
           launchGame(item.htmlPath, item.folderName)
         );
 
-        if (coverObserver) coverObserver.observe(card);
-        else paintCover(card);
+        if (coverObserver) {
+          coverObserver.observe(card);
+        } else {
+          paintCover(card);
+        }
+
         return card;
       }
 
       function renderSection(sectionEl, title, items) {
         if (items.length === 0) return;
+
         sectionEl.hidden = false;
+
         const h = document.createElement('h2');
         h.className = 'section-title';
         h.textContent = title;
+
         const grid = document.createElement('div');
         grid.className = 'grid';
-        for (const item of items) grid.appendChild(buildCard(item));
+
+        for (const item of items) {
+          grid.appendChild(buildCard(item));
+        }
+
         sectionEl.appendChild(h);
         sectionEl.appendChild(grid);
       }
@@ -694,20 +950,32 @@
       function applyFilter() {
         const q = searchInput.value.trim().toLowerCase();
         let anyVisible = false;
+
         for (const section of [betaSection, mainSection]) {
           const grid = section.querySelector('.grid');
-          if (!grid) { section.hidden = true; continue; }
+
+          if (!grid) {
+            section.hidden = true;
+            continue;
+          }
+
           let visible = 0;
+
           for (const card of grid.children) {
             const match = !q || card.dataset.name.includes(q);
             card.style.display = match ? '' : 'none';
+
             if (match) visible++;
           }
+
           section.hidden = visible === 0;
+
           if (visible > 0) anyVisible = true;
         }
+
         noResults.hidden = anyVisible;
       }
+
       searchInput.addEventListener('input', applyFilter);
 
       if (!gamesRoot) {
@@ -727,7 +995,7 @@
       statusEl.style.display = 'none';
       searchInput.disabled = false;
 
-      const betaResults   = results.filter((r) => r.isBeta);
+      const betaResults = results.filter((r) => r.isBeta);
       const normalResults = results.filter((r) => !r.isBeta);
 
       renderSection(betaSection, 'Beta', betaResults);
