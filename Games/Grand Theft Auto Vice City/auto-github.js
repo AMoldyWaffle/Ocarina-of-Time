@@ -4,10 +4,10 @@
   const OWNER = "AMoldyWaffle";
   const REPO = "GTA-VC";
   const BRANCH = "main";
+  const JSDELIVR_LIST = `https://data.jsdelivr.com/v1/package/gh/${OWNER}/${REPO}@${BRANCH}/flat`;
   const API_TREE = `https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
-  const RAW_BASE = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
   const ALLOWED_ROOTS = new Set([
-    "audio", "text", "anim", "data", "models", "movies", "mp3", "mss", "skins", "txd"
+    "audio", "icons", "text", "anim", "data", "models", "movies", "mp3", "mss", "skins", "txd"
   ]);
   const CONCURRENCY = 8;
 
@@ -22,12 +22,14 @@
 
   document.body.classList.add("auto-downloading");
 
-  toggle.addEventListener("click", () => {
+  function toggleConsole() {
     const show = consoleBox.hidden;
     consoleBox.hidden = !show;
+    consoleBox.style.display = show ? "block" : "none";
     toggle.textContent = show ? "Hide console" : "Show console";
     toggle.setAttribute("aria-expanded", String(show));
-  });
+  }
+  window.__toggleGtaDebugConsole = toggleConsole;
 
   function log(message, level = "info") {
     const line = `[${new Date().toLocaleTimeString()}] [${level}] ${String(message)}`;
@@ -84,62 +86,87 @@
     }
   }
 
-  function rawUrl(path) {
-    return RAW_BASE + path.split("/").map(encodeURIComponent).join("/");
+  function encodedPath(path) {
+    return path.split("/").map(encodeURIComponent).join("/");
+  }
+
+  function assetUrls(path) {
+    const p = encodedPath(path);
+    return [
+      `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/${p}`,
+      `https://fastly.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/${p}`,
+      `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/${p}`
+    ];
+  }
+
+  function isGameAsset(path) {
+    const parts = path.replace(/^\/+/, "").split("/");
+    const root = (parts[0] || "").toLowerCase();
+    const name = (parts[parts.length - 1] || "").toLowerCase();
+    return ALLOWED_ROOTS.has(root) && !/\.(exe|dll|pdb|asi|bat|cmd)$/i.test(name);
   }
 
   async function getRepositoryFiles() {
-    setStatus("Checking the GTA-VC GitHub repository…");
-    const response = await fetch(API_TREE, { cache: "no-store" });
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      throw new Error(`GitHub repository index request failed: HTTP ${response.status} ${response.statusText}. ${body.slice(0, 240)}`);
+    setStatus("Finding GTA-VC files through the jsDelivr package index…");
+    let files = [];
+    let listError = null;
+    try {
+      const response = await fetch(JSDELIVR_LIST, { cache: "no-store" });
+      if (!response.ok) throw new Error(`jsDelivr package index: HTTP ${response.status}`);
+      const manifest = await response.json();
+      if (!Array.isArray(manifest.files)) throw new Error("jsDelivr returned an invalid package manifest.");
+      files = manifest.files
+        .filter(item => item && typeof item.name === "string" && isGameAsset(item.name))
+        .map(item => {
+          const path = item.name.replace(/^\/+/, "");
+          return { path, urls: assetUrls(path), size: Number(item.size) || 0, name: path.split("/").pop() };
+        });
+      log(`jsDelivr package index returned ${files.length} eligible game asset files.`);
+    } catch (error) {
+      listError = error;
+      log(`jsDelivr manifest unavailable: ${error.message}; trying GitHub's Git tree API.`, "warn");
     }
-    const tree = await response.json();
-    if (!Array.isArray(tree.tree)) throw new Error("GitHub returned an invalid repository file list.");
-    if (tree.truncated) throw new Error("GitHub truncated the repository file list; automatic import cannot safely continue.");
 
-    const files = tree.tree.filter(item => {
-      if (item.type !== "blob") return false;
-      const parts = item.path.split("/");
-      const root = (parts[0] || "").toLowerCase();
-      if (!ALLOWED_ROOTS.has(root)) return false;
-      const name = parts[parts.length - 1].toLowerCase();
-      if (name.endsWith(".exe") || name.endsWith(".dll") || name.endsWith(".pdb")) return false;
-      return true;
-    }).map(item => ({
-      path: item.path.toLowerCase(),
-      url: rawUrl(item.path),
-      size: Number(item.size) || 0,
-      name: item.path.split("/").pop()
-    }));
-
-    if (!files.some(f => f.path.endsWith("/models/gta3.img") || f.path === "models/gta3.img" ||
-                         f.path.includes("/models/gta3img/"))) {
-      log("Repository tree does not show the expected GTA III/Vice City model archive or split parts.", "warn");
+    if (!files.length) {
+      const response = await fetch(API_TREE, { cache: "no-store" });
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        throw new Error(`Could not list repository files. jsDelivr: ${listError?.message || "no files"}. GitHub API: HTTP ${response.status} ${response.statusText}. ${body.slice(0, 180)}`);
+      }
+      const tree = await response.json();
+      if (!Array.isArray(tree.tree)) throw new Error("GitHub returned an invalid repository file list.");
+      if (tree.truncated) throw new Error("GitHub truncated the repository file list; automatic import cannot safely continue.");
+      files = tree.tree.filter(item => item.type === "blob" && isGameAsset(item.path))
+        .map(item => ({ path: item.path, urls: assetUrls(item.path), size: Number(item.size) || 0, name: item.path.split("/").pop() }));
     }
-    if (!files.length) throw new Error("No game asset files were found in the expected repository folders.");
+
+    if (!files.length) throw new Error("No game asset files were found in the expected GTA-VC folders.");
+    const roots = [...new Set(files.map(f => f.path.split("/")[0]))];
+    log(`Using ${files.length} files from folders: ${roots.join(", ")}.`);
     return files;
   }
 
   async function fetchOne(item) {
     let lastError;
     for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        const response = await fetch(item.url, { cache: "force-cache" });
-        if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
-        const blob = await response.blob();
-        if (item.size && blob.size !== item.size) {
-          throw new Error(`Size mismatch for ${item.path}: expected ${item.size}, received ${blob.size}`);
+      for (const url of item.urls) {
+        try {
+          const response = await fetch(url, { cache: "force-cache" });
+          if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText} from ${new URL(url).hostname}`);
+          const blob = await response.blob();
+          if (item.size && blob.size !== item.size) {
+            throw new Error(`Size mismatch from ${new URL(url).hostname}: expected ${item.size}, received ${blob.size}`);
+          }
+          log(`Fetched ${item.path} via ${new URL(url).hostname}.`);
+          return new File([blob], item.name, { type: "application/octet-stream", lastModified: Date.now() });
+        } catch (error) {
+          lastError = error;
+          log(`${item.path}: ${error.message}`, "warn");
         }
-        return new File([blob], item.name, { type: "application/octet-stream", lastModified: Date.now() });
-      } catch (error) {
-        lastError = error;
-        log(`Download attempt ${attempt}/3 failed for ${item.path}: ${error.message}`, "warn");
-        if (attempt < 3) await sleep(500 * attempt);
       }
+      if (attempt < 3) await sleep(350 * attempt);
     }
-    throw new Error(`Could not download ${item.path}: ${lastError?.message || "unknown error"}`);
+    throw new Error(`Could not download ${item.path} from jsDelivr or raw GitHub: ${lastError?.message || "unknown error"}`);
   }
 
   async function downloadRepositoryFiles(files) {

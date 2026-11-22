@@ -25,8 +25,11 @@
 #auto-progress-bar {height:100%;width:0%;background:#63a5ff;transition:width .15s ease}
 #auto-progress-detail {font-size:12px;color:#aab4c2;text-align:center;max-width:90vw;overflow-wrap:anywhere}
 .auto-controls button {border:1px solid #596273;background:#171c25;color:#f4f5f7;padding:8px 14px;border-radius:8px;cursor:pointer}
-#auto-console {width:min(900px,94vw);height:min(34vh,280px);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;
+#auto-console {display:block;width:min(900px,94vw);height:min(34vh,280px);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;
   background:#05070a;border:1px solid #394252;border-radius:8px;padding:12px;color:#b8e3c0;font:11px/1.4 ui-monospace,monospace}
+#auto-console[hidden] {display:none!important}
+#auto-download-panel .auto-controls {position:relative;z-index:100001}
+#auto-download-panel #auto-log-toggle {min-width:130px;min-height:40px;font-weight:700}
 body.auto-downloading .start-container {display:none!important}
 body.auto-downloading .loading-screen {display:none!important}
 body.auto-downloading #canvas {display:none!important}
@@ -328,46 +331,21 @@ body.auto-downloading #canvas {display:none!important}
           >
             <div>
               <span data-i18n="credits.port">Browser client port by:</span>
-              <a
-                target="_blank"
-                href="https://github.com/joncodeofficial/gta-vice-city-wasm"
-                target="_blank"
-                >@joncodeofficial</a
-              >
+              @joncodeofficial
             </div>
 
             <div>
               <span data-i18n="credits.basedOn">Based on:</span>
-              <a
-                href="https://github.com/Lolendor/reVCDOS"
-                target="_blank"
-                >reVCDOS</a
-              >
+              reVCDOS
               <span data-i18n="credits.by">by</span>
-              <a
-                href="https://github.com/Lolendor"
-                target="_blank"
-                >@Lolendor</a
-              >
+              @Lolendor
             </div>
 
             <div>
               <span id="port-by" data-i18n="credits.engine">WASM engine by:</span>
-              <a
-                href="https://github.com/okhmanyuk-ev"
-                target="_blank"
-                >@specialist003</a
-              >,
-              <a
-                href="https://www.youtube.com/caiiiycuk"
-                target="_blank"
-                >@caiiiycuk</a
-              >,
-              <a
-                href="https://t.me/ser_var"
-                target="_blank"
-                >@SerGen</a
-              >
+              @specialist003,
+              @caiiiycuk,
+              @SerGen
             </div>
           </div>
 
@@ -391,7 +369,7 @@ body.auto-downloading #canvas {display:none!important}
       <div class="auto-progress-wrap"><div id="auto-progress-bar"></div></div>
       <div id="auto-progress-detail">Connecting to GitHub…</div>
       <div class="auto-controls">
-        <button id="auto-log-toggle" type="button" aria-expanded="false">Show console</button>
+        <button id="auto-log-toggle" type="button" aria-expanded="false" onclick="if(window.__toggleGtaDebugConsole){window.__toggleGtaDebugConsole()}else{const p=document.getElementById('auto-console');p.hidden=!p.hidden;p.style.display=p.hidden?'none':'block';this.textContent=p.hidden?'Show console':'Hide console';this.setAttribute('aria-expanded',String(!p.hidden))}">Show console</button>
       </div>
       <pre id="auto-console" hidden></pre>
     </section>
