@@ -128,7 +128,10 @@ function log(level, msg) {
   logEl.textContent += line + '\n';
   logEl.scrollTop = logEl.scrollHeight;
 }
-document.getElementById('toggleLog').addEventListener('click', () => logEl.classList.toggle('open'));
+const toggleLogButton = document.getElementById('toggleLog');
+if (toggleLogButton) {
+  toggleLogButton.addEventListener('click', () => logEl.classList.toggle('open'));
+}
 
 /* ================================================================ */
 /* Repo config                                                      */
