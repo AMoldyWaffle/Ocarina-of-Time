@@ -78,14 +78,6 @@ const PAGES_BASE = 'https://amoldywaffle.github.io/Ocarina-of-Time/';
 const GAMES_DIR  = 'Games';
 
 /* ================================================================ */
-/* Cross-origin scripts that need rewriting into blob URLs          */
-/* (add more here if the games start using other cross-origin workers) */
-/* ================================================================ */
-const WORKER_URLS = [
-  'https://amoldywaffle.github.io/fuze/wiring/worker.js',
-];
-
-/* ================================================================ */
 /* Discovery: scan Games/ via GitHub Contents API                   */
 /* ================================================================ */
 function prettify(name) {
@@ -108,16 +100,15 @@ async function discoverGames() {
 }
 
 /* ================================================================ */
-/* Injected shim: fixes URL + SharedWorker/Worker cross-origin     */
+/* Injected shim: URL fix + INLINE Worker / SharedWorker           */
 /* ================================================================ */
 const INJECTED_SHIM = String.raw`
 (function () {
   if (window.__launcherShimInstalled) return;
   window.__launcherShimInstalled = true;
 
+  /* ---------- 1. URL constructor fix (from earlier) ---------- */
   var RealURL = window.URL;
-
-  /* ---------- 1. URL constructor fix ---------- */
   if (RealURL) {
     function safeBase(b) {
       if (b === null || b === undefined) return document.baseURI || location.href;
@@ -151,89 +142,191 @@ const INJECTED_SHIM = String.raw`
     RealURL = PatchedURL;
   }
 
-  /* ---------- 2. Cross-origin Worker / SharedWorker fix ---------- */
-  var WORKER_URLS = ` + JSON.stringify(WORKER_URLS) + `;
-  var blobCache = {};
-
-  function urlMatches(url) {
-    var s = String(url);
-    for (var i = 0; i < WORKER_URLS.length; i++) {
-      var w = WORKER_URLS[i];
-      if (s === w || s.indexOf(w + '?') === 0 || s.indexOf(w + '#') === 0) return true;
-    }
-    return false;
-  }
-
-  function fetchWorkerAsBlobUrl(fullUrl) {
-    if (blobCache[fullUrl]) return blobCache[fullUrl];
-
-    var xhr = new XMLHttpRequest();
+  /* ---------- 2. INLINE Worker / SharedWorker ---------- */
+  function fetchScriptSync(url) {
     try {
-      xhr.open('GET', fullUrl, false); // synchronous, only at bootstrap
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, false);
       xhr.send(null);
+      if (xhr.status >= 200 && xhr.status < 300) return xhr.responseText;
+      console.warn('[inline-worker] HTTP', xhr.status, url);
     } catch (e) {
-      try { console.warn('[shim] worker fetch failed:', fullUrl, e); } catch (_) {}
-      return null;
+      console.warn('[inline-worker] fetch failed:', url, e.message);
     }
-    if (xhr.status < 200 || xhr.status >= 300) {
-      try { console.warn('[shim] worker fetch HTTP', xhr.status, fullUrl); } catch (_) {}
-      return null;
-    }
-
-    var originalDir;
-    try { originalDir = new URL('.', fullUrl).href; } catch (_) { originalDir = fullUrl; }
-
-    // Prepended prelude: importScripts() relative paths resolve against the
-    // *original* GitHub-Pages directory, not the blob URL.
-    var prelude =
-      'var __ORIG_BASE__ = ' + JSON.stringify(originalDir) + ';\n' +
-      '(function () {\n' +
-      '  try {\n' +
-      '    var _importScripts = self.importScripts.bind(self);\n' +
-      '    self.importScripts = function () {\n' +
-      '      var args = Array.prototype.slice.call(arguments).map(function (u) {\n' +
-      '        try { return new URL(u, __ORIG_BASE__).href; } catch (e) { return u; }\n' +
-      '      });\n' +
-      '      return _importScripts.apply(null, args);\n' +
-      '    };\n' +
-      '  } catch (e) {}\n' +
-      '})();\n';
-
-    var src = prelude + xhr.responseText;
-    var blob = new Blob([src], { type: 'application/javascript' });
-    var blobUrl = RealURL.createObjectURL(blob);
-    blobCache[fullUrl] = blobUrl;
-    try { console.log('[shim] worker blobified:', fullUrl, '->', blobUrl); } catch (_) {}
-    return blobUrl;
+    return null;
   }
 
-  function rewriteCtor(OriginalCtor) {
-    if (!OriginalCtor) return OriginalCtor;
-    return new Proxy(OriginalCtor, {
-      construct: function (target, args) {
-        var a = Array.prototype.slice.call(args);
-        if (a.length >= 1 && urlMatches(a[0])) {
-          var blobUrl = fetchWorkerAsBlobUrl(String(a[0]));
-          if (blobUrl) a[0] = blobUrl;
-        }
-        return Reflect.construct(target, a);
+  function buildFakeSelf(scriptURL) {
+    var u = new URL(scriptURL);
+    var fake = {
+      location: {
+        href: u.href, origin: u.origin, protocol: u.protocol,
+        host: u.host, hostname: u.hostname, port: u.port,
+        pathname: u.pathname, search: u.search, hash: u.hash,
+        toString: function () { return u.href; }
+      },
+      console: console,
+      navigator: navigator,
+      performance: performance,
+      crypto: crypto,
+      fetch: fetch,
+      XMLHttpRequest: XMLHttpRequest,
+      WebSocket: WebSocket,
+      Blob: Blob, File: File, URL: URL,
+      TextEncoder: TextEncoder, TextDecoder: TextDecoder,
+      atob: atob, btoa: btoa,
+      MessageChannel: MessageChannel, MessagePort: MessagePort,
+      setTimeout: setTimeout, setInterval: setInterval,
+      clearTimeout: clearTimeout, clearInterval: clearInterval,
+      queueMicrotask: queueMicrotask,
+      addEventListener: function (t, fn) {
+        if (t === 'connect') fake.onconnect = fn;
+        else if (t === 'message') fake.onmessage = fn;
+        else if (t === 'error') fake.onerror = fn;
+      },
+      removeEventListener: function () {},
+      onconnect: null, onmessage: null, onerror: null,
+      postMessage: function () {},
+      close: function () {}
+    };
+    fake.importScripts = function () {
+      for (var i = 0; i < arguments.length; i++) {
+        var abs = new URL(String(arguments[i]), u).href;
+        var code = fetchScriptSync(abs);
+        if (code === null) continue;
+        try {
+          var f = new Function('self','globalThis','location','importScripts',
+                               'console','fetch','XMLHttpRequest',
+                               'setTimeout','setInterval','clearTimeout','clearInterval',
+                               'postMessage','close','addEventListener',
+                               code);
+          f.call(fake, fake, fake, fake.location, fake.importScripts,
+                 console, fetch, XMLHttpRequest,
+                 setTimeout, setInterval, clearTimeout, clearInterval,
+                 fake.postMessage, fake.close, fake.addEventListener);
+        } catch (e) { console.error('[inline-worker] import error:', e); }
       }
-    });
+    };
+    fake.self = fake;
+    fake.globalThis = fake;
+    fake.window = fake;
+    return fake;
   }
 
-  if (window.SharedWorker) window.SharedWorker = rewriteCtor(window.SharedWorker);
-  if (window.Worker)       window.Worker       = rewriteCtor(window.Worker);
-
-  /* ---------- 3. Pre-fetch worker scripts (avoids blocking later) ---------- */
-  // Sync XHR — happens once, at game bootstrap, before the game's scripts run.
-  for (var i = 0; i < WORKER_URLS.length; i++) {
-    try { fetchWorkerAsBlobUrl(WORKER_URLS[i]); } catch (_) {}
+  function runSourceInFakeScope(src, fake) {
+    try {
+      var f = new Function('self','globalThis','location','importScripts',
+                           'console','fetch','XMLHttpRequest',
+                           'setTimeout','setInterval','clearTimeout','clearInterval',
+                           'postMessage','close','addEventListener',
+                           src);
+      f.call(fake, fake, fake, fake.location, fake.importScripts,
+             console, fetch, XMLHttpRequest,
+             setTimeout, setInterval, clearTimeout, clearInterval,
+             fake.postMessage, fake.close, fake.addEventListener);
+      return true;
+    } catch (e) {
+      console.error('[inline-worker] execution error:', e);
+      return false;
+    }
   }
+
+  function inlineSharedWorker(scriptURL) {
+    var fake = buildFakeSelf(scriptURL);
+    var src = fetchScriptSync(scriptURL);
+    if (src === null) {
+      console.warn('[inline-worker] no source for', scriptURL, '— stub port');
+      var ch0 = new MessageChannel();
+      return { port: ch0.port1, onerror: null, terminate: function () {} };
+    }
+    console.info('[inline-worker] running', scriptURL, '(' + src.length + ' bytes)');
+    runSourceInFakeScope(src, fake);
+
+    var chan = new MessageChannel();
+    var mainPort = chan.port1;
+    var workerPort = chan.port2;
+
+    setTimeout(function () {
+      if (typeof fake.onconnect === 'function') {
+        try { fake.onconnect({ ports: [workerPort], type: 'connect' }); }
+        catch (e) { console.error('[inline-worker] onconnect error:', e); }
+      } else if (typeof fake.onmessage === 'function') {
+        workerPort.onmessage = fake.onmessage;
+        try { workerPort.start(); } catch (_) {}
+      } else {
+        console.warn('[inline-worker] worker registered no onconnect/onmessage');
+      }
+    }, 0);
+
+    return { port: mainPort, onerror: null, terminate: function () {} };
+  }
+
+  function inlineWorker(scriptURL) {
+    var fake = buildFakeSelf(scriptURL);
+    var src = fetchScriptSync(scriptURL);
+    if (src === null) throw new Error('Cannot fetch worker: ' + scriptURL);
+
+    var worker = {
+      onmessage: null, onerror: null,
+      postMessage: function (data) {
+        setTimeout(function () {
+          if (typeof fake.onmessage === 'function') fake.onmessage({ data: data });
+        }, 0);
+      },
+      terminate: function () {},
+      addEventListener: function (t, fn) {
+        if (t !== 'message') return;
+        var prev = worker.onmessage;
+        worker.onmessage = function (e) { if (prev) prev(e); fn(e); };
+      },
+      removeEventListener: function () {}
+    };
+
+    fake.postMessage = function (data) {
+      setTimeout(function () {
+        if (typeof worker.onmessage === 'function') worker.onmessage({ data: data });
+      }, 0);
+    };
+
+    runSourceInFakeScope(src, fake);
+    return worker;
+  }
+
+  function isCrossOrigin(url) {
+    try { return new URL(url, location.href).origin !== location.origin; }
+    catch (_) { return true; }
+  }
+
+  /* ---------- 3. Replace constructors ---------- */
+  var RealSharedWorker = window.SharedWorker;
+  var RealWorker = window.Worker;
+
+  function makeShim(RealCtor, inlineMaker) {
+    function Shim(scriptURL, options) {
+      if (!isCrossOrigin(scriptURL)) {
+        if (RealCtor) {
+          try { return new RealCtor(scriptURL, options); }
+          catch (e) { console.warn('[shim] real ctor failed, inlining:', e.message); }
+        }
+      }
+      try { return inlineMaker(String(scriptURL), options); }
+      catch (e) {
+        console.error('[shim] inline failed:', e);
+        if (RealCtor) return new RealCtor(scriptURL, options);
+        throw e;
+      }
+    }
+    Shim.prototype = RealCtor ? RealCtor.prototype : {};
+    return Shim;
+  }
+
+  if (RealSharedWorker) window.SharedWorker = makeShim(RealSharedWorker, inlineSharedWorker);
+  if (RealWorker)       window.Worker       = makeShim(RealWorker, inlineWorker);
 })();
 `;
 
 /* ================================================================ */
-/* Rewrite fetched HTML: <base href> + shim                        */
+/* Rewrite fetched HTML: inject shim + <base href>                  */
 /* ================================================================ */
 function prepareGameHtml(rawHtml, pageUrl) {
   const dirUrl = new URL('.', pageUrl).href;
