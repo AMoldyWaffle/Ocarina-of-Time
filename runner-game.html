@@ -26,13 +26,29 @@ function setStatus(message) {
 }
 
 function toRawUrl(pagesUrl) {
-  const parsed = new URL(pagesUrl);
-  const prefix = "/Ocarina-of-Time/";
-  if (!parsed.pathname.startsWith(prefix)) {
-    throw new Error("Game URL is outside the expected GitHub Pages repository.");
+  if (typeof pagesUrl !== "string" || !pagesUrl) {
+    throw new Error("The launcher did not provide a game URL. Received: " + String(pagesUrl));
   }
-  const relativePath = parsed.pathname.slice(prefix.length);
-  return RAW_ROOT + relativePath.split("/").map(part => encodeURIComponent(decodeURIComponent(part))).join("/");
+
+  // Avoid URL() here: some HTML runners wrap this page in a Blob URL,
+  // and URL resolution can fail in those environments.
+  if (!pagesUrl.startsWith(PAGES_ROOT)) {
+    throw new Error("Unexpected game URL: " + pagesUrl);
+  }
+
+  const relativePath = pagesUrl.slice(PAGES_ROOT.length).split(/[?#]/, 1)[0];
+  const encodedPath = relativePath.split("/").map(part => {
+    let decoded = part;
+    try { decoded = decodeURIComponent(part); } catch (_) {}
+    return encodeURIComponent(decoded);
+  }).join("/");
+
+  return RAW_ROOT + encodedPath;
+}
+
+function gameBaseUrl(pagesUrl) {
+  const cleanUrl = pagesUrl.split(/[?#]/, 1)[0];
+  return cleanUrl.slice(0, cleanUrl.lastIndexOf("/") + 1);
 }
 
 (async function start() {
@@ -50,7 +66,7 @@ function toRawUrl(pagesUrl) {
       untouched.
     */
     if (!/<base\b/i.test(html)) {
-      const base = new URL(".", GAME_URL).href;
+      const base = gameBaseUrl(GAME_URL);
       if (/<head\b[^>]*>/i.test(html)) {
         html = html.replace(/<head\b([^>]*)>/i, match => match + '\n<base href="' + base.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '">');
       } else {
