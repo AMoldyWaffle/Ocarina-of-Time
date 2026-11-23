@@ -7,399 +7,195 @@
 <title>Game Library</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101014;color:#fff;font-family:Arial,sans-serif}
-header{text-align:center;padding:30px;background:#191920}
-header h1{margin:0;letter-spacing:3px}
-header p{color:#999}
-.toolbar{display:flex;justify-content:center;gap:10px;padding:20px}
-button{padding:10px 15px;background:#292936;color:#fff;border:1px solid #444455;border-radius:7px;cursor:pointer}
-button:hover{background:#454566}
-#status{text-align:center;padding:12px;color:#aaa;overflow-wrap:anywhere}
-#games{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,220px));justify-content:center;gap:22px;padding:20px}
-.game{background:#1b1b24;border:1px solid #30303c;border-radius:12px;overflow:hidden}
-.game img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover;background:#252530;cursor:pointer}
-.game-name{text-align:center;padding:12px;font-weight:bold}
-.game .play{width:calc(100% - 16px);margin:4px 8px;background:#41417a;font-size:14px;font-weight:bold}
-.game .alternates{padding:5px 8px 12px;display:grid;grid-template-columns:1fr 1fr;gap:5px}
-.game .alternates button{width:100%;margin:0;font-size:11px}
-.empty{grid-column:1/-1;text-align:center;color:#888;padding:50px}
-footer{text-align:center;padding:30px;color:#555;font-size:12px}
+body{margin:0;background:#101014;color:#eee;font:14px Arial,sans-serif}
+header{padding:22px 16px;text-align:center;background:#191920}
+h1{margin:0;letter-spacing:3px;font-size:25px}
+header p{color:#999;margin:8px 0 0}
+button{border:1px solid #454553;border-radius:7px;background:#292936;color:#fff;padding:9px 12px;cursor:pointer}
+button:hover{background:#41415b}
+button:disabled{opacity:.5;cursor:wait}
+#toolbar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:14px}
+#status{padding:8px 14px;text-align:center;color:#aaa;overflow-wrap:anywhere}
+#games{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,210px));justify-content:center;gap:16px;padding:16px}
+.game{background:#1b1b24;border:1px solid #30303c;border-radius:10px;overflow:hidden}
+.cover{width:100%;aspect-ratio:3/4;object-fit:cover;background:#252530;display:block}
+.name{text-align:center;font-weight:bold;padding:10px 6px}
+.play{display:block;width:calc(100% - 16px);margin:0 8px 8px;background:#41417a;font-weight:bold}
+.hosts{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:0 8px 10px}
+.hosts button{font-size:11px;padding:7px 3px}
+#player{display:none;padding:8px}
+#playerbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0}
+#playing{font-weight:bold;flex:1;min-width:100px}
+#gameframe{width:100%;height:72vh;min-height:360px;border:1px solid #444;background:#000;display:block}
+#consolebox{margin-top:8px;border:1px solid #393943;background:#09090d;border-radius:7px}
+#consolehead{display:flex;align-items:center;gap:8px;padding:7px}
+#consolehead strong{flex:1}
+#consolelog{height:150px;overflow:auto;padding:8px;color:#b9e5b9;font:12px/1.45 monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.log-error{color:#ff8888}.log-warn{color:#ffd27d}
+footer{text-align:center;padding:24px;color:#555;font-size:12px}
+.empty{text-align:center;color:#999;padding:40px}
 </style>
 </head>
 <body>
-<header>
-<h1>GAME LIBRARY</h1>
-<p>Automatic Repository Game Launcher</p>
-</header>
-<div class="toolbar"><button id="rescan" type="button">Rescan Repository</button></div>
-<div id="status">Initializing...</div>
-<div id="games"><div class="empty">Searching for games...</div></div>
+<header><h1>GAME LIBRARY</h1><p>Choose a game and a source</p></header>
+<div id="library">
+  <div id="toolbar"><button id="rescan">Rescan games</button></div>
+  <div id="status">Finding games...</div>
+  <main id="games"><div class="empty">Loading library...</div></main>
+</div>
+<section id="player">
+  <div id="playerbar">
+    <button id="back">← Back to games</button>
+    <div id="playing">No game selected</div>
+    <button id="clearlog">Clear console</button>
+  </div>
+  <iframe id="gameframe" title="Game" allow="autoplay; fullscreen; gamepad; clipboard-write" allowfullscreen></iframe>
+  <div id="consolebox">
+    <div id="consolehead"><strong>Game console</strong><button id="toggleconsole">Hide console</button></div>
+    <div id="consolelog"></div>
+  </div>
+</section>
 <footer>OCARINA OF TIME</footer>
 <script>
 "use strict";
 
-const OWNER = "AMoldyWaffle";
-const REPO = "Ocarina-of-Time";
-const BRANCH = "main";
-const GAME_DIR = "Games";
-const PAGES = "https://amoldywaffle.github.io/Ocarina-of-Time/";
-const API = "https://api.github.com/repos/" + OWNER + "/" + REPO;
-const RAW = "https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/" + BRANCH + "/";
-const HOSTS = [
-  {name:"GitHub Pages",base:PAGES},
-  {name:"jsDelivr",base:"https://cdn.jsdelivr.net/gh/" + OWNER + "/" + REPO + "@" + BRANCH + "/"},
-  {name:"Fastly CDN",base:"https://fastly.jsdelivr.net/gh/" + OWNER + "/" + REPO + "@" + BRANCH + "/"},
-  {name:"Gcore CDN",base:"https://gcore.jsdelivr.net/gh/" + OWNER + "/" + REPO + "@" + BRANCH + "/"},
-  {name:"GitHub Raw",base:RAW}
+const OWNER="AMoldyWaffle", REPO="Ocarina-of-Time", BRANCH="main", GAME_DIR="Games";
+const API="https://api.github.com/repos/"+OWNER+"/"+REPO;
+const HOSTS=[
+ {name:"GitHub Pages",base:"https://amoldywaffle.github.io/Ocarina-of-Time/"},
+ {name:"jsDelivr",base:"https://cdn.jsdelivr.net/gh/"+OWNER+"/"+REPO+"@"+BRANCH+"/"},
+ {name:"Fastly CDN",base:"https://fastly.jsdelivr.net/gh/"+OWNER+"/"+REPO+"@"+BRANCH+"/"},
+ {name:"Gcore CDN",base:"https://gcore.jsdelivr.net/gh/"+OWNER+"/"+REPO+"@"+BRANCH+"/"},
+ {name:"GitHub Raw",base:"https://raw.githubusercontent.com/"+OWNER+"/"+REPO+"/"+BRANCH+"/"}
 ];
+const $=id=>document.getElementById(id);
+const gamesNode=$("games"),statusNode=$("status"),frame=$("gameframe"),consoleNode=$("consolelog");
+let games=[],scanning=false,consoleVisible=true;
 
-const gamesNode = document.getElementById("games");
-const statusNode = document.getElementById("status");
-let games = [];
-let scanning = false;
-
-function encodedPath(path) {
-  return path.split("/").map(encodeURIComponent).join("/");
+function enc(path){return path.split("/").map(encodeURIComponent).join("/")}
+function url(host,path){return host.base+enc(path)}
+async function get(url,ms=20000){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),ms);
+ try{const r=await fetch(url,{mode:"cors",cache:"no-store",signal:controller.signal});if(!r.ok)throw Error("HTTP "+r.status);return r}
+ finally{clearTimeout(timer)}
+}
+async function directory(path){
+ const r=await get(API+"/contents/"+enc(path)+"?ref="+BRANCH);
+ const data=await r.json();if(!Array.isArray(data))throw Error("Invalid GitHub directory response");return data;
+}
+function escapeHTML(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function pickHTML(files){
+ const a=files.filter(x=>x.type==="file"&&/\.html?$/i.test(x.name));
+ return a.find(x=>x.name.toLowerCase()==="index.html")||a.find(x=>/launcher/i.test(x.name))||a[0]||null;
+}
+async function scan(){
+ if(scanning)return;scanning=true;gamesNode.innerHTML="";statusNode.textContent="Scanning repository...";
+ try{
+  const folders=(await directory(GAME_DIR)).filter(x=>x.type==="dir");
+  const found=await Promise.all(folders.map(async folder=>{
+   try{
+    const files=await directory(folder.path),html=pickHTML(files);
+    if(!html)return null;
+    const coverDir=files.find(x=>x.type==="dir"&&x.name.toLowerCase()==="cover");
+    let cover=null;
+    if(coverDir){const imgs=(await directory(coverDir.path)).filter(x=>x.type==="file"&&/\.(png|jpe?g|webp|gif|avif)$/i.test(x.name));cover=imgs.find(x=>x.name.toLowerCase()==="cover.png")||imgs[0]||null}
+    return {name:folder.name,html:html.path,cover:cover&&cover.path};
+   }catch(e){console.warn("Skipped "+folder.name,e);return null}
+  }));
+  games=found.filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));render();
+ }catch(e){statusNode.textContent="Could not scan games: "+e.message;gamesNode.innerHTML='<div class="empty">Repository scan failed. Check the console or try again.</div>';console.error(e)}
+ finally{scanning=false}
+}
+function render(){
+ gamesNode.innerHTML="";
+ if(!games.length){gamesNode.innerHTML='<div class="empty">No game launchers found.</div>';statusNode.textContent="0 games found.";return}
+ for(const game of games){
+  const card=document.createElement("article");card.className="game";
+  if(game.cover){const img=document.createElement("img");img.className="cover";img.alt=game.name;img.loading="lazy";let n=0;img.onerror=()=>{if(n<HOSTS.length)img.src=url(HOSTS[n++],game.cover);else img.remove()};img.src=url(HOSTS[n++],game.cover);card.appendChild(img)}
+  const name=document.createElement("div");name.className="name";name.textContent=game.name;card.appendChild(name);
+  const play=document.createElement("button");play.className="play";play.textContent="PLAY (AUTO SOURCE)";play.onclick=()=>launch(game);card.appendChild(play);
+  const choices=document.createElement("div");choices.className="hosts";
+  HOSTS.forEach(host=>{const b=document.createElement("button");b.textContent=host.name;b.title="Load from "+host.name;b.onclick=()=>launch(game,host);choices.appendChild(b)});
+  card.appendChild(choices);gamesNode.appendChild(card);
+ }
+ statusNode.textContent=games.length+" games found. Choose PLAY or a specific source.";
 }
 
-function fileURL(host, path) {
-  return host.base + encodedPath(path);
-}
-
-async function fetchWithTimeout(url, timeoutMs) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs || 18000);
-  try {
-    const response = await fetch(url, {
-      method:"GET",
-      mode:"cors",
-      cache:"no-store",
-      signal:controller.signal
-    });
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    return response;
-  } finally {
-    clearTimeout(timer);
+/* Runs inside the game iframe. Worker entry points are redirected to same-origin
+   blob URLs; classic worker imports are resolved against the original URL. */
+function workerBridge(){
+ function wrap(Native,kind){
+  if(typeof Native!=="function")return Native;
+  return new Proxy(Native,{construct(target,args){
+   let u;try{u=new URL(String(args[0]),document.baseURI)}catch(_){return Reflect.construct(target,args,target)}
+   if(u.protocol==="blob:"||u.protocol==="data:"||u.origin===location.origin)return Reflect.construct(target,args,target);
+   const original=u.href,opts=args[1],isModule=opts&&opts.type==="module";
+   const code=isModule
+    ?'import '+JSON.stringify(original)+';'
+    :'const __u='+JSON.stringify(original)+';const __i=self.importScripts.bind(self);self.importScripts=(...a)=>__i(...a.map(x=>new URL(x,__u).href));self.importScripts(__u);';
+   const blob=URL.createObjectURL(new Blob([code],{type:"text/javascript"})),next=args.slice();next[0]=blob;
+   try{const w=Reflect.construct(target,next,target);console.info("[Launcher] bridged "+kind,original);return w}
+   catch(e){URL.revokeObjectURL(blob);throw e}
+  }});
+ }
+ if(window.Worker)window.Worker=wrap(window.Worker,"Worker");
+ if(window.SharedWorker)window.SharedWorker=wrap(window.SharedWorker,"SharedWorker");
+ const send=(level,args)=>{try{parent.postMessage({__gameConsole:true,level,args:Array.from(args).map(x=>{try{return typeof x==="string"?x:JSON.stringify(x)}catch(_){return String(x)}})},"*")}catch(_){}};
+ ["log","info","warn","error"].forEach(level=>{const old=console[level].bind(console);console[level]=(...args)=>{old(...args);send(level,args)}});
+ addEventListener("error",e=>send("error",[e.message||"Script error",e.filename||"",e.lineno||""]));
+ addEventListener("unhandledrejection",e=>send("error",["Unhandled promise rejection",e.reason]));
+ if(!window.__launcherFetchPatch){
+  window.__launcherFetchPatch=true;const native=fetch.bind(window);
+  window.fetch=async function(input,init){
+   let request="";try{request=typeof input==="string"?input:input.url}catch(_){}
+   let response;
+   try{response=await native(input,init)}catch(e){if(/ejs\.offline|\/cores\/|\/compression\//i.test(request))console.error("[Network] Request failed",request,e);throw e}
+   if(/ejs\.offline|\/cores\/|\/compression\//i.test(request))console.info("[Network]",response.status,response.headers.get("content-type"),response.headers.get("content-length"),request);
+   if(!response.ok||!/\/emulator\.html(?:[?#]|$)/i.test(request))return response;
+   const source=await response.text(),tag="<script>("+workerBridge.toString()+")();<\\/script>";
+   const patched=/<head\\b[^>]*>/i.test(source)?source.replace(/<head\\b[^>]*>/i,m=>m+tag):tag+source;
+   const headers=new Headers(response.headers);headers.delete("content-length");headers.delete("content-encoding");
+   return new Response(patched,{status:response.status,statusText:response.statusText,headers});
   }
+ }
 }
-
-async function apiDirectory(path) {
-  const url = API + "/contents/" + encodedPath(path) + "?ref=" + encodeURIComponent(BRANCH);
-  const response = await fetchWithTimeout(url, 20000);
-  const data = await response.json();
-  if (!Array.isArray(data)) throw new Error("GitHub returned an invalid directory listing.");
-  return data;
+function addLog(level,args){
+ const line=document.createElement("div");line.className=level==="error"?"log-error":level==="warn"?"log-warn":"";
+ line.textContent="["+new Date().toLocaleTimeString()+"] ["+level.toUpperCase()+"] "+args.join(" ");
+ consoleNode.appendChild(line);consoleNode.scrollTop=consoleNode.scrollHeight;
 }
-
-function isImage(path) {
-  return /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(path);
+window.addEventListener("message",e=>{if(e.data&&e.data.__gameConsole)addLog(e.data.level||"log",e.data.args||[])});
+function inject(html,base){
+ html=html.replace(/<base\b[^>]*>/i,"");
+ const safe=base.replace(/&/g,"&amp;").replace(/"/g,"&quot;");
+ const bridge="<script>("+workerBridge.toString()+")();<\\/script>";
+ const head='<base href="'+safe+'">'+bridge;
+ return /<head\b[^>]*>/i.test(html)?html.replace(/<head\b[^>]*>/i,m=>m+head):head+html;
 }
-
-function chooseHTML(files, folder) {
-  const html = files.filter(file =>
-    file.type === "file" && /\.html?$/i.test(file.name)
-  );
-  return html.find(file => file.name.toLowerCase() === "index.html")
-    || html.find(file => file.name.toLowerCase().includes("launcher"))
-    || html[0]
-    || null;
+async function launch(game,preferred){
+ $("library").style.display="none";$("player").style.display="block";$("playing").textContent=game.name;
+ consoleNode.innerHTML="";addLog("info",["Starting "+game.name]);
+ frame.srcdoc="<p style='color:white;background:black;font:16px Arial;padding:20px'>Loading "+escapeHTML(game.name)+"...</p>";
+ const order=preferred?[preferred,...HOSTS.filter(x=>x!==preferred)]:HOSTS;
+ for(const host of order){
+  try{
+   addLog("info",["Downloading HTML from "+host.name]);
+   const response=await get(url(host,game.html),30000),html=await response.text();
+   if(!/<html[\s>]/i.test(html))throw Error("The source did not return an HTML page");
+   const base=host.base+enc(game.html.slice(0,game.html.lastIndexOf("/")+1));
+   frame.srcdoc=inject(html,base);
+   addLog("info",["Loaded HTML from "+host.name,"Game is running inside the launcher frame."]);
+   return;
+  }catch(e){addLog("warn",[host.name+" failed:",e.message])}
+ }
+ addLog("error",["Could not load this game from any source."]);
 }
-
-async function scanGames() {
-  if (scanning) return;
-  scanning = true;
-  gamesNode.innerHTML = "";
-  statusNode.textContent = "Reading the Games directory...";
-  try {
-    const folders = await apiDirectory(GAME_DIR);
-    const gameFolders = folders.filter(item => item.type === "dir");
-    if (!gameFolders.length) throw new Error("No game folders were found.");
-
-    const discovered = await Promise.all(gameFolders.map(async folder => {
-      const rootFiles = await apiDirectory(folder.path);
-      const htmlFile = chooseHTML(rootFiles, folder.name);
-      const coverFolder = rootFiles.find(item =>
-        item.type === "dir" && item.name.toLowerCase() === "cover"
-      );
-      if (!htmlFile || !coverFolder) return null;
-
-      let coverFile = null;
-      try {
-        const coverFiles = await apiDirectory(coverFolder.path);
-        const images = coverFiles.filter(item =>
-          item.type === "file" && isImage(item.name)
-        );
-        coverFile = images.find(item => item.name.toLowerCase() === "cover.png")
-          || images[0]
-          || null;
-      } catch (error) {
-        console.warn("Cover listing failed for " + folder.name, error);
-      }
-
-      if (!coverFile) return null;
-      return {
-        name:folder.name,
-        html:htmlFile.path,
-        cover:coverFile.path
-      };
-    }));
-
-    games = discovered.filter(Boolean).sort((a,b) => a.name.localeCompare(b.name));
-    renderGames();
-  } catch (error) {
-    console.error("Repository scan failed:", error);
-    statusNode.textContent = "Repository scan failed: " + error.message;
-    gamesNode.innerHTML =
-      '<div class="empty"><h3>Could not retrieve the game list</h3>' +
-      '<p>' + escapeHTML(error.message) + '</p>' +
-      '<button type="button" onclick="scanGames()">Try Again</button></div>';
-  } finally {
-    scanning = false;
-  }
-}
-
-function escapeHTML(value) {
-  return String(value).replace(/[&<>"']/g, char => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  })[char]);
-}
-
-function loadCover(image, path) {
-  let index = 0;
-  function tryNext() {
-    if (index >= HOSTS.length) {
-      image.removeAttribute("src");
-      image.alt = "Cover unavailable";
-      return;
-    }
-    image.src = fileURL(HOSTS[index++], path);
-  }
-  image.onerror = tryNext;
-  tryNext();
-}
-
-/*
- * This shim is inserted into each game document before its own scripts.
- * It converts cross-origin classic/module Worker URLs into same-origin blob
- * worker entry points. The blob worker then imports the original remote script.
- * Relative importScripts() calls are resolved against the original worker URL.
- */
-function installWorkerBridge() {
-  function bridgeConstructor(NativeConstructor, kind) {
-    if (typeof NativeConstructor !== "function") return NativeConstructor;
-    return new Proxy(NativeConstructor, {
-      construct(target, args) {
-        let remoteURL;
-        try {
-          remoteURL = new URL(String(args[0]), document.baseURI);
-        } catch (_) {
-          return Reflect.construct(target, args, target);
-        }
-
-        if (
-          remoteURL.protocol === "blob:" ||
-          remoteURL.protocol === "data:" ||
-          remoteURL.origin === location.origin
-        ) {
-          return Reflect.construct(target, args, target);
-        }
-
-        const options = args[1];
-        const moduleWorker = !!(options && typeof options === "object" && options.type === "module");
-        const originalURL = remoteURL.href;
-        let bootstrap;
-
-        if (moduleWorker) {
-          bootstrap = 'import ' + JSON.stringify(originalURL) + ';';
-        } else {
-          bootstrap =
-            'const __remoteWorkerURL=' + JSON.stringify(originalURL) + ';' +
-            'const __nativeImportScripts=self.importScripts.bind(self);' +
-            'self.importScripts=(...urls)=>__nativeImportScripts(...urls.map(url=>new URL(url,__remoteWorkerURL).href));' +
-            'self.importScripts(__remoteWorkerURL);';
-        }
-
-        const blobURL = URL.createObjectURL(new Blob([bootstrap], {
-          type:"text/javascript"
-        }));
-        const patchedArgs = args.slice();
-        patchedArgs[0] = blobURL;
-
-        try {
-          const worker = Reflect.construct(target, patchedArgs, target);
-          setTimeout(() => URL.revokeObjectURL(blobURL), 120000);
-          console.info("[Worker bridge] " + kind + " redirected through a same-origin blob:", originalURL);
-          return worker;
-        } catch (error) {
-          URL.revokeObjectURL(blobURL);
-          throw error;
-        }
-      }
-    });
-  }
-
-  if (window.Worker) window.Worker = bridgeConstructor(window.Worker, "Worker");
-  if (window.SharedWorker) window.SharedWorker = bridgeConstructor(window.SharedWorker, "SharedWorker");
-
-  // Waffle's loader fetches emulator.html and then turns it into another
-  // blob iframe. Inject this same bridge into that nested document too.
-  if (!window.__workerBridgeFetchPatched) {
-    window.__workerBridgeFetchPatched = true;
-    const nativeFetch = window.fetch.bind(window);
-    window.fetch = async function(input, init) {
-      let requestURL = "";
-      try {
-        requestURL = typeof input === "string" ? input : input.url;
-      } catch (_) {}
-
-      let response;
-      try {
-        response = await nativeFetch(input, init);
-      } catch (error) {
-        if (/ejs\.offline|\/cores\/|\/compression\//i.test(requestURL)) {
-          console.error("[EJS network] Request failed:", requestURL, error);
-        }
-        throw error;
-      }
-
-      if (/ejs\.offline|\/cores\/|\/compression\//i.test(requestURL)) {
-        console.info(
-          "[EJS network] Response:",
-          response.status,
-          response.statusText,
-          response.headers.get("content-type"),
-          response.headers.get("content-length"),
-          requestURL
-        );
-      }
-
-      if (!response.ok || !/\/emulator\.html(?:[?#]|$)/i.test(requestURL)) {
-        return response;
-      }
-
-      const source = await response.text();
-      const bridgeScript = "(" + installWorkerBridge.toString() + ")();";
-      const scriptTag = "<script>" + bridgeScript + "<\/script>";
-      let patched = source;
-
-      if (/<head\b[^>]*>/i.test(patched)) {
-        patched = patched.replace(/<head\b[^>]*>/i, match => match + scriptTag);
-      } else {
-        patched = scriptTag + patched;
-      }
-
-      const headers = new Headers(response.headers);
-      headers.delete("content-length");
-      headers.delete("content-encoding");
-      return new Response(patched, {
-        status:response.status,
-        statusText:response.statusText,
-        headers
-      });
-    };
-  }
-}
-
-const WORKER_BRIDGE_SOURCE = "(" + installWorkerBridge.toString() + ")();";
-
-function injectWorkerBridge(html, baseURL) {
-  const safeBase = baseURL.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-  const baseTag = '<base href="' + safeBase + '">';
-  const bridgeTag = "<script>" + WORKER_BRIDGE_SOURCE + "<\/script>";
-
-  html = html.replace(/<base\b[^>]*>/i, "");
-  if (/<head\b[^>]*>/i.test(html)) {
-    html = html.replace(/<head\b[^>]*>/i, match => match + baseTag + bridgeTag);
-  } else {
-    html = baseTag + bridgeTag + html;
-  }
-  return html;
-}
-
-async function launchGame(game, preferredHost) {
-  const hosts = preferredHost
-    ? [preferredHost].concat(HOSTS.filter(host => host !== preferredHost))
-    : HOSTS.slice();
-
-  statusNode.textContent = "Preparing " + game.name + "...";
-  for (const host of hosts) {
-    try {
-      statusNode.textContent = "Downloading " + game.name + " from " + host.name + "...";
-      const response = await fetchWithTimeout(fileURL(host, game.html), 30000);
-      let html = await response.text();
-      if (!/<html[\s>]/i.test(html)) throw new Error("Host did not return an HTML document.");
-
-      const baseURL = host.base + encodedPath(game.html.substring(0, game.html.lastIndexOf("/") + 1));
-      html = injectWorkerBridge(html, baseURL);
-
-      statusNode.textContent = "Opening " + game.name + " (" + host.name + ")...";
-
-      // Replace this document in place instead of navigating to a blob URL.
-      // Some embedded runners and browser policies reject blob: navigation
-      // even when the blob was created by this same page.
-      document.open();
-      document.write(html);
-      document.close();
-      return;
-    } catch (error) {
-      console.warn(host.name + " launch failed for " + game.name + ":", error);
-    }
-  }
-
-  statusNode.textContent = "Unable to launch " + game.name + " from any source.";
-  alert(
-    game.name + " could not be loaded from the available hosts.\n\n" +
-    "If the console shows a worker error, copy it and send it to me."
-  );
-}
-
-function renderGames() {
-  gamesNode.innerHTML = "";
-  if (!games.length) {
-    gamesNode.innerHTML = '<div class="empty">No games with both a Cover folder and an HTML launcher were found.</div>';
-    statusNode.textContent = "0 games found.";
-    return;
-  }
-
-  for (const game of games) {
-    const card = document.createElement("div");
-    card.className = "game";
-
-    const image = document.createElement("img");
-    image.alt = game.name;
-    image.loading = "lazy";
-    loadCover(image, game.cover);
-    image.addEventListener("click", () => launchGame(game));
-
-    const name = document.createElement("div");
-    name.className = "game-name";
-    name.textContent = game.name;
-
-    const play = document.createElement("button");
-    play.type = "button";
-    play.className = "play";
-    play.textContent = "PLAY";
-    play.addEventListener("click", () => launchGame(game));
-
-    const alternates = document.createElement("div");
-    alternates.className = "alternates";
-    for (const host of HOSTS) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = host.name;
-      button.addEventListener("click", () => launchGame(game, host));
-      alternates.appendChild(button);
-    }
-
-    card.append(image, name, play, alternates);
-    gamesNode.appendChild(card);
-  }
-
-  statusNode.textContent = games.length + " games discovered.";
-}
-
-document.getElementById("rescan").addEventListener("click", scanGames);
-scanGames();
+function back(){frame.srcdoc="";$("player").style.display="none";$("library").style.display="block";statusNode.textContent="Choose another game."}
+$("back").onclick=back;
+$("rescan").onclick=scan;
+$("clearlog").onclick=()=>consoleNode.innerHTML="";
+$("toggleconsole").onclick=()=>{consoleVisible=!consoleVisible;consoleNode.style.display=consoleVisible?"block":"none";$("toggleconsole").textContent=consoleVisible?"Hide console":"Show console"};
+scan();
 </script>
 </body>
 </html>
