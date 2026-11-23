@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ocarina of Time — Launcher</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
+  header { display: flex; gap: 12px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #2a2a2a; }
+  h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header button { margin-left: auto; background: #2a2a2a; color: #eee; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  header button:hover { background: #3a3a3a; }
+  main { padding: 20px; }
+  #gameGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+  .card { background: #1b1b1b; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px; cursor: pointer; text-align: left; color: inherit; font: inherit; }
+  .card:hover { background: #232323; border-color: #3a3a3a; }
+  .card h2 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; font-size: 12px; color: #999; }
+  #status { padding: 0 20px 20px; color: #888; font-size: 13px; }
+  #player { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; z-index: 50; }
+  #player.open { display: flex; }
+  #playerBar { display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: #181818; border-bottom: 1px solid #2a2a2a; }
+  #playerBar button { background: #2a2a2a; color: #eee; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  #playerBar button:hover { background: #3a3a3a; }
+  #playerTitle { font-size: 13px; color: #bbb; }
+  #gameFrame { flex: 1; width: 100%; border: 0; background: #000; }
+  #log { position: fixed; left: 0; right: 0; bottom: 0; max-height: 130px; overflow: auto; margin: 0; padding: 6px 10px;
+         font: 11px/1.4 ui-monospace, monospace; background: rgba(0,0,0,.78); color: #8f8; border-top: 1px solid #2a2a2a;
+         z-index: 60; display: none; white-space: pre-wrap; }
+  #log.open { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Ocarina of Time</h1>
+  <button id="toggleLog">Log</button>
+</header>
+
+<main>
+  <div id="gameGrid"></div>
+  <div id="status">Scanning Games/…</div>
+</main>
+
+<div id="player">
+  <div id="playerBar">
+    <button id="btnBack">← Back</button>
+    <span id="playerTitle"></span>
+    <button id="btnReload">Reload</button>
+  </div>
+  <iframe id="gameFrame"
+          allow="fullscreen; gamepad; autoplay; clipboard-read; clipboard-write"
+          allowfullscreen></iframe>
+</div>
+
+<pre id="log"></pre>
+
+<script>
+/* ================================================================ */
+/* Logging                                                          */
+/* ================================================================ */
+const logEl = document.getElementById('log');
+function log(level, msg) {
+  const line = `[${new Date().toLocaleTimeString()}] [${level}] ${msg}`;
+  (level === 'ERROR' ? console.error : console.log)(line);
+  logEl.textContent += line + '\n';
+  logEl.scrollTop = logEl.scrollHeight;
+}
+document.getElementById('toggleLog').addEventListener('click', () => logEl.classList.toggle('open'));
+
+/* ================================================================ */
+/* Repo config                                                      */
+/* ================================================================ */
+const REPO       = 'AMoldyWaffle/Ocarina-of-Time';
+const PAGES_BASE = 'https://amoldywaffle.github.io/Ocarina-of-Time/';
+const GAMES_DIR  = 'Games';
+
+/* ================================================================ */
+/* Discovery: scan Games/ via GitHub Contents API                   */
+/* ================================================================ */
+function prettify(name) {
+  return name.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+}
+async function discoverGames() {
+  const api = `https://api.github.com/repos/${REPO}/contents/${GAMES_DIR}`;
+  log('INFO', `Scanning ${api}`);
+  const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+  if (!res.ok) throw new Error(`GitHub API HTTP ${res.status} ${res.statusText}`);
+  const items = await res.json();
+  if (!Array.isArray(items)) throw new Error('Unexpected GitHub API response');
+  const dirs = items.filter(i => i.type === 'dir');
+  log('INFO', `Found ${dirs.length} subfolder(s) in ${GAMES_DIR}/: ${dirs.map(d => d.name).join(', ') || '(none)'}`);
+  return dirs.map(d => ({
+    title: prettify(d.name),
+    url:   `${PAGES_BASE}${GAMES_DIR}/${d.name}/index.html`,
+    mode:  'blob',
+  }));
+}
+
+/* Games are loaded as real iframe documents below, not srcdoc or Blob pages. */
+
+/* ================================================================ */
+/* Launch / teardown                                                */
+/* ================================================================ */
+const frame       = document.getElementById('gameFrame');
+const playerEl    = document.getElementById('player');
+const playerTitle = document.getElementById('playerTitle');
+let currentGame = null;
+
+function openPlayer(game) {
+  currentGame = game;
+  playerTitle.textContent = game.title;
+  playerEl.classList.add('open');
+}
+function closePlayer() {
+  playerEl.classList.remove('open');
+  frame.onload = null;
+  frame.src = 'about:blank';
+  currentGame = null;
+  log('INFO', 'Launcher frame closed.');
+}
+
+function launch(game) {
+  log('INFO', `Starting ${game.title}`);
+  log('INFO', 'Runner mode: opening the game in a separate top-level tab, leaving this launcher untouched.');
+  log('INFO', `Game URL: ${game.url}`);
+
+  // This runs directly inside the game-card click handler so Chrome can
+  // associate the new tab with a user gesture instead of treating it as a popup.
+  const gameWindow = window.open(game.url, '_blank');
+  if (!gameWindow) {
+    log('ERROR', 'Chrome blocked the game tab. Allow pop-ups for the HTML runner and try again.');
+    statusEl.textContent = 'Chrome blocked the game tab. Allow pop-ups for this runner, then try again.';
+    return;
+  }
+  statusEl.textContent = `${game.title} opened in a new tab. This launcher remains available here.`;
+}
+
+/* ================================================================ */
+/* UI                                                              */
+/* ================================================================ */
+const grid     = document.getElementById('gameGrid');
+const statusEl = document.getElementById('status');
+
+function renderGames(games) {
+  grid.innerHTML = '';
+  statusEl.textContent = `${games.length} game(s) found in ${GAMES_DIR}/`;
+  for (const game of games) {
+    const card = document.createElement('button');
+    card.className = 'card';
+    const h2 = document.createElement('h2'); h2.textContent = game.title;
+    const p  = document.createElement('p');  p.textContent  = game.url.split('/').slice(-2, -1)[0];
+    card.append(h2, p);
+    card.addEventListener('click', () => launch(game));
+    grid.appendChild(card);
+  }
+}
+
+document.getElementById('btnBack').addEventListener('click', closePlayer);
+document.getElementById('btnReload').addEventListener('click', () => { if (currentGame) launch(currentGame); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (document.fullscreenElement) return;
+  if (playerEl.classList.contains('open')) closePlayer();
+});
+
+/* ================================================================ */
+/* Boot                                                            */
+/* ================================================================ */
+(async () => {
+  try {
+    const games = await discoverGames();
+    renderGames(games);
+    if (games.length === 0) {
+      statusEl.textContent = `No subfolders found inside ${GAMES_DIR}/. Check the folder name (case-sensitive).`;
+    }
+  } catch (e) {
+    log('ERROR', 'Discovery failed: ' + e.message);
+    statusEl.textContent = 'Discovery failed: ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>
