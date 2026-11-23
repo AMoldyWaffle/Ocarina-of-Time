@@ -7,9 +7,7 @@
 <title>Game Library</title>
 
 <style>
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
     margin: 0;
@@ -31,19 +29,18 @@ header h1 {
     letter-spacing: 3px;
 }
 
-header p {
-    color: #999;
-}
+header p { color: #999; }
 
 .toolbar {
     display: flex;
     justify-content: center;
     padding: 20px;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 button {
-    padding: 11px 20px;
+    padding: 10px 15px;
     background: #292936;
     color: white;
     border: 1px solid #444455;
@@ -51,9 +48,7 @@ button {
     cursor: pointer;
 }
 
-button:hover {
-    background: #41415a;
-}
+button:hover { background: #41415a; }
 
 #status {
     text-align: center;
@@ -77,13 +72,20 @@ button:hover {
     border: 1px solid #30303c;
     border-radius: 12px;
     overflow: hidden;
-    cursor: pointer;
     transition: 0.2s;
 }
 
 .game:hover {
-    transform: translateY(-6px);
+    transform: translateY(-5px);
     border-color: #8585d5;
+}
+
+.cover-button {
+    padding: 0;
+    width: 100%;
+    border: none;
+    border-radius: 0;
+    background: transparent;
 }
 
 .game img {
@@ -95,10 +97,29 @@ button:hover {
 }
 
 .game-name {
-    padding: 15px;
+    padding: 13px;
     text-align: center;
     font-weight: bold;
     overflow-wrap: anywhere;
+}
+
+.launch-button {
+    width: calc(100% - 20px);
+    margin: 0 10px 10px;
+    background: #34345a;
+}
+
+.alternates {
+    padding: 0 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px;
+}
+
+.alternates button {
+    font-size: 10px;
+    padding: 6px 8px;
 }
 
 .empty {
@@ -128,7 +149,7 @@ footer {
     <button onclick="scanGames()">Refresh Library</button>
 </div>
 
-<div id="status">Connecting to game repository...</div>
+<div id="status">Connecting to repository...</div>
 
 <div id="games">
     <div class="empty">Loading games...</div>
@@ -148,13 +169,51 @@ const BRANCH = "main";
 
 const GAME_DIRECTORY = "Games";
 
-// GitHub API
 const API_URL =
     `https://api.github.com/repos/${OWNER}/${REPOSITORY}/git/trees/${BRANCH}?recursive=1`;
 
-// Base URL of this GitHub Pages installation.
-// Assumes GameLauncher.html is in the repository root.
-const SITE_BASE = new URL("./", window.location.href);
+const SITE_BASE =
+    "https://amoldywaffle.github.io/Ocarina-of-Time/";
+
+
+// ==========================================
+// LINK PROVIDERS
+// ==========================================
+
+// Order matters.
+// Automatic launching tries these in sequence.
+
+const PROVIDERS = [
+
+    {
+        name: "GitHub Pages",
+        id: "pages",
+        base: SITE_BASE,
+        automatic: true
+    },
+
+    {
+        name: "jsDelivr",
+        id: "jsdelivr",
+        base: `https://cdn.jsdelivr.net/gh/${OWNER}/${REPOSITORY}@${BRANCH}/`,
+        automatic: true
+    },
+
+    {
+        name: "jsDelivr Mirror",
+        id: "fastly",
+        base: `https://fastly.jsdelivr.net/gh/${OWNER}/${REPOSITORY}@${BRANCH}/`,
+        automatic: true
+    },
+
+    {
+        name: "GitHub Raw",
+        id: "raw",
+        base: `https://raw.githubusercontent.com/${OWNER}/${REPOSITORY}/${BRANCH}/`,
+        automatic: false
+    }
+
+];
 
 
 // ==========================================
@@ -164,9 +223,36 @@ const SITE_BASE = new URL("./", window.location.href);
 const gamesContainer = document.getElementById("games");
 const statusText = document.getElementById("status");
 
+let discoveredGames = [];
+
 
 // ==========================================
-// SCAN REPOSITORY
+// URL GENERATOR
+// ==========================================
+
+function getURL(provider, path) {
+
+    const encodedPath = path
+        .split("/")
+        .map(part => encodeURIComponent(part))
+        .join("/");
+
+    return provider.base + encodedPath;
+
+}
+
+function getAllURLs(path) {
+
+    return PROVIDERS.map(provider => ({
+        provider: provider,
+        url: getURL(provider, path)
+    }));
+
+}
+
+
+// ==========================================
+// REPOSITORY SCANNER
 // ==========================================
 
 async function scanGames() {
@@ -182,105 +268,86 @@ async function scanGames() {
 
         if (!response.ok) {
             throw new Error(
-                `GitHub API returned ${response.status}`
+                "GitHub API error: " + response.status
             );
         }
 
         const data = await response.json();
 
-        if (!data.tree) {
-            throw new Error("Invalid repository tree.");
-        }
-
-        if (data.truncated) {
+        if (!data.tree || data.truncated) {
             throw new Error(
-                "Repository tree was truncated by GitHub."
+                "Repository tree unavailable or truncated."
             );
         }
 
-        const files = data.tree.filter(item =>
-            item.type === "blob"
+        const files = data.tree.filter(file =>
+            file.type === "blob"
         );
 
         const prefix = GAME_DIRECTORY + "/";
+        const folders = new Map();
 
-        const gameFolders = new Map();
-
-        // ======================================
-        // FIND GAME FOLDERS
-        // ======================================
+        // Organize files into game folders.
 
         for (const file of files) {
 
-            if (!file.path.startsWith(prefix)) {
-                continue;
-            }
+            if (!file.path.startsWith(prefix)) continue;
 
             const remaining = file.path.slice(prefix.length);
-
             const parts = remaining.split("/");
 
-            if (parts.length < 2) {
-                continue;
+            if (parts.length < 2) continue;
+
+            const folder = parts[0];
+
+            if (!folders.has(folder)) {
+                folders.set(folder, []);
             }
 
-            const folderName = parts[0];
-
-            if (!gameFolders.has(folderName)) {
-                gameFolders.set(folderName, []);
-            }
-
-            gameFolders.get(folderName).push(file);
+            folders.get(folder).push(file);
 
         }
 
 
-        // ======================================
-        // INSPECT EACH GAME
-        // ======================================
+        // Inspect each game folder.
 
-        const discoveredGames = [];
+        discoveredGames = [];
 
-        for (const [folderName, folderFiles] of gameFolders) {
+        for (const [folderName, folderFiles] of folders) {
 
             let cover = null;
             let html = null;
 
-            // Find Cover folder image.
+            // Find Cover directory images.
 
-            const coverFiles = folderFiles.filter(file => {
+            const covers = folderFiles.filter(file => {
 
                 const parts = file.path.split("/");
+                const filename = parts[parts.length - 1];
 
                 return (
                     parts.length >= 4 &&
                     parts[2].toLowerCase() === "cover" &&
-                    /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(
-                        parts[parts.length - 1]
-                    )
+                    /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(filename)
                 );
 
             });
 
-            if (coverFiles.length > 0) {
+            if (covers.length) {
 
-                // Prefer cover.png, otherwise first available image.
-
-                cover = coverFiles.find(file =>
+                cover = covers.find(file =>
                     file.path.split("/").pop().toLowerCase() === "cover.png"
-                ) || coverFiles[0];
+                ) || covers[0];
 
             }
 
-            // Find HTML files anywhere inside the game folder.
+            // Find HTML files.
 
             const htmlFiles = folderFiles.filter(file =>
                 /\.html?$/i.test(file.path)
             );
 
-            if (htmlFiles.length > 0) {
-
-                // Prefer index.html, then other root HTML files.
+            if (htmlFiles.length) {
 
                 html = htmlFiles.find(file =>
                     file.path.toLowerCase() ===
@@ -299,7 +366,7 @@ async function scanGames() {
 
             }
 
-            // Both cover and HTML are required.
+            // Require both files.
 
             if (cover && html) {
 
@@ -313,32 +380,55 @@ async function scanGames() {
 
         }
 
-
-        // ======================================
-        // SORT AND DISPLAY
-        // ======================================
-
         discoveredGames.sort((a, b) =>
             a.name.localeCompare(b.name)
         );
 
-        displayGames(discoveredGames);
+        displayGames();
 
     } catch (error) {
 
         console.error(error);
 
+        statusText.textContent = "Repository scan failed.";
+
         gamesContainer.innerHTML = `
             <div class="empty">
-                Failed to load games.<br><br>
-                ${escapeHTML(error.message)}<br><br>
-                Check the browser console for details.
+                ${escapeHTML(error.message)}
             </div>
         `;
 
-        statusText.textContent = "Repository scan failed.";
+    }
+
+}
+
+
+// ==========================================
+// COVER IMAGE FALLBACKS
+// ==========================================
+
+function setupCoverImage(image, path) {
+
+    const urls = getAllURLs(path);
+
+    let current = 0;
+
+    function tryNext() {
+
+        if (current >= urls.length) {
+            image.removeAttribute("src");
+            image.alt = "Cover unavailable";
+            return;
+        }
+
+        image.src = urls[current].url;
+        current++;
 
     }
+
+    image.onerror = tryNext;
+
+    tryNext();
 
 }
 
@@ -347,11 +437,11 @@ async function scanGames() {
 // DISPLAY GAMES
 // ==========================================
 
-function displayGames(games) {
+function displayGames() {
 
     gamesContainer.innerHTML = "";
 
-    if (games.length === 0) {
+    if (!discoveredGames.length) {
 
         gamesContainer.innerHTML = `
             <div class="empty">
@@ -364,56 +454,180 @@ function displayGames(games) {
         return;
     }
 
-    for (const game of games) {
+    for (const game of discoveredGames) {
 
         const card = document.createElement("div");
         card.className = "game";
 
+        // Cover.
+
+        const coverButton = document.createElement("button");
+        coverButton.className = "cover-button";
+
         const image = document.createElement("img");
 
-        image.src = getPageURL(game.cover);
         image.alt = game.name;
         image.loading = "lazy";
 
-        image.onerror = function() {
-            this.alt = "Cover image unavailable";
-        };
+        setupCoverImage(image, game.cover);
+
+        coverButton.appendChild(image);
+
+        coverButton.onclick = () => launchGame(game);
+
+        // Name.
 
         const name = document.createElement("div");
         name.className = "game-name";
         name.textContent = game.name;
 
-        card.appendChild(image);
+        // Automatic launch.
+
+        const launch = document.createElement("button");
+        launch.className = "launch-button";
+        launch.textContent = "PLAY";
+
+        launch.onclick = () => launchGame(game);
+
+        // Manual alternative sources.
+
+        const alternates = document.createElement("div");
+        alternates.className = "alternates";
+
+        for (const provider of PROVIDERS) {
+
+            const button = document.createElement("button");
+
+            button.textContent = provider.name;
+
+            button.title = "Open using " + provider.name;
+
+            button.onclick = () => {
+
+                openGameDirectly(game, provider);
+
+            };
+
+            alternates.appendChild(button);
+
+        }
+
+        card.appendChild(coverButton);
         card.appendChild(name);
-
-        card.addEventListener("click", () => {
-
-            window.location.href = getPageURL(game.html);
-
-        });
+        card.appendChild(launch);
+        card.appendChild(alternates);
 
         gamesContainer.appendChild(card);
 
     }
 
     statusText.textContent =
-        `${games.length} games discovered.`;
+        discoveredGames.length + " games discovered.";
 
 }
 
 
 // ==========================================
-// GENERATE GITHUB PAGES URL
+// AUTOMATIC FALLBACK LAUNCHER
 // ==========================================
 
-function getPageURL(repositoryPath) {
+async function launchGame(game) {
 
-    const encodedPath = repositoryPath
-        .split("/")
-        .map(part => encodeURIComponent(part))
-        .join("/");
+    statusText.textContent =
+        "Preparing " + game.name + "...";
 
-    return new URL(encodedPath, SITE_BASE).href;
+    const providers = PROVIDERS.filter(provider =>
+        provider.automatic
+    );
+
+    for (const provider of providers) {
+
+        const url = getURL(provider, game.html);
+
+        statusText.textContent =
+            `Trying ${provider.name} for ${game.name}...`;
+
+        try {
+
+            const controller = new AbortController();
+
+            const timeout = setTimeout(
+                () => controller.abort(),
+                10000
+            );
+
+            let response;
+
+            try {
+
+                response = await fetch(url, {
+                    method: "GET",
+                    cache: "no-store",
+                    signal: controller.signal
+                });
+
+            } finally {
+
+                clearTimeout(timeout);
+
+            }
+
+            if (!response.ok) {
+                throw new Error("HTTP " + response.status);
+            }
+
+            const contentType =
+                response.headers.get("content-type") || "";
+
+            // Don't automatically launch plain-text files.
+
+            if (
+                !contentType.includes("text/html") &&
+                !contentType.includes("application/xhtml+xml")
+            ) {
+                throw new Error(
+                    "The server did not return an HTML document."
+                );
+            }
+
+            statusText.textContent =
+                "Launching through " + provider.name + "...";
+
+            window.location.assign(url);
+
+            return;
+
+        } catch (error) {
+
+            console.warn(
+                provider.name + " failed:",
+                error
+            );
+
+        }
+
+    }
+
+    statusText.textContent =
+        "Automatic sources failed. Choose a manual source below.";
+
+    alert(
+        "Automatic launching failed for " + game.name +
+        ". Try one of its alternative source buttons."
+    );
+
+}
+
+
+// ==========================================
+// MANUAL SOURCE LAUNCHING
+// ==========================================
+
+function openGameDirectly(game, provider) {
+
+    const url = getURL(provider, game.html);
+
+    window.open(url, "_blank");
 
 }
 
@@ -422,9 +636,9 @@ function getPageURL(repositoryPath) {
 // HTML ESCAPING
 // ==========================================
 
-function escapeHTML(text) {
+function escapeHTML(value) {
 
-    return String(text).replace(/[&<>"']/g, char => ({
+    return String(value).replace(/[&<>"']/g, char => ({
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
@@ -436,7 +650,7 @@ function escapeHTML(text) {
 
 
 // ==========================================
-// AUTOMATIC INITIAL SCAN
+// START
 // ==========================================
 
 scanGames();
