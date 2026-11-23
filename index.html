@@ -12,14 +12,13 @@
   h1 { margin: 0; font-size: 18px; font-weight: 600; }
   header button { margin-left: auto; background: #2a2a2a; color: #eee; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
   header button:hover { background: #3a3a3a; }
-
   main { padding: 20px; }
   #gameGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
   .card { background: #1b1b1b; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px; cursor: pointer; text-align: left; color: inherit; font: inherit; }
   .card:hover { background: #232323; border-color: #3a3a3a; }
   .card h2 { margin: 0 0 6px; font-size: 15px; }
   .card p { margin: 0; font-size: 12px; color: #999; }
-
+  #status { padding: 0 20px 20px; color: #888; font-size: 13px; }
   #player { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; z-index: 50; }
   #player.open { display: flex; }
   #playerBar { display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: #181818; border-bottom: 1px solid #2a2a2a; }
@@ -27,7 +26,6 @@
   #playerBar button:hover { background: #3a3a3a; }
   #playerTitle { font-size: 13px; color: #bbb; }
   #gameFrame { flex: 1; width: 100%; border: 0; background: #000; }
-
   #log { position: fixed; left: 0; right: 0; bottom: 0; max-height: 130px; overflow: auto; margin: 0; padding: 6px 10px;
          font: 11px/1.4 ui-monospace, monospace; background: rgba(0,0,0,.78); color: #8f8; border-top: 1px solid #2a2a2a;
          z-index: 60; display: none; white-space: pre-wrap; }
@@ -43,6 +41,7 @@
 
 <main>
   <div id="gameGrid"></div>
+  <div id="status">Scanning Games/…</div>
 </main>
 
 <div id="player">
@@ -51,8 +50,6 @@
     <span id="playerTitle"></span>
     <button id="btnReload">Reload</button>
   </div>
-  <!-- No sandbox attribute on purpose: sandboxing without allow-same-origin
-       puts us right back to an opaque ("null") origin. -->
   <iframe id="gameFrame"
           allow="fullscreen; gamepad; autoplay; clipboard-read; clipboard-write"
           allowfullscreen></iframe>
@@ -61,9 +58,9 @@
 <pre id="log"></pre>
 
 <script>
-/* ================================================================== */
-/* 1. Logging                                                         */
-/* ================================================================== */
+/* -------------------------------------------------------------- */
+/* Logging                                                        */
+/* -------------------------------------------------------------- */
 const logEl = document.getElementById('log');
 function log(level, msg) {
   const line = `[${new Date().toLocaleTimeString()}] [${level}] ${msg}`;
@@ -73,35 +70,52 @@ function log(level, msg) {
 }
 document.getElementById('toggleLog').addEventListener('click', () => logEl.classList.toggle('open'));
 
-/* ================================================================== */
-/* 2. Game list — replace these URLs with the ones your launcher uses */
-/* ================================================================== */
-const GAMES = [
-  {
-    title: 'Super Mario World',
-    url: 'https://amoldywaffle.github.io/Ocarina-of-Time/games/smw/index.html',
-    // 'blob'   -> fetch the HTML, rewrite it, load via blob: (fixes URL errors)
-    // 'direct' -> just point the iframe at the URL (no rewriting possible)
-    mode: 'blob',
-  },
-  {
-    title: 'The Legend of Zelda: Ocarina of Time',
-    url: 'https://amoldywaffle.github.io/Ocarina-of-Time/games/oot/index.html',
-    mode: 'blob',
-  },
-];
+/* -------------------------------------------------------------- */
+/* Repo config                                                    */
+/* -------------------------------------------------------------- */
+const REPO       = 'AMoldyWaffle/Ocarina-of-Time';
+const PAGES_BASE = 'https://amoldywaffle.github.io/Ocarina-of-Time/';
+const GAMES_DIR  = 'Games';  // <-- capital G, matching your folder
 
-/* ================================================================== */
-/* 3. Origin shim injected into every game                            */
-/* ================================================================== */
+/* -------------------------------------------------------------- */
+/* Game discovery — scans Games/ via GitHub Contents API          */
+/* -------------------------------------------------------------- */
+function prettify(name) {
+  return name.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+}
+
+async function discoverGames() {
+  const api = `https://api.github.com/repos/${REPO}/contents/${GAMES_DIR}`;
+  log('INFO', `Scanning ${api}`);
+  const res = await fetch(api, {
+    headers: { Accept: 'application/vnd.github+json' },
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub API HTTP ${res.status} ${res.statusText}`);
+  }
+  const items = await res.json();
+  if (!Array.isArray(items)) {
+    throw new Error('Unexpected GitHub API response (not an array)');
+  }
+  const dirs = items.filter(i => i.type === 'dir');
+  log('INFO', `Found ${dirs.length} subfolder(s) in ${GAMES_DIR}/: ${dirs.map(d => d.name).join(', ') || '(none)'}`);
+  return dirs.map(d => ({
+    title: prettify(d.name),
+    url:   `${PAGES_BASE}${GAMES_DIR}/${d.name}/index.html`,
+    mode:  'blob',
+  }));
+}
+
+/* -------------------------------------------------------------- */
+/* Origin shim injected into every game (fixes the URL error)     */
+/* -------------------------------------------------------------- */
 const ORIGIN_SHIM = String.raw`
 (function () {
   if (window.__originShimInstalled) return;
   window.__originShimInstalled = true;
-
   var RealURL = window.URL;
   if (!RealURL) return;
-
   function safeBase(b) {
     if (b === null || b === undefined) return document.baseURI || location.href;
     var s = String(b);
@@ -112,90 +126,62 @@ const ORIGIN_SHIM = String.raw`
     }
     return b;
   }
-
   var Patched = new Proxy(RealURL, {
     construct: function (target, args) {
       var a = Array.prototype.slice.call(args);
-      if (a.length >= 2) {
-        a[1] = safeBase(a[1]);
-      } else if (a.length === 1 && (a[0] == null || String(a[0]) === 'null')) {
-        a[0] = document.baseURI || location.href;
-      }
-      try {
-        return Reflect.construct(target, a);
-      } catch (e) {
-        // Last resort: resolve against the document base
+      if (a.length >= 2) a[1] = safeBase(a[1]);
+      else if (a.length === 1 && (a[0] == null || String(a[0]) === 'null')) a[0] = document.baseURI || location.href;
+      try { return Reflect.construct(target, a); }
+      catch (e) {
         if (a.length >= 2) {
           try { return Reflect.construct(target, [String(a[0]), document.baseURI || location.href]); }
-          catch (e2) { /* fall through */ }
+          catch (e2) {}
         }
         throw e;
       }
     },
-    apply: function (target, thisArg, args) {
-      return Reflect.construct(target, args);
-    }
+    apply: function (target, thisArg, args) { return Reflect.construct(target, args); }
   });
-
-  // Statics (createObjectURL, revokeObjectURL, canParse, ...) pass through the Proxy.
   window.URL = Patched;
-
-  // bonus: a couple of libs build strings instead of URL objects
-  window.__origin = function () { return document.baseURI || location.href; };
 })();
 `;
 
-/* ================================================================== */
-/* 4. Rewrite the fetched HTML: <base> + shim                        */
-/* ================================================================== */
+/* -------------------------------------------------------------- */
+/* Rewrite fetched HTML: <base href> + URL shim                   */
+/* -------------------------------------------------------------- */
 function prepareGameHtml(rawHtml, pageUrl) {
-  // Directory of the game's index.html, e.g. https://…/games/smw/
   const dirUrl = new URL('.', pageUrl).href;
-
   const doctypeMatch = rawHtml.match(/<!doctype[^>]*>/i);
   const doctype = doctypeMatch ? doctypeMatch[0] : '<!DOCTYPE html>';
-
   const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
-
-  // A stale <base> from the game would win over ours.
   doc.querySelectorAll('base').forEach(el => el.remove());
-
   const shimEl = doc.createElement('script');
   shimEl.textContent = ORIGIN_SHIM;
-
   const baseEl = doc.createElement('base');
   baseEl.setAttribute('href', dirUrl);
-
   const head = doc.head || doc.documentElement;
-  head.insertBefore(shimEl, head.firstChild); // shim first…
-  head.insertBefore(baseEl, head.firstChild); // …but <base> before it
-
+  head.insertBefore(shimEl, head.firstChild);
+  head.insertBefore(baseEl, head.firstChild);
   return doctype + '\n' + doc.documentElement.outerHTML;
 }
 
-/* ================================================================== */
-/* 5. Launch / teardown                                              */
-/* ================================================================== */
-const frame        = document.getElementById('gameFrame');
-const playerEl     = document.getElementById('player');
-const playerTitle  = document.getElementById('playerTitle');
-
+/* -------------------------------------------------------------- */
+/* Launch / teardown                                              */
+/* -------------------------------------------------------------- */
+const frame       = document.getElementById('gameFrame');
+const playerEl    = document.getElementById('player');
+const playerTitle = document.getElementById('playerTitle');
 let currentBlobUrl = null;
 let currentGame    = null;
 
 function revokeBlob() {
-  if (currentBlobUrl) {
-    URL.revokeObjectURL(currentBlobUrl);
-    currentBlobUrl = null;
-  }
+  if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); currentBlobUrl = null; }
 }
-
 function openPlayer(game) {
   currentGame = game;
   playerTitle.textContent = game.title;
   playerEl.classList.add('open');
 }
-
 function closePlayer() {
   playerEl.classList.remove('open');
   frame.onload = null;
@@ -208,74 +194,75 @@ function closePlayer() {
 async function launch(game) {
   openPlayer(game);
   revokeBlob();
-
   try {
-    if (game.mode === 'direct') {
-      log('INFO', `Starting ${game.title} (direct iframe load)`);
-      log('INFO', `Loading ${game.url}`);
-      frame.src = game.url;
-      return;
-    }
-
     log('INFO', `Starting ${game.title}`);
     log('INFO', 'Downloading HTML from GitHub Pages');
-
     const res = await fetch(game.url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} — ${game.url}`);
     const rawHtml = await res.text();
     log('INFO', `Loaded HTML from GitHub Pages (${rawHtml.length} bytes)`);
-
     const prepared = prepareGameHtml(rawHtml, game.url);
     currentBlobUrl = URL.createObjectURL(new Blob([prepared], { type: 'text/html' }));
-
     frame.onload = () => {
       log('INFO', 'Game is running inside the launcher frame.');
       try {
         frame.contentWindow.focus();
-        // Same-origin blob frame: we can surface the game's own errors in our log.
-        frame.contentWindow.addEventListener('error', (e) => {
+        frame.contentWindow.addEventListener('error', e => {
           log('ERROR', `[${game.title}] ${e.message || e.type}`);
         });
-      } catch (_) { /* cross-origin or file:// — ignore */ }
+      } catch (_) {}
     };
     frame.src = currentBlobUrl;
-
   } catch (err) {
-    log('ERROR', `Failed to construct 'URL' workaround path: ${err && err.message ? err.message : err}`);
+    log('ERROR', `Blob load failed: ${err && err.message ? err.message : err}`);
     log('INFO', 'Falling back to direct iframe load');
-    try {
-      frame.src = game.url;
-    } catch (e2) {
-      log('ERROR', String(e2));
-    }
+    frame.src = game.url;
   }
 }
 
-/* ================================================================== */
-/* 6. UI wiring                                                      */
-/* ================================================================== */
-const grid = document.getElementById('gameGrid');
-for (const game of GAMES) {
-  const card = document.createElement('button');
-  card.className = 'card';
-  card.innerHTML = `<h2></h2><p></p>`;
-  card.querySelector('h2').textContent = game.title;
-  card.querySelector('p').textContent = game.mode === 'blob' ? 'Launcher frame' : 'Direct';
-  card.addEventListener('click', () => launch(game));
-  grid.appendChild(card);
+/* -------------------------------------------------------------- */
+/* UI                                                             */
+/* -------------------------------------------------------------- */
+const grid     = document.getElementById('gameGrid');
+const statusEl = document.getElementById('status');
+
+function renderGames(games) {
+  grid.innerHTML = '';
+  statusEl.textContent = `${games.length} game(s) found in ${GAMES_DIR}/`;
+  for (const game of games) {
+    const card = document.createElement('button');
+    card.className = 'card';
+    const h2 = document.createElement('h2'); h2.textContent = game.title;
+    const p  = document.createElement('p');  p.textContent  = game.url.split('/').slice(-2, -1)[0];
+    card.append(h2, p);
+    card.addEventListener('click', () => launch(game));
+    grid.appendChild(card);
+  }
 }
 
 document.getElementById('btnBack').addEventListener('click', closePlayer);
-document.getElementById('btnReload').addEventListener('click', () => {
-  if (currentGame) launch(currentGame);
-});
-
-// Esc leaves fullscreen, or closes the player if not fullscreen
-document.addEventListener('keydown', (e) => {
+document.getElementById('btnReload').addEventListener('click', () => { if (currentGame) launch(currentGame); });
+document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (document.fullscreenElement) return;      // browser handles fullscreen exit
+  if (document.fullscreenElement) return;
   if (playerEl.classList.contains('open')) closePlayer();
 });
+
+/* -------------------------------------------------------------- */
+/* Boot                                                           */
+/* -------------------------------------------------------------- */
+(async () => {
+  try {
+    const games = await discoverGames();
+    renderGames(games);
+    if (games.length === 0) {
+      statusEl.textContent = `No subfolders found inside ${GAMES_DIR}/. Check the folder name (case-sensitive).`;
+    }
+  } catch (e) {
+    log('ERROR', 'Discovery failed: ' + e.message);
+    statusEl.textContent = 'Discovery failed: ' + e.message;
+  }
+})();
 </script>
 </body>
 </html>
