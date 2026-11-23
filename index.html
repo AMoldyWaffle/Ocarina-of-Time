@@ -18,25 +18,19 @@ body {
 
 header {
     text-align: center;
-    padding: 35px 15px;
+    padding: 30px;
     background: #191920;
-    border-bottom: 1px solid #30303a;
 }
 
-header h1 {
-    margin: 0;
-    font-size: 34px;
-    letter-spacing: 3px;
-}
+header h1 { margin: 0; letter-spacing: 3px; }
 
 header p { color: #999; }
 
 .toolbar {
     display: flex;
     justify-content: center;
+    gap: 10px;
     padding: 20px;
-    gap: 12px;
-    flex-wrap: wrap;
 }
 
 button {
@@ -44,27 +38,24 @@ button {
     background: #292936;
     color: white;
     border: 1px solid #444455;
-    border-radius: 8px;
+    border-radius: 7px;
     cursor: pointer;
 }
 
-button:hover { background: #41415a; }
+button:hover { background: #454566; }
 
 #status {
     text-align: center;
-    color: #999;
-    padding: 10px;
+    padding: 12px;
+    color: #aaa;
 }
 
 #games {
     display: grid;
-    grid-template-columns: repeat(
-        auto-fill,
-        minmax(180px, 220px)
-    );
+    grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
     justify-content: center;
-    gap: 25px;
-    padding: 25px;
+    gap: 22px;
+    padding: 20px;
 }
 
 .game {
@@ -72,67 +63,59 @@ button:hover { background: #41415a; }
     border: 1px solid #30303c;
     border-radius: 12px;
     overflow: hidden;
-    transition: 0.2s;
-}
-
-.game:hover {
-    transform: translateY(-5px);
-    border-color: #8585d5;
-}
-
-.cover-button {
-    padding: 0;
-    width: 100%;
-    border: none;
-    border-radius: 0;
-    background: transparent;
 }
 
 .game img {
+    display: block;
     width: 100%;
     aspect-ratio: 3 / 4;
     object-fit: cover;
-    display: block;
     background: #252530;
+    cursor: pointer;
 }
 
 .game-name {
-    padding: 13px;
     text-align: center;
+    padding: 12px;
     font-weight: bold;
-    overflow-wrap: anywhere;
 }
 
-.launch-button {
-    width: calc(100% - 20px);
-    margin: 0 10px 10px;
-    background: #34345a;
+.game button {
+    width: calc(100% - 16px);
+    margin: 4px 8px;
+    font-size: 11px;
 }
 
-.alternates {
-    padding: 0 10px 12px;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 5px;
+.game .play {
+    background: #41417a;
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 0;
+}
+
+.game .alternates {
+    padding: 5px 4px 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
 }
 
 .alternates button {
-    font-size: 10px;
-    padding: 6px 8px;
+    width: 100%;
+    margin: 0;
 }
 
 .empty {
     grid-column: 1 / -1;
     text-align: center;
     color: #888;
-    padding: 60px 15px;
+    padding: 50px;
 }
 
 footer {
     text-align: center;
-    color: #555;
     padding: 30px;
+    color: #555;
     font-size: 12px;
 }
 </style>
@@ -142,20 +125,20 @@ footer {
 
 <header>
     <h1>GAME LIBRARY</h1>
-    <p>Your personal game collection</p>
+    <p>Automatic Repository Game Launcher</p>
 </header>
 
 <div class="toolbar">
-    <button onclick="scanGames()">Refresh Library</button>
+    <button onclick="scanGames()">Rescan Repository</button>
 </div>
 
-<div id="status">Connecting to repository...</div>
+<div id="status">Initializing...</div>
 
 <div id="games">
-    <div class="empty">Loading games...</div>
+    <div class="empty">Searching for games...</div>
 </div>
 
-<footer>OCARINA OF TIME GAME LIBRARY</footer>
+<footer>OCARINA OF TIME</footer>
 
 <script>
 
@@ -164,89 +147,118 @@ footer {
 // ==========================================
 
 const OWNER = "AMoldyWaffle";
-const REPOSITORY = "Ocarina-of-Time";
+const REPO = "Ocarina-of-Time";
 const BRANCH = "main";
-
 const GAME_DIRECTORY = "Games";
 
-const API_URL =
-    `https://api.github.com/repos/${OWNER}/${REPOSITORY}/git/trees/${BRANCH}?recursive=1`;
+const REPO_ROOT =
+    `${OWNER}/${REPO}`;
 
-const SITE_BASE =
+const PAGES =
     "https://amoldywaffle.github.io/Ocarina-of-Time/";
 
+const GITHUB_API =
+    `https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`;
+
+const JSDELIVR_API =
+    `https://data.jsdelivr.com/v1/packages/gh/${OWNER}/${REPO}@${BRANCH}?structure=flat`;
+
 
 // ==========================================
-// LINK PROVIDERS
+// ALL AVAILABLE FILE HOSTS
 // ==========================================
 
-// Order matters.
-// Automatic launching tries these in sequence.
-
-const PROVIDERS = [
+const HOSTS = [
 
     {
         name: "GitHub Pages",
-        id: "pages",
-        base: SITE_BASE,
-        automatic: true
+        base: PAGES,
+        type: "pages"
     },
 
     {
         name: "jsDelivr",
-        id: "jsdelivr",
-        base: `https://cdn.jsdelivr.net/gh/${OWNER}/${REPOSITORY}@${BRANCH}/`,
-        automatic: true
+        base: `https://cdn.jsdelivr.net/gh/${REPO_ROOT}@${BRANCH}/`,
+        type: "cdn"
     },
 
     {
-        name: "jsDelivr Mirror",
-        id: "fastly",
-        base: `https://fastly.jsdelivr.net/gh/${OWNER}/${REPOSITORY}@${BRANCH}/`,
-        automatic: true
+        name: "Fastly CDN",
+        base: `https://fastly.jsdelivr.net/gh/${REPO_ROOT}@${BRANCH}/`,
+        type: "cdn"
+    },
+
+    {
+        name: "Gcore CDN",
+        base: `https://gcore.jsdelivr.net/gh/${REPO_ROOT}@${BRANCH}/`,
+        type: "cdn"
     },
 
     {
         name: "GitHub Raw",
-        id: "raw",
-        base: `https://raw.githubusercontent.com/${OWNER}/${REPOSITORY}/${BRANCH}/`,
-        automatic: false
+        base: `https://raw.githubusercontent.com/${REPO_ROOT}/${BRANCH}/`,
+        type: "raw"
     }
 
 ];
 
 
 // ==========================================
-// ELEMENTS
+// STATE
 // ==========================================
 
 const gamesContainer = document.getElementById("games");
 const statusText = document.getElementById("status");
 
-let discoveredGames = [];
+let games = [];
 
 
 // ==========================================
 // URL GENERATOR
 // ==========================================
 
-function getURL(provider, path) {
+function makeURL(host, path) {
 
-    const encodedPath = path
-        .split("/")
+    const encoded = path.split("/")
         .map(part => encodeURIComponent(part))
         .join("/");
 
-    return provider.base + encodedPath;
+    return host.base + encoded;
 
 }
 
-function getAllURLs(path) {
 
-    return PROVIDERS.map(provider => ({
-        provider: provider,
-        url: getURL(provider, path)
-    }));
+// ==========================================
+// TIMEOUT FETCH
+// ==========================================
+
+async function request(url, timeout = 12000) {
+
+    const controller = new AbortController();
+
+    const timer = setTimeout(
+        () => controller.abort(),
+        timeout
+    );
+
+    try {
+
+        const response = await fetch(url, {
+            signal: controller.signal,
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+        }
+
+        return response;
+
+    } finally {
+
+        clearTimeout(timer);
+
+    }
 
 }
 
@@ -255,132 +267,187 @@ function getAllURLs(path) {
 // REPOSITORY SCANNER
 // ==========================================
 
+async function getRepositoryFiles() {
+
+    const scanners = [
+
+        {
+            name: "GitHub API",
+            url: GITHUB_API,
+            parse: data => {
+
+                if (!data.tree || data.truncated) {
+                    throw new Error("Invalid GitHub tree");
+                }
+
+                return data.tree
+                    .filter(item => item.type === "blob")
+                    .map(item => item.path);
+
+            }
+        },
+
+        {
+            name: "jsDelivr Repository API",
+            url: JSDELIVR_API,
+            parse: data => {
+
+                if (!data.files || !Array.isArray(data.files)) {
+                    throw new Error("Invalid jsDelivr listing");
+                }
+
+                return data.files.map(item =>
+                    typeof item === "string"
+                        ? item
+                        : item.name
+                ).filter(Boolean);
+
+            }
+        }
+
+    ];
+
+    for (const scanner of scanners) {
+
+        try {
+
+            statusText.textContent =
+                "Scanning using " + scanner.name + "...";
+
+            console.log("Trying scanner:", scanner.name);
+
+            const response = await request(scanner.url);
+
+            const data = await response.json();
+
+            const paths = scanner.parse(data);
+
+            if (!paths.length) {
+                throw new Error("No files returned");
+            }
+
+            console.log(
+                "Repository scan successful:",
+                scanner.name
+            );
+
+            statusText.textContent =
+                "Repository found through " + scanner.name;
+
+            return paths.map(path =>
+                path.replace(/^\/+/, "")
+            );
+
+        } catch (error) {
+
+            console.warn(
+                scanner.name + " failed:",
+                error
+            );
+
+        }
+
+    }
+
+    throw new Error(
+        "All repository scanning services failed."
+    );
+
+}
+
+
+// ==========================================
+// DISCOVER GAMES
+// ==========================================
+
 async function scanGames() {
 
     gamesContainer.innerHTML = "";
-    statusText.textContent = "Scanning repository...";
+    statusText.textContent = "Connecting to repository...";
 
     try {
 
-        const response = await fetch(API_URL, {
-            cache: "no-store"
-        });
-
-        if (!response.ok) {
-            throw new Error(
-                "GitHub API error: " + response.status
-            );
-        }
-
-        const data = await response.json();
-
-        if (!data.tree || data.truncated) {
-            throw new Error(
-                "Repository tree unavailable or truncated."
-            );
-        }
-
-        const files = data.tree.filter(file =>
-            file.type === "blob"
-        );
+        const paths = await getRepositoryFiles();
 
         const prefix = GAME_DIRECTORY + "/";
+
         const folders = new Map();
 
-        // Organize files into game folders.
+        for (const path of paths) {
 
-        for (const file of files) {
+            if (!path.startsWith(prefix)) continue;
 
-            if (!file.path.startsWith(prefix)) continue;
+            const parts = path.split("/");
 
-            const remaining = file.path.slice(prefix.length);
-            const parts = remaining.split("/");
+            if (parts.length < 3) continue;
 
-            if (parts.length < 2) continue;
-
-            const folder = parts[0];
+            const folder = parts[1];
 
             if (!folders.has(folder)) {
                 folders.set(folder, []);
             }
 
-            folders.get(folder).push(file);
+            folders.get(folder).push(path);
 
         }
 
+        games = [];
 
-        // Inspect each game folder.
+        for (const [folder, files] of folders) {
 
-        discoveredGames = [];
+            // Find cover image.
 
-        for (const [folderName, folderFiles] of folders) {
+            const covers = files.filter(path => {
 
-            let cover = null;
-            let html = null;
-
-            // Find Cover directory images.
-
-            const covers = folderFiles.filter(file => {
-
-                const parts = file.path.split("/");
-                const filename = parts[parts.length - 1];
+                const parts = path.split("/");
 
                 return (
                     parts.length >= 4 &&
                     parts[2].toLowerCase() === "cover" &&
-                    /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(filename)
+                    /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(path)
                 );
 
             });
 
-            if (covers.length) {
-
-                cover = covers.find(file =>
-                    file.path.split("/").pop().toLowerCase() === "cover.png"
+            const cover =
+                covers.find(path =>
+                    path.split("/").pop().toLowerCase() === "cover.png"
                 ) || covers[0];
 
-            }
+            // Find HTML.
 
-            // Find HTML files.
-
-            const htmlFiles = folderFiles.filter(file =>
-                /\.html?$/i.test(file.path)
+            const htmlFiles = files.filter(path =>
+                /\.html?$/i.test(path)
             );
 
-            if (htmlFiles.length) {
+            let html = htmlFiles.find(path =>
+                path.toLowerCase() ===
+                `${prefix}${folder}/index.html`.toLowerCase()
+            );
 
-                html = htmlFiles.find(file =>
-                    file.path.toLowerCase() ===
-                    `${prefix}${folderName}/index.html`.toLowerCase()
+            if (!html) {
+                html = htmlFiles.find(path =>
+                    path.split("/").length === 3
                 );
-
-                if (!html) {
-                    html = htmlFiles.find(file =>
-                        file.path.split("/").length === 3
-                    );
-                }
-
-                if (!html) {
-                    html = htmlFiles[0];
-                }
-
             }
 
-            // Require both files.
+            if (!html) {
+                html = htmlFiles[0];
+            }
 
             if (cover && html) {
 
-                discoveredGames.push({
-                    name: folderName,
-                    cover: cover.path,
-                    html: html.path
+                games.push({
+                    name: folder,
+                    cover: cover,
+                    html: html
                 });
 
             }
 
         }
 
-        discoveredGames.sort((a, b) =>
+        games.sort((a, b) =>
             a.name.localeCompare(b.name)
         );
 
@@ -390,11 +457,15 @@ async function scanGames() {
 
         console.error(error);
 
-        statusText.textContent = "Repository scan failed.";
+        statusText.textContent =
+            "Unable to retrieve repository information.";
 
         gamesContainer.innerHTML = `
             <div class="empty">
-                ${escapeHTML(error.message)}
+                <h3>Repository connection failed</h3>
+                <p>${escapeHTML(error.message)}</p>
+                <p>All available scanning services failed.</p>
+                <button onclick="scanGames()">Try Again</button>
             </div>
         `;
 
@@ -404,31 +475,41 @@ async function scanGames() {
 
 
 // ==========================================
-// COVER IMAGE FALLBACKS
+// IMAGE FALLBACK SYSTEM
 // ==========================================
 
-function setupCoverImage(image, path) {
+function loadCover(image, path) {
 
-    const urls = getAllURLs(path);
+    let index = 0;
 
-    let current = 0;
+    function attempt() {
 
-    function tryNext() {
+        if (index >= HOSTS.length) {
 
-        if (current >= urls.length) {
             image.removeAttribute("src");
-            image.alt = "Cover unavailable";
+            image.alt = "All cover sources failed";
+
             return;
+
         }
 
-        image.src = urls[current].url;
-        current++;
+        const host = HOSTS[index++];
+
+        image.dataset.source = host.name;
+
+        console.log(
+            "Loading cover through:",
+            host.name,
+            path
+        );
+
+        image.src = makeURL(host, path);
 
     }
 
-    image.onerror = tryNext;
+    image.onerror = attempt;
 
-    tryNext();
+    attempt();
 
 }
 
@@ -441,80 +522,64 @@ function displayGames() {
 
     gamesContainer.innerHTML = "";
 
-    if (!discoveredGames.length) {
+    if (!games.length) {
 
-        gamesContainer.innerHTML = `
-            <div class="empty">
-                No compatible games found.
-            </div>
-        `;
+        gamesContainer.innerHTML =
+            '<div class="empty">No compatible games found.</div>';
 
         statusText.textContent = "0 games found.";
 
         return;
+
     }
 
-    for (const game of discoveredGames) {
+    for (const game of games) {
 
         const card = document.createElement("div");
         card.className = "game";
-
-        // Cover.
-
-        const coverButton = document.createElement("button");
-        coverButton.className = "cover-button";
 
         const image = document.createElement("img");
 
         image.alt = game.name;
         image.loading = "lazy";
 
-        setupCoverImage(image, game.cover);
+        loadCover(image, game.cover);
 
-        coverButton.appendChild(image);
-
-        coverButton.onclick = () => launchGame(game);
-
-        // Name.
+        image.onclick = () => launchGame(game);
 
         const name = document.createElement("div");
         name.className = "game-name";
         name.textContent = game.name;
 
-        // Automatic launch.
+        const play = document.createElement("button");
+        play.className = "play";
+        play.textContent = "PLAY";
 
-        const launch = document.createElement("button");
-        launch.className = "launch-button";
-        launch.textContent = "PLAY";
-
-        launch.onclick = () => launchGame(game);
-
-        // Manual alternative sources.
+        play.onclick = () => launchGame(game);
 
         const alternates = document.createElement("div");
         alternates.className = "alternates";
 
-        for (const provider of PROVIDERS) {
+        // Every host gets a button, even if automatic
+        // launching has not succeeded.
+
+        for (const host of HOSTS) {
 
             const button = document.createElement("button");
 
-            button.textContent = provider.name;
-
-            button.title = "Open using " + provider.name;
+            button.textContent = host.name;
 
             button.onclick = () => {
-
-                openGameDirectly(game, provider);
-
+                launchWithHost(game, host);
             };
 
             alternates.appendChild(button);
 
         }
 
-        card.appendChild(coverButton);
+        card.appendChild(image);
         card.appendChild(name);
-        card.appendChild(launch);
+        card.appendChild(play);
         card.appendChild(alternates);
 
         gamesContainer.appendChild(card);
@@ -522,85 +587,198 @@ function displayGames() {
     }
 
     statusText.textContent =
-        discoveredGames.length + " games discovered.";
+        games.length + " games discovered.";
 
 }
 
 
 // ==========================================
-// AUTOMATIC FALLBACK LAUNCHER
+// FETCH AND PREPARE HTML
+// ==========================================
+
+async function fetchGameHTML(game, host) {
+
+    const url = makeURL(host, game.html);
+
+    const response = await request(url, 20000);
+
+    let html = await response.text();
+
+    if (
+        !html.trim().toLowerCase().startsWith("<!doctype") &&
+        !html.trim().toLowerCase().startsWith("<html") &&
+        !/<html[\s>]/i.test(html)
+    ) {
+        throw new Error("Response does not look like HTML");
+    }
+
+    // Preserve relative game assets.
+    // For CDN and Raw sources, use the same host
+    // as the HTML file for relative dependencies.
+
+    const directory = game.html.substring(
+        0,
+        game.html.lastIndexOf("/") + 1
+    );
+
+    const baseURL = host.base + directory;
+
+    const baseTag =
+        `<base href="${baseURL}">`;
+
+    if (/<base\b[^>]*>/i.test(html)) {
+
+        html = html.replace(
+            /<base\b[^>]*>/i,
+            baseTag
+        );
+
+    } else if (/<head\b[^>]*>/i.test(html)) {
+
+        html = html.replace(
+            /<head\b[^>]*>/i,
+            match => match + baseTag
+        );
+
+    } else {
+
+        html = baseTag + html;
+
+    }
+
+    return html;
+
+}
+
+
+// ==========================================
+// LAUNCH THROUGH SELECTED HOST
+// ==========================================
+
+async function launchWithHost(game, host) {
+
+    statusText.textContent =
+        "Loading " + game.name + " through " + host.name + "...";
+
+    try {
+
+        // GitHub Pages: use the original page directly.
+        // This preserves its normal browser headers and origin.
+
+        if (host.type === "pages") {
+
+            const url = makeURL(host, game.html);
+
+            const response = await request(url, 15000);
+
+            const type =
+                response.headers.get("content-type") || "";
+
+            if (
+                !type.includes("text/html") &&
+                !type.includes("application/xhtml+xml")
+            ) {
+                throw new Error("Pages did not return HTML");
+            }
+
+            window.location.href = url;
+
+            return;
+
+        }
+
+        // CDN and Raw: fetch the HTML and create
+        // a browser-executable document.
+
+        const html = await fetchGameHTML(game, host);
+
+        const blob = new Blob(
+            [html],
+            { type: "text/html;charset=utf-8" }
+        );
+
+        const blobURL = URL.createObjectURL(blob);
+
+        statusText.textContent =
+            "Opening " + game.name + " through " + host.name;
+
+        window.location.href = blobURL;
+
+    } catch (error) {
+
+        console.error(
+            "Launch failed:",
+            host.name,
+            error
+        );
+
+        statusText.textContent =
+            host.name + " failed. Try another source.";
+
+        alert(
+            game.name + " could not load through " +
+            host.name + ".\n\n" + error.message
+        );
+
+    }
+
+}
+
+
+// ==========================================
+// AUTOMATIC LAUNCH FALLBACK
 // ==========================================
 
 async function launchGame(game) {
 
+    const automaticHosts = HOSTS;
+
     statusText.textContent =
-        "Preparing " + game.name + "...";
+        "Trying available sources for " + game.name + "...";
 
-    const providers = PROVIDERS.filter(provider =>
-        provider.automatic
-    );
-
-    for (const provider of providers) {
-
-        const url = getURL(provider, game.html);
-
-        statusText.textContent =
-            `Trying ${provider.name} for ${game.name}...`;
+    for (const host of automaticHosts) {
 
         try {
 
-            const controller = new AbortController();
+            statusText.textContent =
+                "Attempting " + host.name + "...";
 
-            const timeout = setTimeout(
-                () => controller.abort(),
-                10000
+            if (host.type === "pages") {
+
+                const url = makeURL(host, game.html);
+
+                const response = await request(url, 10000);
+
+                const type =
+                    response.headers.get("content-type") || "";
+
+                if (!type.includes("text/html")) {
+                    throw new Error("Invalid HTML response");
+                }
+
+                window.location.href = url;
+
+                return;
+
+            }
+
+            const html = await fetchGameHTML(game, host);
+
+            const blob = new Blob(
+                [html],
+                { type: "text/html;charset=utf-8" }
             );
 
-            let response;
-
-            try {
-
-                response = await fetch(url, {
-                    method: "GET",
-                    cache: "no-store",
-                    signal: controller.signal
-                });
-
-            } finally {
-
-                clearTimeout(timeout);
-
-            }
-
-            if (!response.ok) {
-                throw new Error("HTTP " + response.status);
-            }
-
-            const contentType =
-                response.headers.get("content-type") || "";
-
-            // Don't automatically launch plain-text files.
-
-            if (
-                !contentType.includes("text/html") &&
-                !contentType.includes("application/xhtml+xml")
-            ) {
-                throw new Error(
-                    "The server did not return an HTML document."
-                );
-            }
-
-            statusText.textContent =
-                "Launching through " + provider.name + "...";
-
-            window.location.assign(url);
+            window.location.href =
+                URL.createObjectURL(blob);
 
             return;
 
         } catch (error) {
 
             console.warn(
-                provider.name + " failed:",
+                "Fallback failed:",
+                host.name,
                 error
             );
 
@@ -609,25 +787,13 @@ async function launchGame(game) {
     }
 
     statusText.textContent =
-        "Automatic sources failed. Choose a manual source below.";
+        "Every game host failed.";
 
     alert(
-        "Automatic launching failed for " + game.name +
-        ". Try one of its alternative source buttons."
+        "None of the available sources could load " +
+        game.name +
+        ". Try the individual source buttons."
     );
-
-}
-
-
-// ==========================================
-// MANUAL SOURCE LAUNCHING
-// ==========================================
-
-function openGameDirectly(game, provider) {
-
-    const url = getURL(provider, game.html);
-
-    window.open(url, "_blank");
 
 }
 
