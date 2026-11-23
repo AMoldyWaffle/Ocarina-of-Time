@@ -1,165 +1,250 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ocarina of Time — Launcher</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101014">
+<title>Game Library</title>
 <style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
-  header { display: flex; gap: 12px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #2a2a2a; }
-  h1 { margin: 0; font-size: 18px; font-weight: 600; }
-  header button { margin-left: auto; background: #2a2a2a; color: #eee; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
-  header button:hover { background: #3a3a3a; }
-  main { padding: 20px; }
-  #gameGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
-  .card { background: #1b1b1b; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px; cursor: pointer; text-align: left; color: inherit; font: inherit; }
-  .card:hover { background: #232323; border-color: #3a3a3a; }
-  .card h2 { margin: 0 0 6px; font-size: 15px; }
-  .card p { margin: 0; font-size: 12px; color: #999; }
-  #status { padding: 0 20px 20px; color: #888; font-size: 13px; }
-  #player { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; z-index: 50; }
-  #player.open { display: flex; }
-  #playerBar { display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: #181818; border-bottom: 1px solid #2a2a2a; }
-  #playerBar button { background: #2a2a2a; color: #eee; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
-  #playerBar button:hover { background: #3a3a3a; }
-  #playerTitle { font-size: 13px; color: #bbb; }
-  #gameFrame { flex: 1; width: 100%; border: 0; background: #000; }
-  #log { position: fixed; left: 0; right: 0; bottom: 0; max-height: 130px; overflow: auto; margin: 0; padding: 6px 10px;
-         font: 11px/1.4 ui-monospace, monospace; background: rgba(0,0,0,.78); color: #8f8; border-top: 1px solid #2a2a2a;
-         z-index: 60; display: none; white-space: pre-wrap; }
-  #log.open { display: block; }
+*{box-sizing:border-box}
+body{margin:0;background:#101014;color:#eee;font:14px Arial,sans-serif}
+header{padding:22px 16px;text-align:center;background:#191920}
+h1{margin:0;letter-spacing:3px;font-size:25px}
+header p{color:#999;margin:8px 0 0}
+button{border:1px solid #454553;border-radius:7px;background:#292936;color:#fff;padding:9px 12px;cursor:pointer}
+button:hover{background:#41415b}
+button:disabled{opacity:.5;cursor:wait}
+#toolbar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:14px}
+#status{padding:8px 14px;text-align:center;color:#aaa;overflow-wrap:anywhere}
+#games{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,210px));justify-content:center;gap:16px;padding:16px}
+.game{background:#1b1b24;border:1px solid #30303c;border-radius:10px;overflow:hidden}
+.cover{width:100%;aspect-ratio:3/4;object-fit:cover;background:#252530;display:block}
+.name{text-align:center;font-weight:bold;padding:10px 6px}
+.play{display:block;width:calc(100% - 16px);margin:0 8px 8px;background:#41417a;font-weight:bold}
+.hosts{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:0 8px 10px}
+.hosts button{font-size:11px;padding:7px 3px}
+#player{display:none;padding:8px}
+#playerbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0}
+#playing{font-weight:bold;flex:1;min-width:100px}
+#gameframe{width:100%;height:72vh;min-height:360px;border:1px solid #444;background:#000;display:block}
+#consolebox{margin-top:8px;border:1px solid #393943;background:#09090d;border-radius:7px}
+#consolehead{display:flex;align-items:center;gap:8px;padding:7px}
+#consolehead strong{flex:1}
+#consolelog{height:150px;overflow:auto;padding:8px;color:#b9e5b9;font:12px/1.45 monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.log-error{color:#ff8888}.log-warn{color:#ffd27d}
+footer{text-align:center;padding:24px;color:#555;font-size:12px}
+.empty{text-align:center;color:#999;padding:40px}
 </style>
 </head>
 <body>
-
-<header>
-  <h1>Ocarina of Time</h1>
-  <button id="toggleLog">Log</button>
-</header>
-
-<main>
-  <div id="gameGrid"></div>
-  <div id="status">Scanning Games/…</div>
-</main>
-
-<div id="player">
-  <div id="playerBar">
-    <button id="btnBack">← Back</button>
-    <span id="playerTitle"></span>
-    <button id="btnReload">Reload</button>
-  </div>
-  <iframe id="gameFrame"
-          allow="fullscreen; gamepad; autoplay; clipboard-read; clipboard-write"
-          allowfullscreen></iframe>
+<header><h1>GAME LIBRARY</h1><p>Choose a game and a source</p></header>
+<div id="library">
+  <div id="toolbar"><button id="rescan">Rescan games</button></div>
+  <div id="status">Finding games...</div>
+  <main id="games"><div class="empty">Loading library...</div></main>
 </div>
-
-<pre id="log"></pre>
-
+<section id="player">
+  <div id="playerbar">
+    <button id="back">← Back to games</button>
+    <div id="playing">No game selected</div>
+    <button id="clearlog">Clear console</button>
+  </div>
+  <iframe id="gameframe" title="Game" allow="autoplay; fullscreen; gamepad; clipboard-write" allowfullscreen></iframe>
+  <div id="consolebox">
+    <div id="consolehead"><strong>Game console</strong><button id="toggleconsole">Hide console</button></div>
+    <div id="consolelog"></div>
+  </div>
+</section>
+<footer>OCARINA OF TIME</footer>
 <script>
-/* ================================================================ */
-/* Logging                                                          */
-/* ================================================================ */
-const logEl = document.getElementById('log');
-function log(level, msg) {
-  const line = `[${new Date().toLocaleTimeString()}] [${level}] ${msg}`;
-  (level === 'ERROR' ? console.error : console.log)(line);
-  logEl.textContent += line + '\n';
-  logEl.scrollTop = logEl.scrollHeight;
-}
-document.getElementById('toggleLog').addEventListener('click', () => logEl.classList.toggle('open'));
+"use strict";
 
-/* ================================================================ */
-/* Repo config                                                      */
-/* ================================================================ */
-const REPO       = 'AMoldyWaffle/Ocarina-of-Time';
-const PAGES_BASE = 'https://amoldywaffle.github.io/Ocarina-of-Time/';
-const GAMES_DIR  = 'Games';
-
-/* ================================================================ */
-/* Discovery: scan Games/ via GitHub Contents API                   */
-/* ================================================================ */
-function prettify(name) {
-  return name.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
-}
-async function discoverGames() {
-  const api = `https://api.github.com/repos/${REPO}/contents/${GAMES_DIR}`;
-  log('INFO', `Scanning ${api}`);
-  const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
-  if (!res.ok) throw new Error(`GitHub API HTTP ${res.status} ${res.statusText}`);
-  const items = await res.json();
-  if (!Array.isArray(items)) throw new Error('Unexpected GitHub API response');
-  const dirs = items.filter(i => i.type === 'dir');
-  log('INFO', `Found ${dirs.length} subfolder(s) in ${GAMES_DIR}/: ${dirs.map(d => d.name).join(', ') || '(none)'}`);
-  return dirs.map(d => ({
-    title: prettify(d.name),
-    url:   `${PAGES_BASE}${GAMES_DIR}/${d.name}/index.html`,
-    mode:  'blob',
-  }));
-}
-
-/* ================================================================ */
-/* Environment detection                                            */
-/* ================================================================ */
+const OWNER = "AMoldyWaffle";
+const REPO = "Ocarina-of-Time";
+const BRANCH = "main";
+const GAME_DIR = "Games";
+const API = "https://api.github.com/repos/" + OWNER + "/" + REPO;
+const PAGES_BASE = "https://amoldywaffle.github.io/Ocarina-of-Time/";
 const RUNNER_MODE =
-  location.protocol === 'blob:' ||
-  location.hostname === 'codetester.io' ||
-  location.hostname.endsWith('.codetester.io');
+  location.protocol === "blob:" ||
+  location.hostname === "codetester.io" ||
+  location.hostname.endsWith(".codetester.io");
 
 const RUNNER_LOADER_RAW =
-  'https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/runner-game.html';
+  "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/runner-game.html";
+const PROXY_LOADER_URL = PAGES_BASE + "proxy-game.html";
 
-const PROXY_LOADER_URL =
-  PAGES_BASE + 'proxy-game.html';
+const $ = id => document.getElementById(id);
+const gamesNode = $("games");
+const statusNode = $("status");
+const frame = $("gameframe");
+const consoleNode = $("consolelog");
 
-log('INFO', RUNNER_MODE
-  ? 'Environment: HTML runner (Blob document).'
-  : 'Environment: GitHub Pages / proxy.');
-
-/* ================================================================ */
-/* Launch / teardown                                                */
-/* ================================================================ */
-const frame       = document.getElementById('gameFrame');
-const playerEl    = document.getElementById('player');
-const playerTitle = document.getElementById('playerTitle');
+let games = [];
+let scanning = false;
+let consoleVisible = true;
 let currentGame = null;
+
+function enc(path) {
+  return path.split("/").map(encodeURIComponent).join("/");
+}
+
+function pagesUrl(path) {
+  return PAGES_BASE + enc(path);
+}
+
+function log(level, args) {
+  const line = document.createElement("div");
+  line.className = level === "error" ? "log-error" : level === "warn" ? "log-warn" : "";
+  line.textContent = "[" + new Date().toLocaleTimeString() + "] [" + level.toUpperCase() + "] " + args.map(String).join(" ");
+  consoleNode.appendChild(line);
+  consoleNode.scrollTop = consoleNode.scrollHeight;
+  const method = level === "error" ? "error" : level === "warn" ? "warn" : "log";
+  console[method]("[Launcher]", ...args);
+}
+
+async function getJson(url) {
+  const response = await fetch(url, {
+    headers: { Accept: "application/vnd.github+json" },
+    cache: "no-store"
+  });
+  if (!response.ok) throw new Error("GitHub API HTTP " + response.status);
+  const data = await response.json();
+  if (!Array.isArray(data)) throw new Error("Unexpected GitHub API response");
+  return data;
+}
+
+function pickHtml(files) {
+  const html = files.filter(file => file.type === "file" && /\.html?$/i.test(file.name));
+  return html.find(file => file.name.toLowerCase() === "index.html") ||
+         html.find(file => /launcher/i.test(file.name)) ||
+         html[0] || null;
+}
+
+async function scan() {
+  if (scanning) return;
+  scanning = true;
+  gamesNode.innerHTML = '<div class="empty">Loading library...</div>';
+  statusNode.textContent = "Finding games...";
+  try {
+    const folders = (await getJson(API + "/contents/" + GAME_DIR + "?ref=" + BRANCH))
+      .filter(item => item.type === "dir");
+
+    const found = await Promise.all(folders.map(async folder => {
+      try {
+        const files = await getJson(API + "/contents/" + enc(folder.path) + "?ref=" + BRANCH);
+        const html = pickHtml(files);
+        if (!html) return null;
+
+        let cover = null;
+        const coverDir = files.find(item => item.type === "dir" && item.name.toLowerCase() === "cover");
+        if (coverDir) {
+          const images = (await getJson(API + "/contents/" + enc(coverDir.path) + "?ref=" + BRANCH))
+            .filter(item => item.type === "file" && /\.(png|jpe?g|webp|gif|avif)$/i.test(item.name));
+          const selected = images.find(item => item.name.toLowerCase() === "cover.png") || images[0];
+          if (selected) cover = selected.path;
+        }
+
+        return {
+          name: folder.name,
+          title: folder.name.replace(/[-_]+/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+          path: html.path,
+          url: pagesUrl(html.path),
+          cover
+        };
+      } catch (error) {
+        console.warn("[Launcher] Skipped " + folder.name, error);
+        return null;
+      }
+    }));
+
+    games = found.filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+    render();
+  } catch (error) {
+    statusNode.textContent = "Could not scan games: " + error.message;
+    gamesNode.innerHTML = '<div class="empty">Repository scan failed. Check the console or try again.</div>';
+    log("error", ["Game scan failed:", error.message]);
+  } finally {
+    scanning = false;
+  }
+}
+
+function render() {
+  gamesNode.innerHTML = "";
+  if (!games.length) {
+    gamesNode.innerHTML = '<div class="empty">No game launchers found.</div>';
+    statusNode.textContent = "0 games found.";
+    return;
+  }
+
+  for (const game of games) {
+    const card = document.createElement("article");
+    card.className = "game";
+
+    if (game.cover) {
+      const img = document.createElement("img");
+      img.className = "cover";
+      img.alt = game.name;
+      img.loading = "lazy";
+      img.src = pagesUrl(game.cover);
+      img.onerror = () => {
+        img.onerror = null;
+        img.src = "https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/" + BRANCH + "/" + enc(game.cover);
+        img.onerror = () => img.remove();
+      };
+      card.appendChild(img);
+    }
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = game.title;
+    card.appendChild(name);
+
+    const play = document.createElement("button");
+    play.className = "play";
+    play.textContent = "PLAY";
+    play.onclick = () => launch(game);
+    card.appendChild(play);
+
+    gamesNode.appendChild(card);
+  }
+
+  statusNode.textContent = games.length + " games found.";
+}
 
 function openPlayer(game) {
   currentGame = game;
-  playerTitle.textContent = game.title;
-  playerEl.classList.add('open');
+  $("library").style.display = "none";
+  $("player").style.display = "block";
+  $("playing").textContent = game.title;
+  consoleNode.innerHTML = "";
+  log("info", ["Starting " + game.title]);
 }
-function closePlayer() {
-  playerEl.classList.remove('open');
+
+function back() {
   frame.onload = null;
-  frame.src = 'about:blank';
+  frame.src = "about:blank";
   currentGame = null;
-  log('INFO', 'Launcher frame closed.');
+  $("player").style.display = "none";
+  $("library").style.display = "block";
+  statusNode.textContent = "Choose another game.";
 }
 
 async function launchInRunner(game) {
-  log('INFO', 'Runner mode: loading the dedicated same-tab game loader.');
-  log('INFO', `Game URL: ${game.url}`);
-
+  log("info", ["Runner mode: downloading the dedicated same-tab loader."]);
+  log("info", ["Game URL:", game.url]);
   try {
-    const response = await fetch(RUNNER_LOADER_RAW, { cache: 'no-store' });
-    if (!response.ok) throw new Error('Runner loader download failed: HTTP ' + response.status);
-
+    const response = await fetch(RUNNER_LOADER_RAW, { cache: "no-store" });
+    if (!response.ok) throw new Error("Runner loader download failed: HTTP " + response.status);
     let loaderHtml = await response.text();
-    const marker = '__GAME_URL__';
-    if (!loaderHtml.includes(marker)) throw new Error('Runner loader is missing its game URL placeholder.');
-
+    const marker = "__GAME_URL__";
+    if (!loaderHtml.includes(marker)) throw new Error("Runner loader is missing its game URL placeholder.");
     loaderHtml = loaderHtml.replace(marker, JSON.stringify(game.url));
-
-    const blob = new Blob([loaderHtml], { type: 'text/html' });
-    const blobUrl = URL.createObjectURL(blob);
-
-    log('INFO', 'Replacing the current Blob tab with the runner game loader.');
+    const blobUrl = URL.createObjectURL(new Blob([loaderHtml], { type: "text/html" }));
     location.replace(blobUrl);
   } catch (error) {
-    log('ERROR', 'Runner launch failed: ' + (error.message || error));
-    statusEl.textContent = 'Runner launch failed: ' + (error.message || error);
+    log("error", ["Runner launch failed:", error.message || error]);
+    statusNode.textContent = "Runner launch failed: " + (error.message || error);
   }
 }
 
@@ -170,65 +255,34 @@ function launch(game) {
   }
 
   openPlayer(game);
-  log('INFO', `Starting ${game.title}`);
-  log('INFO', 'Using the dedicated GitHub Pages / proxy loader.');
-  log('INFO', `Game URL: ${game.url}`);
+  log("info", ["Using the dedicated proxy loader."]);
+  log("info", ["Game URL:", game.url]);
 
   const loaderUrl = PROXY_LOADER_URL +
-    '?game=' + encodeURIComponent(game.url) +
-    '&title=' + encodeURIComponent(game.title);
+    "?game=" + encodeURIComponent(game.url) +
+    "&title=" + encodeURIComponent(game.title);
 
-  frame.onload = () => {
-    log('INFO', `[${game.title}] proxy loader loaded.`);
-    try { frame.contentWindow.focus(); } catch (_) {}
-  };
-  frame.onerror = () => log('ERROR', `[${game.title}] proxy loader navigation failed.`);
+  frame.onload = () => log("info", ["Proxy loader loaded."]);
+  frame.onerror = () => log("error", ["Proxy loader navigation failed."]);
   frame.src = loaderUrl;
 }
 
-/* ================================================================ */
-/* UI                                                              */
-/* ================================================================ */
-const grid     = document.getElementById('gameGrid');
-const statusEl = document.getElementById('status');
-
-function renderGames(games) {
-  grid.innerHTML = '';
-  statusEl.textContent = `${games.length} game(s) found in ${GAMES_DIR}/`;
-  for (const game of games) {
-    const card = document.createElement('button');
-    card.className = 'card';
-    const h2 = document.createElement('h2'); h2.textContent = game.title;
-    const p  = document.createElement('p');  p.textContent  = game.url.split('/').slice(-2, -1)[0];
-    card.append(h2, p);
-    card.addEventListener('click', () => launch(game));
-    grid.appendChild(card);
+window.addEventListener("message", event => {
+  if (event.data && event.data.__gameConsole) {
+    log(event.data.level || "log", event.data.args || []);
   }
-}
-
-document.getElementById('btnBack').addEventListener('click', closePlayer);
-document.getElementById('btnReload').addEventListener('click', () => { if (currentGame) launch(currentGame); });
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  if (document.fullscreenElement) return;
-  if (playerEl.classList.contains('open')) closePlayer();
 });
 
-/* ================================================================ */
-/* Boot                                                            */
-/* ================================================================ */
-(async () => {
-  try {
-    const games = await discoverGames();
-    renderGames(games);
-    if (games.length === 0) {
-      statusEl.textContent = `No subfolders found inside ${GAMES_DIR}/. Check the folder name (case-sensitive).`;
-    }
-  } catch (e) {
-    log('ERROR', 'Discovery failed: ' + e.message);
-    statusEl.textContent = 'Discovery failed: ' + e.message;
-  }
-})();
+$("back").onclick = back;
+$("rescan").onclick = scan;
+$("clearlog").onclick = () => { consoleNode.innerHTML = ""; };
+$("toggleconsole").onclick = () => {
+  consoleVisible = !consoleVisible;
+  consoleNode.style.display = consoleVisible ? "block" : "none";
+  $("toggleconsole").textContent = consoleVisible ? "Hide console" : "Show console";
+};
+
+scan();
 </script>
 </body>
 </html>
