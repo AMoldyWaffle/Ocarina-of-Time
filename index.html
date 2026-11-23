@@ -332,12 +332,14 @@ async function launchGame(game, preferredHost) {
       const baseURL = host.base + encodedPath(game.html.substring(0, game.html.lastIndexOf("/") + 1));
       html = injectWorkerBridge(html, baseURL);
 
-      const blobURL = URL.createObjectURL(new Blob([html], {
-        type:"text/html;charset=utf-8"
-      }));
-
       statusNode.textContent = "Opening " + game.name + " (" + host.name + ")...";
-      location.href = blobURL;
+
+      // Replace this document in place instead of navigating to a blob URL.
+      // Some embedded runners and browser policies reject blob: navigation
+      // even when the blob was created by this same page.
+      document.open();
+      document.write(html);
+      document.close();
       return;
     } catch (error) {
       console.warn(host.name + " launch failed for " + game.name + ":", error);
