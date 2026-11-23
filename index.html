@@ -213,8 +213,8 @@ async function scan() {
           path: html.path,
           url: pagesUrl(html.path),
           cover,
-          beta: files.some(item => item.type === "file" && item.name.toLowerCase().replace(/\\.[^.]+$/, "") === "beta"),
-          isNew: files.some(item => item.type === "file" && item.name.toLowerCase().replace(/\\.[^.]+$/, "") === "newgame")
+          beta: files.some(item => item.type === "file" && item.name.toLowerCase() === "beta.txt"),
+          isNew: files.some(item => item.type === "file" && item.name.toLowerCase() === "newgame.txt")
         };
       } catch (error) {
         console.warn("[Launcher] Skipped " + folder.name, error);
