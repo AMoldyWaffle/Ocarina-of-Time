@@ -1,10 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>END OF LIGHT</title>
-<style>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>END OF LIGHT</title><style>
 *{box-sizing:border-box}
 html{min-height:100%;overflow-y:scroll;scrollbar-gutter:stable}
 body{margin:0;min-height:100vh;overflow-x:hidden;background:#03040d;color:#eef1ff;font-family:Arial,Helvetica,sans-serif}
@@ -48,34 +45,30 @@ h1{font-size:clamp(38px,7vw,76px);font-weight:800;letter-spacing:clamp(5px,1.5vw
 .beta-tag{display:inline-block;font-size:9px;letter-spacing:1px;color:#f0c5ff;border:1px solid #c47be866;border-radius:20px;padding:4px 8px;margin-top:10px}
 .empty{text-align:center;color:#858bb5;padding:45px 10px;font-size:14px}
 footer{text-align:center;color:#626b96;font-size:10px;letter-spacing:2px;margin-top:70px}
-#player{display:none;position:fixed;inset:0;z-index:20;background:#02030bf5}
-#player.active{display:flex;flex-direction:column}
-#playerBar{height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#090c1d;border-bottom:1px solid #7774a344}
-#playerTitle{font-size:12px;letter-spacing:2px;color:#d9d5ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#btnBack{border:1px solid #9185ff66;background:#17152d;color:#fff;border-radius:20px;padding:9px 16px;cursor:pointer;font-size:12px}
-#btnBack:hover{background:#30275b}
-#gameFrame{width:100%;height:calc(100% - 54px);border:0;background:#000}
+#viewer{display:none;position:fixed;inset:0;z-index:20;background:#02030bf5}
+#viewer.active{display:flex;flex-direction:column}
+.viewer-bar{height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#090c1d;border-bottom:1px solid #7774a344}
+#viewerTitle{font-size:12px;letter-spacing:2px;color:#d9d5ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#closeViewer{border:1px solid #9185ff66;background:#17152d;color:#fff;border-radius:20px;padding:9px 16px;cursor:pointer;font-size:12px}
+#closeViewer:hover{background:#30275b}
+#frame{width:100%;height:calc(100% - 54px);border:0;background:#000}
 @media(max-width:600px){.page{padding:35px 15px 60px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card-info{padding:11px}.card-title{font-size:12px}.orbit{top:18px;width:135px;height:135px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition:none!important}}
 
-#player{display:none;position:fixed;inset:0;z-index:20;background:#02030bf5}
+#toggleLog{position:fixed;right:18px;bottom:16px;z-index:10;border:1px solid #9185ff66;background:#17152ddd;color:#d9d5ff;border-radius:20px;padding:8px 14px;cursor:pointer;font-size:11px;letter-spacing:1px}
+#toggleLog:hover{background:#30275b}
 #player.open{display:flex;flex-direction:column}
 #playerBar{height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 18px;background:#090c1d;border-bottom:1px solid #7774a344}
-#playerTitle{flex:1}
+#playerTitle{flex:1;font-size:12px;letter-spacing:2px;color:#d9d5ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #btnBack,#btnReload{border:1px solid #9185ff66;background:#17152d;color:#fff;border-radius:20px;padding:9px 16px;cursor:pointer;font-size:12px}
+#btnBack:hover,#btnReload:hover{background:#30275b}
 #gameFrame{width:100%;height:calc(100% - 54px);border:0;background:#000;flex:1}
 #log{position:fixed;left:0;right:0;bottom:0;max-height:130px;overflow:auto;margin:0;padding:6px 10px;font:11px/1.4 ui-monospace,monospace;background:rgba(0,0,0,.88);color:#8f8;border-top:1px solid #2a2a2a;z-index:60;display:none;white-space:pre-wrap}
 #log.open{display:block}
 </style>
-</head>
-<body>
-
-<div id="spaceBackground" aria-hidden="true">
-  <i class="shooting-star"></i>
-  <i class="shooting-star"></i>
-  <i class="shooting-star"></i>
+</head><body><div id="spaceBackground" aria-hidden="true">
+  <i class="shooting-star"></i><i class="shooting-star"></i><i class="shooting-star"></i>
 </div>
-
 <main class="page">
   <header>
     <div class="orbit"></div>
@@ -85,39 +78,23 @@ footer{text-align:center;color:#626b96;font-size:10px;letter-spacing:2px;margin-
       <div class="subtitle">Beyond the edge of the universe</div>
     </div>
   </header>
-
-  <div class="search-wrap">
-    <input id="search" type="search" placeholder="Search the cosmos..." autocomplete="off">
-  </div>
-
+  <div class="search-wrap"><input id="search" type="search" placeholder="Search the cosmos..." autocomplete="off"></div>
   <div class="status" id="status">Mapping the stars...</div>
-
-  <section id="betaSection" hidden>
-    <div class="section-title">Beta</div>
-    <div class="grid" id="betaGrid"></div>
-  </section>
-
-  <section id="mainSection">
-    <div class="section-title">The Collection</div>
-    <div class="grid" id="mainGrid"></div>
-  </section>
-
+  <section id="betaSection" hidden><div class="section-title">Beta</div><div class="grid" id="betaGrid"></div></section>
+  <section id="mainSection"><div class="section-title">The Collection</div><div class="grid" id="mainGrid"></div></section>
   <div class="empty" id="empty" hidden>No entries discovered.</div>
   <footer>END OF LIGHT · EXPLORE THE UNKNOWN</footer>
 </main>
-
+<button id="toggleLog" type="button">LOG</button>
 <div id="player">
-  <div class="viewer-bar">
+  <div id="playerBar">
     <div id="playerTitle">NOW EXPLORING</div>
-    <button id="btnBack">← Return</button>
+    <button id="btnBack" type="button">← Return</button>
     <button id="btnReload" type="button">Reload</button>
   </div>
   <iframe id="gameFrame" allow="autoplay; fullscreen; gamepad; clipboard-read; clipboard-write" allowfullscreen></iframe>
 </div>
-
-
-<pre id="log"></pre>
-<script>
+<pre id="log"></pre><script>
 /* ================================================================ */
 /* Logging                                                          */
 /* ================================================================ */
@@ -128,10 +105,6 @@ function log(level, msg) {
   logEl.textContent += line + '\n';
   logEl.scrollTop = logEl.scrollHeight;
 }
-const toggleLogButton = document.getElementById('toggleLog');
-if (toggleLogButton) {
-  toggleLogButton.addEventListener('click', () => logEl.classList.toggle('open'));
-}
 
 /* ================================================================ */
 /* Repo config                                                      */
@@ -139,6 +112,7 @@ if (toggleLogButton) {
 const REPO       = 'AMoldyWaffle/Ocarina-of-Time';
 const PAGES_BASE = 'https://amoldywaffle.github.io/Ocarina-of-Time/';
 const GAMES_DIR  = 'Games';
+const RAW_ROOT = 'https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/';
 
 /* ================================================================ */
 /* Environment detection                                            */
@@ -332,10 +306,8 @@ function makeCard(entry) {
   }
   card.appendChild(info);
 
-  card.addEventListener('click', () => {
-    const encoded = entry.html.split('/').map(encodeURIComponent).join('/');
-    launch({ title: entry.name, url: PAGES_BASE + encoded });
-  });
+  card.dataset.gamePath = entry.html;
+  card.dataset.gameTitle = entry.name;
   return card;
 }
 
@@ -365,14 +337,38 @@ const betaSection = document.getElementById('betaSection');
 const mainSection = document.getElementById('mainSection');
 const emptyEl = document.getElementById('empty');
 const statusEl = document.getElementById('status');
-if (searchEl) searchEl.addEventListener('input', filterCards);
 
-const backButton = document.getElementById('btnBack');
-if (backButton) backButton.addEventListener('click', closePlayer);
-const reloadButton = document.getElementById('btnReload');
-if (reloadButton) reloadButton.addEventListener('click', () => {
-  if (currentGame) launch(currentGame);
+
+document.addEventListener('click', event => {
+  const target = event.target;
+  if (!target || typeof target.closest !== 'function') return;
+
+  if (target.closest('#toggleLog')) {
+    logEl.classList.toggle('open');
+    return;
+  }
+  if (target.closest('#btnBack')) {
+    closePlayer();
+    return;
+  }
+  if (target.closest('#btnReload')) {
+    if (currentGame) launch(currentGame);
+    return;
+  }
+
+  const card = target.closest('.card[data-game-path]');
+  if (card) {
+    const path = card.dataset.gamePath;
+    const title = card.dataset.gameTitle || 'Game';
+    const encoded = path.split('/').map(encodeURIComponent).join('/');
+    launch({ title, url: PAGES_BASE + encoded });
+  }
 });
+
+document.addEventListener('input', event => {
+  if (event.target && event.target.id === 'search') filterCards();
+});
+
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && playerEl.classList.contains('open') && !document.fullscreenElement) {
     closePlayer();
@@ -401,6 +397,4 @@ async function init() {
   }
 }
 init();
-</script>
-</body>
-</html>
+</script></body></html>
