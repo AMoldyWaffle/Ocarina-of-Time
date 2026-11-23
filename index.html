@@ -1,100 +1,63 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>END OF LIGHT</title><style>
-*{box-sizing:border-box}
-html{min-height:100%;overflow-y:scroll;scrollbar-gutter:stable}
-body{margin:0;min-height:100vh;overflow-x:hidden;background:#03040d;color:#eef1ff;font-family:Arial,Helvetica,sans-serif}
-#spaceBackground{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:radial-gradient(ellipse at 50% 110%,#171044 0%,#08091d 45%,#03040d 80%)}
-#spaceBackground:before{content:"";position:absolute;inset:-45%;background:radial-gradient(ellipse at 25% 35%,#38208055 0%,transparent 35%),radial-gradient(ellipse at 75% 55%,#075a8050 0%,transparent 38%),radial-gradient(ellipse at 50% 80%,#541d6650 0%,transparent 35%);filter:blur(55px);animation:nebulaDrift 28s ease-in-out infinite alternate}
-#spaceBackground:after{content:"";position:absolute;inset:-100%;opacity:.55;background-image:radial-gradient(1px 1px at 10% 20%,#fff 99%,transparent),radial-gradient(2px 2px at 30% 70%,#cbd9ff 99%,transparent),radial-gradient(1px 1px at 50% 40%,#fff 99%,transparent),radial-gradient(1px 1px at 70% 80%,#b8caff 99%,transparent),radial-gradient(2px 2px at 90% 15%,#fff 99%,transparent),radial-gradient(1px 1px at 80% 45%,#fff 99%,transparent);background-size:310px 280px;animation:starDrift 100s linear infinite}
-.shooting-star{position:absolute;width:180px;height:2px;opacity:0;background:linear-gradient(90deg,transparent,#a9d9ff,#fff);filter:drop-shadow(0 0 6px #8ccaff);transform:rotate(-35deg);animation:shoot 9s linear infinite}
-.shooting-star:nth-child(1){top:18%;left:75%;animation-delay:1s}
-.shooting-star:nth-child(2){top:48%;left:45%;animation-delay:5s;animation-duration:12s}
-.shooting-star:nth-child(3){top:70%;left:90%;animation-delay:8s;animation-duration:11s}
-@keyframes nebulaDrift{0%{transform:translate(-3%,-2%) rotate(0) scale(1)}100%{transform:translate(4%,3%) rotate(12deg) scale(1.12)}}
-@keyframes starDrift{from{transform:translateY(0)}to{transform:translateY(280px)}}
-@keyframes shoot{0%,72%{opacity:0;transform:translate(0,0) rotate(-35deg)}75%{opacity:1}85%{opacity:0;transform:translate(-420px,260px) rotate(-35deg)}100%{opacity:0}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-@keyframes titleGlow{0%,100%{text-shadow:0 0 15px #8b7aff55,0 0 35px #7164ff22}50%{text-shadow:0 0 22px #a99cffaa,0 0 55px #7164ff66}}
-@keyframes orbitSpin{to{rotate:360deg}}
-.page{position:relative;z-index:1;max-width:1250px;margin:auto;padding:48px 28px 80px}
-header{text-align:center;margin:30px auto 44px;animation:fadeUp .9s ease both}
-.eyebrow{font-size:11px;letter-spacing:5px;color:#a9a0df;text-transform:uppercase;margin-bottom:18px}
-h1{font-size:clamp(38px,7vw,76px);font-weight:800;letter-spacing:clamp(5px,1.5vw,15px);margin:0;color:#f5f3ff;animation:titleGlow 5s ease-in-out infinite}
-.subtitle{font-size:14px;color:#9ba2c9;letter-spacing:2px;margin-top:18px}
-.orbit{width:170px;height:170px;border:1px solid #9185ff35;border-radius:50%;position:absolute;top:35px;left:50%;translate:-50% 0;pointer-events:none;animation:orbitSpin 38s linear infinite}
-.orbit:before,.orbit:after{content:"";position:absolute;border:1px solid #9185ff28;border-radius:50%;inset:18px;transform:rotateX(65deg) rotate(35deg)}
-.orbit:after{inset:38px;transform:rotateX(65deg) rotate(-35deg)}
-.header-content{position:relative;z-index:1}
-.search-wrap{max-width:550px;margin:0 auto 44px;position:relative;animation:fadeUp 1s .15s both}
-#search{width:100%;padding:16px 20px;border-radius:30px;border:1px solid #8c83c65c;background:#0c1023cc;color:#fff;font-size:15px;outline:none;box-shadow:0 0 25px #6656d51a;transition:.25s}
-#search:focus{border-color:#a99aff;box-shadow:0 0 28px #7566ff44}
-#search::placeholder{color:#858bad}
-.status{text-align:center;color:#8e96bd;font-size:12px;letter-spacing:1px;margin:0 auto 28px;min-height:18px}
-.section-title{display:flex;align-items:center;gap:14px;margin:38px 0 20px;color:#c9c5ed;font-size:12px;letter-spacing:4px;text-transform:uppercase}
-.section-title:after{content:"";height:1px;flex:1;background:linear-gradient(90deg,#8c80d955,transparent)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}
-.card{min-width:0;position:relative;overflow:hidden;border:1px solid #7774a33d;border-radius:14px;background:linear-gradient(145deg,#15182dcc,#090d1dcc);cursor:pointer;transition:transform .25s,border-color .25s,box-shadow .25s;animation:fadeUp .6s both}
-.card:hover{transform:translateY(-6px);border-color:#a89aff99;box-shadow:0 12px 35px #6558ca2c,0 0 18px #7062bd20}
-.cover{width:100%;aspect-ratio:16/10;display:block;object-fit:cover;background:radial-gradient(circle at center,#24204a,#080b18);border-bottom:1px solid #7774a333}
-.cover-placeholder{width:100%;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#29234f,#090b18);color:#7774b0;font-size:34px;border-bottom:1px solid #7774a333}
-.card-info{padding:14px 15px 16px}
-.card-title{font-size:14px;font-weight:700;line-height:1.4;color:#f0efff;overflow-wrap:anywhere}
-.card-subtitle{font-size:10px;letter-spacing:1px;color:#858bb5;margin-top:7px;text-transform:uppercase}
-.beta-tag{display:inline-block;font-size:9px;letter-spacing:1px;color:#f0c5ff;border:1px solid #c47be866;border-radius:20px;padding:4px 8px;margin-top:10px}
-.empty{text-align:center;color:#858bb5;padding:45px 10px;font-size:14px}
-footer{text-align:center;color:#626b96;font-size:10px;letter-spacing:2px;margin-top:70px}
-#viewer{display:none;position:fixed;inset:0;z-index:20;background:#02030bf5}
-#viewer.active{display:flex;flex-direction:column}
-.viewer-bar{height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#090c1d;border-bottom:1px solid #7774a344}
-#viewerTitle{font-size:12px;letter-spacing:2px;color:#d9d5ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#closeViewer{border:1px solid #9185ff66;background:#17152d;color:#fff;border-radius:20px;padding:9px 16px;cursor:pointer;font-size:12px}
-#closeViewer:hover{background:#30275b}
-#frame{width:100%;height:calc(100% - 54px);border:0;background:#000}
-@media(max-width:600px){.page{padding:35px 15px 60px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card-info{padding:11px}.card-title{font-size:12px}.orbit{top:18px;width:135px;height:135px}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition:none!important}}
-
-#toggleLog{position:fixed;right:18px;bottom:16px;z-index:10;border:1px solid #9185ff66;background:#17152ddd;color:#d9d5ff;border-radius:20px;padding:8px 14px;cursor:pointer;font-size:11px;letter-spacing:1px}
-#toggleLog:hover{background:#30275b}
-#player.open{display:flex;flex-direction:column}
-#playerBar{height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 18px;background:#090c1d;border-bottom:1px solid #7774a344}
-#playerTitle{flex:1;font-size:12px;letter-spacing:2px;color:#d9d5ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#btnBack,#btnReload{border:1px solid #9185ff66;background:#17152d;color:#fff;border-radius:20px;padding:9px 16px;cursor:pointer;font-size:12px}
-#btnBack:hover,#btnReload:hover{background:#30275b}
-#gameFrame{width:100%;height:calc(100% - 54px);border:0;background:#000;flex:1}
-#log{position:fixed;left:0;right:0;bottom:0;max-height:130px;overflow:auto;margin:0;padding:6px 10px;font:11px/1.4 ui-monospace,monospace;background:rgba(0,0,0,.88);color:#8f8;border-top:1px solid #2a2a2a;z-index:60;display:none;white-space:pre-wrap}
-#log.open{display:block}
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ocarina of Time — Launcher</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
+  header { display: flex; gap: 12px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #2a2a2a; }
+  h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header button { margin-left: auto; background: #2a2a2a; color: #eee; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  header button:hover { background: #3a3a3a; }
+  main { padding: 20px; }
+  #gameGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+  .card { background: #1b1b1b; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px; cursor: pointer; text-align: left; color: inherit; font: inherit; }
+  .card:hover { background: #232323; border-color: #3a3a3a; }
+  .card h2 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; font-size: 12px; color: #999; }
+  #status { padding: 0 20px 20px; color: #888; font-size: 13px; }
+  #player { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; z-index: 50; }
+  #player.open { display: flex; }
+  #playerBar { display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: #181818; border-bottom: 1px solid #2a2a2a; }
+  #playerBar button { background: #2a2a2a; color: #eee; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+  #playerBar button:hover { background: #3a3a3a; }
+  #playerTitle { font-size: 13px; color: #bbb; }
+  #gameFrame { flex: 1; width: 100%; border: 0; background: #000; }
+  #log { position: fixed; left: 0; right: 0; bottom: 0; max-height: 130px; overflow: auto; margin: 0; padding: 6px 10px;
+         font: 11px/1.4 ui-monospace, monospace; background: rgba(0,0,0,.78); color: #8f8; border-top: 1px solid #2a2a2a;
+         z-index: 60; display: none; white-space: pre-wrap; }
+  #log.open { display: block; }
 </style>
-</head><body><div id="spaceBackground" aria-hidden="true">
-  <i class="shooting-star"></i><i class="shooting-star"></i><i class="shooting-star"></i>
-</div>
-<main class="page">
-  <header>
-    <div class="orbit"></div>
-    <div class="header-content">
-      <div class="eyebrow">A collection beyond the stars</div>
-      <h1>END OF LIGHT</h1>
-      <div class="subtitle">Beyond the edge of the universe</div>
-    </div>
-  </header>
-  <div class="search-wrap"><input id="search" type="search" placeholder="Search the cosmos..." autocomplete="off"></div>
-  <div class="status" id="status">Mapping the stars...</div>
-  <section id="betaSection" hidden><div class="section-title">Beta</div><div class="grid" id="betaGrid"></div></section>
-  <section id="mainSection"><div class="section-title">The Collection</div><div class="grid" id="mainGrid"></div></section>
-  <div class="empty" id="empty" hidden>No entries discovered.</div>
-  <footer>END OF LIGHT · EXPLORE THE UNKNOWN</footer>
+</head>
+<body>
+
+<header>
+  <h1>Ocarina of Time</h1>
+  <button id="toggleLog">Log</button>
+</header>
+
+<main>
+  <div id="gameGrid"></div>
+  <div id="status">Scanning Games/…</div>
 </main>
-<button id="toggleLog" type="button">LOG</button>
+
 <div id="player">
   <div id="playerBar">
-    <div id="playerTitle">NOW EXPLORING</div>
-    <button id="btnBack" type="button">← Return</button>
-    <button id="btnReload" type="button">Reload</button>
+    <button id="btnBack">← Back</button>
+    <span id="playerTitle"></span>
+    <button id="btnReload">Reload</button>
   </div>
-  <iframe id="gameFrame" allow="autoplay; fullscreen; gamepad; clipboard-read; clipboard-write" allowfullscreen></iframe>
+  <iframe id="gameFrame"
+          allow="fullscreen; gamepad; autoplay; clipboard-read; clipboard-write"
+          allowfullscreen></iframe>
 </div>
-<pre id="log"></pre><script>
+
+<pre id="log"></pre>
+
+<script>
 /* ================================================================ */
 /* Logging                                                          */
 /* ================================================================ */
@@ -105,6 +68,7 @@ function log(level, msg) {
   logEl.textContent += line + '\n';
   logEl.scrollTop = logEl.scrollHeight;
 }
+document.getElementById('toggleLog').addEventListener('click', () => logEl.classList.toggle('open'));
 
 /* ================================================================ */
 /* Repo config                                                      */
@@ -112,7 +76,28 @@ function log(level, msg) {
 const REPO       = 'AMoldyWaffle/Ocarina-of-Time';
 const PAGES_BASE = 'https://amoldywaffle.github.io/Ocarina-of-Time/';
 const GAMES_DIR  = 'Games';
-const RAW_ROOT = 'https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/';
+
+/* ================================================================ */
+/* Discovery: scan Games/ via GitHub Contents API                   */
+/* ================================================================ */
+function prettify(name) {
+  return name.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+}
+async function discoverGames() {
+  const api = `https://api.github.com/repos/${REPO}/contents/${GAMES_DIR}`;
+  log('INFO', `Scanning ${api}`);
+  const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+  if (!res.ok) throw new Error(`GitHub API HTTP ${res.status} ${res.statusText}`);
+  const items = await res.json();
+  if (!Array.isArray(items)) throw new Error('Unexpected GitHub API response');
+  const dirs = items.filter(i => i.type === 'dir');
+  log('INFO', `Found ${dirs.length} subfolder(s) in ${GAMES_DIR}/: ${dirs.map(d => d.name).join(', ') || '(none)'}`);
+  return dirs.map(d => ({
+    title: prettify(d.name),
+    url:   `${PAGES_BASE}${GAMES_DIR}/${d.name}/index.html`,
+    mode:  'blob',
+  }));
+}
 
 /* ================================================================ */
 /* Environment detection                                            */
@@ -201,204 +186,49 @@ function launch(game) {
   frame.src = loaderUrl;
 }
 
-
 /* ================================================================ */
-/* Game discovery and original collection UI                        */
+/* UI                                                              */
 /* ================================================================ */
-function encodePath(path) {
-  return path.split('/').map(encodeURIComponent).join('/');
-}
-function rawUrl(path) {
-  return RAW_ROOT + encodePath(path);
-}
-async function fetchJson(url) {
-  const response = await fetch(url, {
-    headers: { Accept: 'application/vnd.github+json' },
-    cache: 'no-store'
-  });
-  if (!response.ok) throw new Error(`Request failed (${response.status}): ${url}`);
-  return response.json();
-}
-function getFileName(path) {
-  return path.split('/').pop() || '';
-}
-function isImage(path) {
-  return /\.(png|jpe?g|gif|webp|avif)$/i.test(path);
-}
-function isHtml(path) {
-  return /\.html?$/i.test(path);
-}
-function buildEntries(tree) {
-  const prefix = GAMES_DIR + '/';
-  const folders = new Map();
-
-  for (const item of tree) {
-    if (item.type !== 'blob' || !item.path.startsWith(prefix)) continue;
-    const relative = item.path.slice(prefix.length);
-    const parts = relative.split('/');
-    if (parts.length < 2) continue;
-
-    const folderName = parts[0];
-    if (!folders.has(folderName)) {
-      folders.set(folderName, { name: folderName, htmlFiles: [], coverFiles: [], beta: false });
-    }
-
-    const entry = folders.get(folderName);
-    const fileName = getFileName(item.path);
-    const remainder = parts.slice(1);
-
-    if (remainder.length === 1 && /^beta/i.test(fileName)) entry.beta = true;
-    if (remainder.length === 1 && isHtml(fileName)) entry.htmlFiles.push(item.path);
-    if (remainder.length >= 2 && remainder[0].toLowerCase() === 'cover' && isImage(fileName)) {
-      entry.coverFiles.push(item.path);
-    }
-  }
-
-  const results = [];
-  for (const entry of folders.values()) {
-    if (!entry.coverFiles.length || !entry.htmlFiles.length) continue;
-    entry.htmlFiles.sort((a,b) => {
-      const ai = /^index\.html?$/i.test(getFileName(a)) ? 0 : 1;
-      const bi = /^index\.html?$/i.test(getFileName(b)) ? 0 : 1;
-      return ai - bi || a.localeCompare(b);
-    });
-    entry.coverFiles.sort((a,b) => a.localeCompare(b));
-    results.push({ name: entry.name, html: entry.htmlFiles[0], cover: entry.coverFiles[0], beta: entry.beta });
-  }
-  return results.sort((a,b) => a.name.localeCompare(b.name));
-}
-
-function makeCard(entry) {
-  const card = document.createElement('article');
-  card.className = 'card';
-  card.dataset.search = entry.name.toLowerCase();
-
-  const img = document.createElement('img');
-  img.className = 'cover';
-  img.alt = '';
-  img.loading = 'lazy';
-  img.src = rawUrl(entry.cover);
-  img.onerror = () => {
-    const placeholder = document.createElement('div');
-    placeholder.className = 'cover-placeholder';
-    placeholder.textContent = '✧';
-    img.replaceWith(placeholder);
-  };
-  card.appendChild(img);
-
-  const info = document.createElement('div');
-  info.className = 'card-info';
-  const title = document.createElement('div');
-  title.className = 'card-title';
-  title.textContent = entry.name;
-  info.appendChild(title);
-
-  const subtitle = document.createElement('div');
-  subtitle.className = 'card-subtitle';
-  subtitle.textContent = 'Ready to explore';
-  info.appendChild(subtitle);
-
-  if (entry.beta) {
-    const tag = document.createElement('span');
-    tag.className = 'beta-tag';
-    tag.textContent = 'BETA';
-    info.appendChild(tag);
-  }
-  card.appendChild(info);
-
-  card.dataset.gamePath = entry.html;
-  card.dataset.gameTitle = entry.name;
-  return card;
-}
-
-function renderSection(grid, section, list) {
-  grid.replaceChildren();
-  section.hidden = list.length === 0;
-  list.forEach((entry,index) => {
-    const card = makeCard(entry);
-    card.style.animationDelay = `${Math.min(index * 35, 350)}ms`;
-    grid.appendChild(card);
-  });
-}
-function renderCards(list) {
-  renderSection(betaGrid, betaSection, list.filter(entry => entry.beta));
-  renderSection(mainGrid, mainSection, list.filter(entry => !entry.beta));
-  emptyEl.hidden = list.length !== 0;
-}
-function filterCards() {
-  const query = searchEl.value.trim().toLowerCase();
-  renderCards(entries.filter(entry => entry.name.toLowerCase().includes(query)));
-}
-
-const searchEl = document.getElementById('search');
-const betaGrid = document.getElementById('betaGrid');
-const mainGrid = document.getElementById('mainGrid');
-const betaSection = document.getElementById('betaSection');
-const mainSection = document.getElementById('mainSection');
-const emptyEl = document.getElementById('empty');
+const grid     = document.getElementById('gameGrid');
 const statusEl = document.getElementById('status');
 
-function setStatus(message) {
-  if (statusEl) statusEl.textContent = message;
+function renderGames(games) {
+  grid.innerHTML = '';
+  statusEl.textContent = `${games.length} game(s) found in ${GAMES_DIR}/`;
+  for (const game of games) {
+    const card = document.createElement('button');
+    card.className = 'card';
+    const h2 = document.createElement('h2'); h2.textContent = game.title;
+    const p  = document.createElement('p');  p.textContent  = game.url.split('/').slice(-2, -1)[0];
+    card.append(h2, p);
+    card.addEventListener('click', () => launch(game));
+    grid.appendChild(card);
+  }
 }
 
-
-document.addEventListener('click', event => {
-  const target = event.target;
-  if (!target || typeof target.closest !== 'function') return;
-
-  if (target.closest('#toggleLog')) {
-    logEl.classList.toggle('open');
-    return;
-  }
-  if (target.closest('#btnBack')) {
-    closePlayer();
-    return;
-  }
-  if (target.closest('#btnReload')) {
-    if (currentGame) launch(currentGame);
-    return;
-  }
-
-  const card = target.closest('.card[data-game-path]');
-  if (card) {
-    const path = card.dataset.gamePath;
-    const title = card.dataset.gameTitle || 'Game';
-    const encoded = path.split('/').map(encodeURIComponent).join('/');
-    launch({ title, url: PAGES_BASE + encoded });
-  }
+document.getElementById('btnBack').addEventListener('click', closePlayer);
+document.getElementById('btnReload').addEventListener('click', () => { if (currentGame) launch(currentGame); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (document.fullscreenElement) return;
+  if (playerEl.classList.contains('open')) closePlayer();
 });
 
-document.addEventListener('input', event => {
-  if (event.target && event.target.id === 'search') filterCards();
-});
-
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && playerEl.classList.contains('open') && !document.fullscreenElement) {
-    closePlayer();
-  }
-});
-
-async function init() {
+/* ================================================================ */
+/* Boot                                                            */
+/* ================================================================ */
+(async () => {
   try {
-    setStatus('Mapping the stars...');
-    const treeData = await fetchJson(`https://api.github.com/repos/${REPO}/git/trees/main?recursive=1`);
-    if (!Array.isArray(treeData.tree)) throw new Error('The repository listing could not be read.');
-    if (treeData.truncated) console.warn('The repository tree was truncated by the API.');
-    entries = buildEntries(treeData.tree);
-    if (!entries.length) {
-      setStatus('No entries found. Check the repository folder structure.');
-      renderCards([]);
-      return;
+    const games = await discoverGames();
+    renderGames(games);
+    if (games.length === 0) {
+      statusEl.textContent = `No subfolders found inside ${GAMES_DIR}/. Check the folder name (case-sensitive).`;
     }
-    renderCards(entries);
-    setStatus(`${entries.length} destinations discovered`);
-  } catch (error) {
-    console.error('Collection loading failed:', error);
-    setStatus('Unable to map the collection: ' + error.message);
-    emptyEl.hidden = false;
-    emptyEl.textContent = 'The collection could not be loaded. Check the browser console for details.';
+  } catch (e) {
+    log('ERROR', 'Discovery failed: ' + e.message);
+    statusEl.textContent = 'Discovery failed: ' + e.message;
   }
-}
-init();
-</script></body></html>
+})();
+</script>
+</body>
+</html>
