@@ -142,17 +142,162 @@ function rawUrl(path) {
   return RAW_ROOT + encodePath(path);
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url, {
-    headers: { Accept: 'application/vnd.github+json' },
-    cache: 'no-store'
-  });
+// Current source first; the older launcher sources are only tried when needed.
+const LEGACY_CDN_ROOT = `https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/`;
+const ALL_ORIGINS_ROOT = 'https://api.allorigins.win/get?url=';
 
-  if (!response.ok) {
-    throw new Error(`Request failed (${response.status}): ${url}`);
+function legacyCdnUrl(path) {
+  return LEGACY_CDN_ROOT + encodePath(path);
+}
+
+async function fetchJson(url) {
+  const attempts = [
+    { label: 'current API', url },
+    { label: 'older API proxy', url: ALL_ORIGINS_ROOT + encodeURIComponent(url) }
+  ];
+  let lastError;
+
+  // The older launcher pinned its tree request to the latest commit SHA.
+  try {
+    const commitResponse = await fetch(`${API_ROOT}/commits/${encodeURIComponent(BRANCH)}`, { cache: 'no-store' });
+    if (commitResponse.ok) {
+      const commit = await commitResponse.json();
+      if (commit.sha) {
+        const shaTreeUrl = url.replace(`/git/trees/${BRANCH}?`, `/git/trees/${commit.sha}?`);
+        if (shaTreeUrl !== url) attempts.push({ label: 'older commit-pinned API', url: shaTreeUrl });
+      }
+    }
+  } catch (_) {}
+
+  for (const attempt of attempts) {
+    try {
+      const response = await fetch(attempt.url, {
+        headers: { Accept: attempt.label.includes('proxy') ? 'application/json' : 'application/vnd.github+json' },
+        cache: 'no-store'
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (attempt.label.includes('proxy')) {
+        const wrapped = await response.json();
+        if (!wrapped || typeof wrapped.contents !== 'string') throw new Error('Proxy returned no contents');
+        return JSON.parse(wrapped.contents);
+      }
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      console.warn(`[launcher] ${attempt.label} failed; trying next source:`, error.message);
+    }
+  }
+  throw new Error(`All repository-listing sources failed: ${lastError ? lastError.message : 'unknown error'}`);
+}
+
+function decodeBase64Text(value) {
+  const clean = String(value || '').replace(/\s+/g, '');
+  const binary = atob(clean);
+  const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function fetchTextWithFallback(path) {
+  const attempts = [
+    { label: 'current raw', url: rawUrl(path) },
+    { label: 'older CDN', url: legacyCdnUrl(path) },
+    { label: 'older AllOrigins raw', url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl(path)) }
+  ];
+  let lastError;
+
+  for (const attempt of attempts) {
+    try {
+      const response = await fetch(attempt.url, { cache: 'no-store', mode: 'cors' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await response.text();
+      if (!text) throw new Error('The server returned an empty file');
+      if (/\.html?$/i.test(path)) {
+        if (!/<html[\s>]/i.test(text) && !/<body[\s>]/i.test(text)) throw new Error('The server returned an error message instead of an HTML document');
+      } else if (/^(<!doctype html|<html[\s>])/i.test(text.trim())) {
+        throw new Error('Received an HTML error page instead of the requested file');
+      }
+      console.info(`[launcher] Loaded ${path} using ${attempt.label}`);
+      return { text, sourceUrl: attempt.url, sourceLabel: attempt.label };
+    } catch (error) {
+      lastError = error;
+      console.warn(`[launcher] ${attempt.label} failed for ${path}:`, error.message);
+    }
   }
 
-  return response.json();
+  // Original launcher fallback: GitHub Contents API base64 response.
+  try {
+    const contentsUrl = `${API_ROOT}/contents/${encodePath(path)}?ref=${encodeURIComponent(BRANCH)}`;
+    const response = await fetch(contentsUrl, { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (data && data.encoding === 'base64' && data.content) {
+      console.info(`[launcher] Loaded ${path} using older Contents API fallback`);
+      return { text: decodeBase64Text(data.content), sourceUrl: legacyCdnUrl(path), sourceLabel: 'older Contents API' };
+    }
+    throw new Error('Contents API did not return base64 file data');
+  } catch (error) {
+    lastError = error;
+  }
+
+  // The older version also routed API responses through AllOrigins.
+  try {
+    const contentsUrl = `${API_ROOT}/contents/${encodePath(path)}?ref=${encodeURIComponent(BRANCH)}`;
+    const response = await fetch(ALL_ORIGINS_ROOT + encodeURIComponent(contentsUrl), { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const wrapped = await response.json();
+    const data = wrapped && typeof wrapped.contents === 'string' ? JSON.parse(wrapped.contents) : null;
+    if (data && data.encoding === 'base64' && data.content) {
+      console.info(`[launcher] Loaded ${path} using older AllOrigins + Contents API fallback`);
+      return { text: decodeBase64Text(data.content), sourceUrl: legacyCdnUrl(path), sourceLabel: 'older AllOrigins + Contents API' };
+    }
+    throw new Error('AllOrigins did not return file data');
+  } catch (error) {
+    lastError = error;
+  }
+
+  throw new Error(`Could not load ${path} from any source: ${lastError ? lastError.message : 'unknown error'}`);
+}
+
+async function loadCoverImage(img, path) {
+  const attempts = [rawUrl(path), legacyCdnUrl(path), 'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl(path))];
+  for (const url of attempts) {
+    try {
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
+      return;
+    } catch (_) {}
+  }
+
+  // Last old-style fallback: fetch base64 through the Contents API and use a Blob URL.
+  try {
+    const contentsUrl = `${API_ROOT}/contents/${encodePath(path)}?ref=${encodeURIComponent(BRANCH)}`;
+    let response;
+    try {
+      response = await fetch(contentsUrl, { cache: 'no-store' });
+    } catch (_) {
+      response = await fetch(ALL_ORIGINS_ROOT + encodeURIComponent(contentsUrl), { cache: 'no-store' });
+      if (response.ok) {
+        const wrapper = await response.json();
+        response = new Response(wrapper.contents, { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+    if (!response.ok) throw new Error('Contents API unavailable');
+    let data = await response.json();
+    if (data && typeof data.contents === 'string' && !data.content) data = JSON.parse(data.contents);
+    if (!data || data.encoding !== 'base64' || !data.content) throw new Error('No base64 image data');
+    const bytes = Uint8Array.from(atob(data.content.replace(/\s+/g, '')), ch => ch.charCodeAt(0));
+    const mime = data.type === 'file' ? (path.match(/\.png$/i) ? 'image/png' : path.match(/\.webp$/i) ? 'image/webp' : path.match(/\.gif$/i) ? 'image/gif' : 'image/jpeg') : 'application/octet-stream';
+    img.src = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    return;
+  } catch (_) {}
+
+  const placeholder = document.createElement('div');
+  placeholder.className = 'cover-placeholder';
+  placeholder.textContent = '✧';
+  img.replaceWith(placeholder);
 }
 
 function getFileName(path) {
@@ -250,14 +395,7 @@ function makeCard(entry) {
   img.className = 'cover';
   img.alt = '';
   img.loading = 'lazy';
-  img.src = rawUrl(entry.cover);
-
-  img.onerror = () => {
-    const placeholder = document.createElement('div');
-    placeholder.className = 'cover-placeholder';
-    placeholder.textContent = '✧';
-    img.replaceWith(placeholder);
-  };
+  loadCoverImage(img, entry.cover);
 
   card.appendChild(img);
 
@@ -334,29 +472,43 @@ async function launchEntry(entry) {
   frame.srcdoc = '<!DOCTYPE html><html><body style="background:#000;color:white;font-family:Arial;padding:20px">Opening...</body></html>';
 
   try {
-    const response = await fetch(rawUrl(entry.html), { cache: 'no-store' });
-
-    if (!response.ok) {
-      throw new Error(`Unable to load entry (${response.status})`);
-    }
-
-    let html = await response.text();
+    const loaded = await fetchTextWithFallback(entry.html);
+    let html = loaded.text;
 
     if (!/<html[\s>]/i.test(html) && !/<body[\s>]/i.test(html)) {
       throw new Error('The selected file does not appear to be a valid HTML document.');
     }
 
     const basePath = entry.html.split('/').slice(0, -1).join('/') + '/';
-    const baseTag = `<base href="${rawUrl(basePath)}">`;
+    const currentBase = rawUrl(basePath);
+    const legacyBase = legacyCdnUrl(basePath);
+    const selectedBase = loaded.sourceLabel === 'older CDN' ? legacyBase : currentBase;
+    const fallbackScript = `<script>(function(){
+      var rawBase=${JSON.stringify(currentBase)};
+      var oldBase=${JSON.stringify(legacyBase)};
+      function oldUrl(value){
+        try{var u=typeof value==='string'?value:(value&&value.url)||'';u=new URL(u,document.baseURI).href;if(u.indexOf(rawBase)===0)return oldBase+u.slice(rawBase.length);}catch(e){}
+        return null;
+      }
+      var nativeFetch=window.fetch&&window.fetch.bind(window);
+      if(nativeFetch)window.fetch=function(input,init){
+        var alt=oldUrl(input);
+        return nativeFetch(input,init).then(function(response){if(!response.ok&&alt)return nativeFetch(alt,init);return response;}).catch(function(error){if(alt)return nativeFetch(alt,init);throw error;});
+      };
+      function patchWorker(name){var Native=window[name];if(!Native)return;try{window[name]=function(url,options){try{return new Native(url,options);}catch(error){var alt=oldUrl(url);if(alt)return new Native(alt,options);throw error;};};window[name].prototype=Native.prototype;}catch(e){}}
+      patchWorker('Worker');patchWorker('SharedWorker');
+      document.addEventListener('error',function(event){var el=event.target;if(!el)return;var prop=('src' in el)?'src':(('href' in el)?'href':null);if(!prop)return;var alt=oldUrl(el[prop]);if(alt&&!el.dataset.legacyFallback){el.dataset.legacyFallback='1';el[prop]=alt;}},true);
+    })();<\/script>`;
+    const baseTag = `<base href="${selectedBase}">`;
 
     if (/<head[\s>]/i.test(html)) {
-      html = html.replace(/<head([^>]*)>/i, match => match + baseTag);
+      html = html.replace(/<head([^>]*)>/i, match => match + baseTag + fallbackScript);
     } else if (/<html[\s>]/i.test(html)) {
       html = html.replace(/<html([^>]*)>/i, match =>
-        match + '<head>' + baseTag + '</head>'
+        match + '<head>' + baseTag + fallbackScript + '</head>'
       );
     } else {
-      html = `<!DOCTYPE html><html><head>${baseTag}</head><body>${html}</body></html>`;
+      html = `<!DOCTYPE html><html><head>${baseTag}${fallbackScript}</head><body>${html}</body></html>`;
     }
 
     frame.srcdoc = html;
