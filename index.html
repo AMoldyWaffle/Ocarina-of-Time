@@ -46,7 +46,7 @@ h1{font-size:clamp(38px,7vw,76px);font-weight:800;letter-spacing:clamp(5px,1.5vw
 .card-info{padding:14px 15px 16px}
 .card-title{font-size:14px;font-weight:700;line-height:1.4;color:#f0efff;overflow-wrap:anywhere}
 .card-subtitle{font-size:10px;letter-spacing:1px;color:#858bb5;margin-top:7px;text-transform:uppercase}
-.beta-tag{display:inline-block;font-size:9px;letter-spacing:1px;color:#f0c5ff;border:1px solid #c47be866;border-radius:20px;padding:4px 8px;margin-top:10px}
+.beta-tag,.newgame-tag{display:inline-block;font-size:9px;letter-spacing:1px;border-radius:20px;padding:4px 8px;margin-top:10px}.beta-tag{color:#f0c5ff;border:1px solid #c47be866}.newgame-tag{color:#b8f3ff;border:1px solid #55cde866}
 .empty{text-align:center;color:#858bb5;padding:45px 10px;font-size:14px}
 footer{text-align:center;color:#626b96;font-size:10px;letter-spacing:2px;margin-top:70px}
 #viewer{display:none;position:fixed;inset:0;z-index:20;background:#02030bf5}
@@ -82,6 +82,11 @@ footer{text-align:center;color:#626b96;font-size:10px;letter-spacing:2px;margin-
   </div>
 
   <div class="status" id="status">Mapping the stars...</div>
+
+  <section id="newGamesSection" hidden>
+    <div class="section-title">New Games</div>
+    <div class="grid" id="newGamesGrid"></div>
+  </section>
 
   <section id="betaSection" hidden>
     <div class="section-title">Beta</div>
@@ -119,6 +124,8 @@ const RAW_ROOT = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`
 const statusEl = document.getElementById('status');
 const searchEl = document.getElementById('search');
 const betaGrid = document.getElementById('betaGrid');
+const newGamesGrid = document.getElementById('newGamesGrid');
+const newGamesSection = document.getElementById('newGamesSection');
 const mainGrid = document.getElementById('mainGrid');
 const betaSection = document.getElementById('betaSection');
 const mainSection = document.getElementById('mainSection');
@@ -184,7 +191,8 @@ function buildEntries(tree) {
         name: folderName,
         htmlFiles: [],
         coverFiles: [],
-        beta: false
+        beta: false,
+        newGame: false
       });
     }
 
@@ -192,9 +200,12 @@ function buildEntries(tree) {
     const fileName = getFileName(item.path);
     const remainder = parts.slice(1);
 
-    // Beta is a direct file inside the entry folder, named Beta... .
+    // Marker files are placed directly inside the entry folder.
     if (remainder.length === 1 && /^beta/i.test(fileName)) {
       entry.beta = true;
+    }
+    if (remainder.length === 1 && /^newgame/i.test(fileName)) {
+      entry.newGame = true;
     }
 
     // The launch HTML must be directly inside the entry folder.
@@ -228,7 +239,8 @@ function buildEntries(tree) {
       name: entry.name,
       html: entry.htmlFiles[0],
       cover: entry.coverFiles[0],
-      beta: entry.beta
+      beta: entry.beta,
+      newGame: entry.newGame
     });
   }
 
@@ -275,6 +287,13 @@ function makeCard(entry) {
     info.appendChild(tag);
   }
 
+  if (entry.newGame) {
+    const tag = document.createElement('span');
+    tag.className = 'newgame-tag';
+    tag.textContent = 'NEW';
+    info.appendChild(tag);
+  }
+
   card.appendChild(info);
   card.addEventListener('click', () => launchEntry(entry));
 
@@ -293,9 +312,11 @@ function renderSection(grid, section, list) {
 }
 
 function renderCards(list) {
-  const betaItems = list.filter(entry => entry.beta);
-  const regularItems = list.filter(entry => !entry.beta);
+  const newGameItems = list.filter(entry => entry.newGame);
+  const betaItems = list.filter(entry => entry.beta && !entry.newGame);
+  const regularItems = list.filter(entry => !entry.newGame && !entry.beta);
 
+  renderSection(newGamesGrid, newGamesSection, newGameItems);
   renderSection(betaGrid, betaSection, betaItems);
   renderSection(mainGrid, mainSection, regularItems);
 
