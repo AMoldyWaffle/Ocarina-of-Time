@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 
 <!-- Load game assets from the configured mirrors. -->
-<base id="assetBase" href="https://raw.githack.com/AMoldyWaffle/Hollow-Knight/main/">
+<base id="assetBase" href="https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hollow Knight</title>
@@ -298,15 +298,18 @@ body {
 ========================================= */
 
 const CONFIG = {
-    // Mirrors are tried automatically; the last successful mirror is preferred.
+    // Independent delivery endpoints. Failed endpoints are skipped automatically.
     baseURLs: [
-        "https://raw.githack.com/AMoldyWaffle/Hollow-Knight/main/",
+        "https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/",
         "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://quantil.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-        "https://originfastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/"
+        "https://originfastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+        "https://github.com/AMoldyWaffle/Hollow-Knight/raw/refs/heads/main/",
+        "https://github.com/AMoldyWaffle/Hollow-Knight/raw/main/",
+        "https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/refs/heads/main/"
     ],
     buildURL: "Build/",
     loader: "hk.loader.js",
@@ -324,7 +327,7 @@ const CONFIG = {
     productName: "Hollow Knight",
     productVersion: "1.5.12620",
 
-    cacheVersion: "hk-file-v8-high-parallel",
+    cacheVersion: "hk-file-v9-multi-source-backups",
     storageDirectory: "HollowKnightCache",
 
     databaseName: "HollowKnightFileCache"
@@ -378,31 +381,70 @@ async function fetchAsset(relativePath, options = {}) {
         ...CONFIG.baseURLs.filter(url => url !== activeBaseURL)
     ];
 
-    for (let mirrorIndex = 0; mirrorIndex < orderedMirrors.length; mirrorIndex++) {
-        const baseURL = orderedMirrors[mirrorIndex];
-        const url = new URL(relativePath, baseURL).href;
-        try {
-            const response = await fetch(url, {
-                ...options,
-                cache: options.cache || "default"
-            });
-            if (!response.ok) {
-                failures.push("Source " + (mirrorIndex + 1) + ": HTTP " + response.status);
-                continue;
+    // Race independent endpoints so a slow or dead mirror does not stall a file.
+    // Limit each race to four simultaneous copies to avoid multiplying the
+    // already-parallel chunk downloader into hundreds of requests.
+    const tried = new Set();
+    while (tried.size < orderedMirrors.length) {
+        const batch = orderedMirrors.filter(url => !tried.has(url)).slice(0, 4);
+        if (!batch.length) break;
+        batch.forEach(url => tried.add(url));
+        const controllers = batch.map(() => new AbortController());
+        const attempts = batch.map(async (baseURL, index) => {
+            const url = new URL(relativePath, baseURL).href;
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controllers[index].signal,
+                    cache: options.cache || "default"
+                });
+                if (!response.ok) {
+                    failures.push("Source " + (tried.size - batch.length + index + 1) + ": HTTP " + response.status);
+                    throw new Error("HTTP " + response.status);
+                }
+                return { response, baseURL, index };
+            } catch (error) {
+                if (error.name !== "AbortError") {
+                    if (!failures.some(item => item === "Source " + (tried.size - batch.length + index + 1) + ": network request failed")) {
+                        failures.push("Source " + (tried.size - batch.length + index + 1) + ": network request failed");
+                    }
+                }
+                throw error;
             }
-            activeBaseURL = baseURL;
+        });
+        try {
+            const winner = await Promise.any(attempts);
+            controllers.forEach((controller, index) => {
+                if (index !== winner.index) controller.abort();
+            });
+            activeBaseURL = winner.baseURL;
             const baseElement = document.getElementById("assetBase");
-            if (baseElement) baseElement.href = baseURL;
-            console.log("Asset source connected.");
-            return response;
-        } catch (error) {
-            failures.push("Source " + (mirrorIndex + 1) + ": network request failed");
+            if (baseElement) baseElement.href = winner.baseURL;
+            return winner.response;
+        } catch (_) {
+            controllers.forEach(controller => controller.abort());
         }
     }
 
+    // Final independent API-style backup. The contents endpoint has a size
+    // limit, so it is a last resort for smaller loader/support files.
+    try {
+        const apiURL = "https://api.github.com/repos/AMoldyWaffle/Hollow-Knight/contents/" +
+            relativePath.split("/").map(encodeURIComponent).join("/") + "?ref=main";
+        const apiResponse = await fetch(apiURL, { cache: "no-store" });
+        if (apiResponse.ok) {
+            const payload = await apiResponse.json();
+            if (payload && payload.encoding === "base64" && payload.content) {
+                const binary = atob(payload.content.replace(/\s/g, ""));
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                return new Response(bytes, { status: 200, headers: { "Content-Type": "application/octet-stream" } });
+            }
+        }
+    } catch (_) {}
+
     throw new Error(
-        "Unable to retrieve " + relativePath +
-        ". Tried " + CONFIG.baseURLs.length + " sources.\n" +
+        "Unable to retrieve required game asset. All configured backup sources failed.\n" +
         failures.join("\n")
     );
 }
@@ -1465,10 +1507,9 @@ async function startGame() {
 
         errorElement.style.display = "block";
 
-        errorElement.textContent =
-            error.stack ||
-            error.message ||
-            String(error);
+        errorElement.textContent = String(
+            error && error.message ? error.message : "Unknown loading error"
+        ).replace(/https?:\/\/[^\s]+/gi, "[source hidden]");
 
         retryButton.style.display =
             "inline-block";
