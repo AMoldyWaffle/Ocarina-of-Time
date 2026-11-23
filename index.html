@@ -99,17 +99,7 @@ async function discoverGames() {
   }));
 }
 
-/* Decide whether the launcher is running inside an HTML runner.
-   Blob URLs created by runners inherit the runner's origin. In that case,
-   some browsers/proxies refuse to show GitHub Pages inside an iframe. */
-const RUNNER_MODE =
-  location.protocol === 'blob:' ||
-  location.hostname === 'codetester.io' ||
-  window.top !== window.self;
-
-log('INFO', RUNNER_MODE
-  ? 'HTML runner detected: games will open as top-level pages to avoid iframe blocking.'
-  : 'Normal GitHub Pages mode: games will open in the launcher player iframe.');
+/* Games are loaded as real iframe documents below, not srcdoc or Blob pages. */
 
 /* ================================================================ */
 /* Launch / teardown                                                */
@@ -133,20 +123,10 @@ function closePlayer() {
 }
 
 function launch(game) {
-  log('INFO', `Starting ${game.title}`);
-  log('INFO', `Game URL: ${game.url}`);
-
-  if (RUNNER_MODE) {
-    // Top-level navigation avoids Chrome/proxy iframe restrictions.
-    // The browser Back button returns to the runner-hosted launcher.
-    log('INFO', 'Runner mode: opening game as a top-level page (not an iframe).');
-    statusEl.textContent = `Opening ${game.title}… Use your browser's Back button to return to the library.`;
-    window.location.assign(game.url);
-    return;
-  }
-
   openPlayer(game);
-  log('INFO', 'Opening the original GitHub Pages game URL in the player iframe.');
+  log('INFO', `Starting ${game.title}`);
+  log('INFO', 'Opening the original GitHub Pages game URL directly.');
+  log('INFO', `Game URL: ${game.url}`);
   frame.onload = () => {
     log('INFO', `[${game.title}] iframe document loaded.`);
     try { frame.contentWindow.focus(); } catch (_) {}
