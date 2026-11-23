@@ -168,7 +168,7 @@ window.addEventListener("message",e=>{if(e.data&&e.data.__gameConsole)addLog(e.d
 function inject(html,base){
  html=html.replace(/<base\b[^>]*>/i,"");
  const safe=base.replace(/&/g,"&amp;").replace(/"/g,"&quot;");
- const bridge="<script>("+workerBridge.toString()+")();<\\/script>";
+ const bridge="<scr"+"ipt>("+workerBridge.toString()+")();</scr"+"ipt>";
  const head='<base href="'+safe+'">'+bridge;
  return /<head\b[^>]*>/i.test(html)?html.replace(/<head\b[^>]*>/i,m=>m+head):head+html;
 }
