@@ -129,6 +129,16 @@ const frame = document.getElementById('frame');
 const viewerTitle = document.getElementById('viewerTitle');
 
 let entries = [];
+let activeBlobUrl = null;
+
+function setFrameHtml(html) {
+  if (activeBlobUrl) {
+    URL.revokeObjectURL(activeBlobUrl);
+    activeBlobUrl = null;
+  }
+  activeBlobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+  frame.src = activeBlobUrl;
+}
 
 function setStatus(message) {
   statusEl.textContent = message;
@@ -469,7 +479,7 @@ async function launchEntry(entry) {
   viewer.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
-  frame.srcdoc = '<!DOCTYPE html><html><body style="background:#000;color:white;font-family:Arial;padding:20px">Opening...</body></html>';
+  setFrameHtml('<!DOCTYPE html><html><body style="background:#000;color:white;font-family:Arial;padding:20px">Opening...</body></html>');
 
   try {
     const loaded = await fetchTextWithFallback(entry.html);
@@ -482,119 +492,23 @@ async function launchEntry(entry) {
     const basePath = entry.html.split('/').slice(0, -1).join('/') + '/';
     const currentBase = rawUrl(basePath);
     const legacyBase = legacyCdnUrl(basePath);
-
-    // Match the base URL to the source that actually supplied the game HTML.
-    // Keep both URL families available so failed asset requests can switch sources.
     const selectedBase = loaded.sourceLabel === 'older CDN' ? legacyBase : currentBase;
     const fallbackScript = `<script>(function(){
-      'use strict';
       var rawBase=${JSON.stringify(currentBase)};
       var oldBase=${JSON.stringify(legacyBase)};
-      function asUrl(value){
-        try{
-          var input=typeof value==='string'?value:(value&&value.url)||'';
-          if(!input)return null;
-          return new URL(input,document.baseURI).href;
-        }catch(e){return null;}
-      }
-      function alternate(value){
-        var url=asUrl(value);
-        if(!url)return null;
-        if(url.indexOf(rawBase)===0)return oldBase+url.slice(rawBase.length);
-        if(url.indexOf(oldBase)===0)return rawBase+url.slice(oldBase.length);
+      function oldUrl(value){
+        try{var u=typeof value==='string'?value:(value&&value.url)||'';u=new URL(u,document.baseURI).href;if(u.indexOf(rawBase)===0)return oldBase+u.slice(rawBase.length);}catch(e){}
         return null;
       }
-      function isOk(response){return response && (response.ok || response.type==='opaque');}
-
-      // Fetch: current source first, then the older CDN URL family.
       var nativeFetch=window.fetch&&window.fetch.bind(window);
-      if(nativeFetch){
-        window.fetch=function(input,init){
-          var alt=alternate(input);
-          return nativeFetch(input,init).then(function(response){
-            if(!isOk(response)&&alt)return nativeFetch(alt,init);
-            return response;
-          }).catch(function(error){
-            if(alt)return nativeFetch(alt,init);
-            throw error;
-          });
-        };
-      }
-
-      // XHR: retry failed requests using the matching alternate URL family.
-      var NativeXHR=window.XMLHttpRequest;
-      if(NativeXHR){
-        function FallbackXHR(){
-          var xhr=new NativeXHR();
-          var originalOpen=xhr.open;
-          var originalSend=xhr.send;
-          var openArgs=null;
-          var sendArgs=[];
-          var retried=false;
-          var retrying=false;
-          xhr.open=function(method,url){openArgs=Array.prototype.slice.call(arguments);retried=false;retrying=false;return originalOpen.apply(xhr,arguments);};
-          xhr.send=function(){
-            sendArgs=Array.prototype.slice.call(arguments);
-            if(!retrying){
-              var retry=function(){
-                if(retried||!openArgs||!(xhr.status===0||xhr.status>=400))return;
-                var alt=alternate(openArgs[1]);
-                if(!alt)return;
-                retried=true;
-                retrying=true;
-                try{
-                  var args=openArgs.slice();args[1]=alt;
-                  originalOpen.apply(xhr,args);
-                  originalSend.apply(xhr,sendArgs);
-                }catch(e){retrying=false;}
-              };
-              xhr.addEventListener('error',retry,{once:true});
-              xhr.addEventListener('loadend',retry,{once:true});
-            }
-            return originalSend.apply(xhr,sendArgs);
-          };
-          return xhr;
-        }
-        FallbackXHR.prototype=NativeXHR.prototype;
-        try{Object.setPrototypeOf(FallbackXHR,NativeXHR);window.XMLHttpRequest=FallbackXHR;}catch(e){}
-      }
-
-      // Retry static resources such as scripts, stylesheets, images and media.
-      document.addEventListener('error',function(event){
-        var el=event.target;
-        if(!el||!el.getAttribute)return;
-        var attr=el.hasAttribute('src')?'src':(el.hasAttribute('href')?'href':null);
-        if(!attr||el.getAttribute('data-source-fallback')==='used')return;
-        var alt=alternate(el[attr]||el.getAttribute(attr));
-        if(alt){el.setAttribute('data-source-fallback','used');el.setAttribute(attr,alt);}
-      },true);
-
-      // Workers are subject to browser same-origin rules; retry only when the
-      // browser accepts the alternate URL. Never let a failed retry hide the error.
-      ['Worker','SharedWorker'].forEach(function(name){
-        var Native=window[name];
-        if(!Native)return;
-        try{
-          var Wrapped=function(url,options){
-            try{return new Native(url,options);}
-            catch(error){var alt=alternate(url);if(alt)return new Native(alt,options);throw error;}
-          };
-          Wrapped.prototype=Native.prototype;
-          Object.setPrototypeOf(Wrapped,Native);
-          window[name]=Wrapped;
-        }catch(e){}
-      });
-
-      // Surface the exact URL that failed so proxy-specific errors are diagnosable.
-      window.addEventListener('error',function(event){
-        if(event&&event.message)console.warn('[game resource]',event.message,event.filename||'');
-      });
+      if(nativeFetch)window.fetch=function(input,init){
+        var alt=oldUrl(input);
+        return nativeFetch(input,init).then(function(response){if(!response.ok&&alt)return nativeFetch(alt,init);return response;}).catch(function(error){if(alt)return nativeFetch(alt,init);throw error;});
+      };
+      function patchWorker(name){var Native=window[name];if(!Native)return;try{window[name]=function(url,options){try{return new Native(url,options);}catch(error){var alt=oldUrl(url);if(alt)return new Native(alt,options);throw error;};};window[name].prototype=Native.prototype;}catch(e){}}
+      patchWorker('Worker');patchWorker('SharedWorker');
+      document.addEventListener('error',function(event){var el=event.target;if(!el)return;var prop=('src' in el)?'src':(('href' in el)?'href':null);if(!prop)return;var alt=oldUrl(el[prop]);if(alt&&!el.dataset.legacyFallback){el.dataset.legacyFallback='1';el[prop]=alt;}},true);
     })();<\/script>`;
-
-    // Remove any stale <base> from the game HTML. The first base element wins,
-    // so leaving an old one in place can make every relative game asset resolve
-    // against an invalid or unrelated address.
-    html = html.replace(/<base\b[^>]*>/gi, '');
     const baseTag = `<base href="${selectedBase}">`;
 
     if (/<head[\s>]/i.test(html)) {
@@ -607,10 +521,10 @@ async function launchEntry(entry) {
       html = `<!DOCTYPE html><html><head>${baseTag}${fallbackScript}</head><body>${html}</body></html>`;
     }
 
-    frame.srcdoc = html;
+    setFrameHtml(html);
   } catch (error) {
     console.error('Launch failed:', error);
-    frame.srcdoc = `<!DOCTYPE html><html><body style="background:#080b18;color:#fff;font-family:Arial;padding:30px"><h2>Unable to open this entry</h2><p>${escapeHtml(error.message)}</p><p>Check the browser console for details.</p></body></html>`;
+    setFrameHtml(`<!DOCTYPE html><html><body style="background:#080b18;color:#fff;font-family:Arial;padding:30px"><h2>Unable to open this entry</h2><p>${escapeHtml(error.message)}</p><p>Check the browser console for details.</p></body></html>`);
   }
 }
 
@@ -627,7 +541,11 @@ function escapeHtml(value) {
 function closeViewer() {
   viewer.classList.remove('active');
   viewer.style.display = 'none';
-  frame.srcdoc = '';
+  frame.src = 'about:blank';
+  if (activeBlobUrl) {
+    URL.revokeObjectURL(activeBlobUrl);
+    activeBlobUrl = null;
+  }
   document.body.style.overflow = '';
 }
 
