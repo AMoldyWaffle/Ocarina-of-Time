@@ -247,11 +247,31 @@ function installWorkerBridge() {
     window.__workerBridgeFetchPatched = true;
     const nativeFetch = window.fetch.bind(window);
     window.fetch = async function(input, init) {
-      const response = await nativeFetch(input, init);
       let requestURL = "";
       try {
         requestURL = typeof input === "string" ? input : input.url;
       } catch (_) {}
+
+      let response;
+      try {
+        response = await nativeFetch(input, init);
+      } catch (error) {
+        if (/ejs\.offline|\/cores\/|\/compression\//i.test(requestURL)) {
+          console.error("[EJS network] Request failed:", requestURL, error);
+        }
+        throw error;
+      }
+
+      if (/ejs\.offline|\/cores\/|\/compression\//i.test(requestURL)) {
+        console.info(
+          "[EJS network] Response:",
+          response.status,
+          response.statusText,
+          response.headers.get("content-type"),
+          response.headers.get("content-length"),
+          requestURL
+        );
+      }
 
       if (!response.ok || !/\/emulator\.html(?:[?#]|$)/i.test(requestURL)) {
         return response;
