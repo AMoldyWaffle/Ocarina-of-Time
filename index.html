@@ -99,255 +99,7 @@ async function discoverGames() {
   }));
 }
 
-/* ================================================================ */
-/* Injected shim: URL fix + INLINE Worker / SharedWorker           */
-/* ================================================================ */
-const INJECTED_SHIM = String.raw`
-(function () {
-  if (window.__launcherShimInstalled) return;
-  window.__launcherShimInstalled = true;
-
-  /* ---------- 1. URL constructor fix (from earlier) ---------- */
-  var RealURL = window.URL;
-  if (RealURL) {
-    function safeBase(b) {
-      if (b === null || b === undefined) return document.baseURI || location.href;
-      var s = String(b);
-      if (s === '' || s === 'null' || s === 'undefined' ||
-          s === 'about:blank' || s === 'about:srcdoc' ||
-          s.slice(0, 5) === 'blob:') {
-        return document.baseURI || location.href;
-      }
-      return b;
-    }
-    var PatchedURL = new Proxy(RealURL, {
-      construct: function (target, args) {
-        var a = Array.prototype.slice.call(args);
-        if (a.length >= 2) a[1] = safeBase(a[1]);
-        else if (a.length === 1 && (a[0] == null || String(a[0]) === 'null')) {
-          a[0] = document.baseURI || location.href;
-        }
-        try { return Reflect.construct(target, a); }
-        catch (e) {
-          if (a.length >= 2) {
-            try { return Reflect.construct(target, [String(a[0]), document.baseURI || location.href]); }
-            catch (e2) {}
-          }
-          throw e;
-        }
-      },
-      apply: function (target, thisArg, args) { return Reflect.construct(target, args); }
-    });
-    window.URL = PatchedURL;
-    RealURL = PatchedURL;
-  }
-
-  /* ---------- 2. INLINE Worker / SharedWorker ---------- */
-  function fetchScriptSync(url) {
-    try {
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', url, false);
-      xhr.send(null);
-      if (xhr.status >= 200 && xhr.status < 300) return xhr.responseText;
-      console.warn('[inline-worker] HTTP', xhr.status, url);
-    } catch (e) {
-      console.warn('[inline-worker] fetch failed:', url, e.message);
-    }
-    return null;
-  }
-
-  function buildFakeSelf(scriptURL) {
-    var u = new URL(scriptURL);
-    var fake = {
-      location: {
-        href: u.href, origin: u.origin, protocol: u.protocol,
-        host: u.host, hostname: u.hostname, port: u.port,
-        pathname: u.pathname, search: u.search, hash: u.hash,
-        toString: function () { return u.href; }
-      },
-      console: console,
-      navigator: navigator,
-      performance: performance,
-      crypto: crypto,
-      fetch: fetch,
-      XMLHttpRequest: XMLHttpRequest,
-      WebSocket: WebSocket,
-      Blob: Blob, File: File, URL: URL,
-      TextEncoder: TextEncoder, TextDecoder: TextDecoder,
-      atob: atob, btoa: btoa,
-      MessageChannel: MessageChannel, MessagePort: MessagePort,
-      setTimeout: setTimeout, setInterval: setInterval,
-      clearTimeout: clearTimeout, clearInterval: clearInterval,
-      queueMicrotask: queueMicrotask,
-      addEventListener: function (t, fn) {
-        if (t === 'connect') fake.onconnect = fn;
-        else if (t === 'message') fake.onmessage = fn;
-        else if (t === 'error') fake.onerror = fn;
-      },
-      removeEventListener: function () {},
-      onconnect: null, onmessage: null, onerror: null,
-      postMessage: function () {},
-      close: function () {}
-    };
-    fake.importScripts = function () {
-      for (var i = 0; i < arguments.length; i++) {
-        var abs = new URL(String(arguments[i]), u).href;
-        var code = fetchScriptSync(abs);
-        if (code === null) continue;
-        try {
-          var f = new Function('self','globalThis','location','importScripts',
-                               'console','fetch','XMLHttpRequest',
-                               'setTimeout','setInterval','clearTimeout','clearInterval',
-                               'postMessage','close','addEventListener',
-                               code);
-          f.call(fake, fake, fake, fake.location, fake.importScripts,
-                 console, fetch, XMLHttpRequest,
-                 setTimeout, setInterval, clearTimeout, clearInterval,
-                 fake.postMessage, fake.close, fake.addEventListener);
-        } catch (e) { console.error('[inline-worker] import error:', e); }
-      }
-    };
-    fake.self = fake;
-    fake.globalThis = fake;
-    fake.window = fake;
-    return fake;
-  }
-
-  function runSourceInFakeScope(src, fake) {
-    try {
-      var f = new Function('self','globalThis','location','importScripts',
-                           'console','fetch','XMLHttpRequest',
-                           'setTimeout','setInterval','clearTimeout','clearInterval',
-                           'postMessage','close','addEventListener',
-                           src);
-      f.call(fake, fake, fake, fake.location, fake.importScripts,
-             console, fetch, XMLHttpRequest,
-             setTimeout, setInterval, clearTimeout, clearInterval,
-             fake.postMessage, fake.close, fake.addEventListener);
-      return true;
-    } catch (e) {
-      console.error('[inline-worker] execution error:', e);
-      return false;
-    }
-  }
-
-  function inlineSharedWorker(scriptURL) {
-    var fake = buildFakeSelf(scriptURL);
-    var src = fetchScriptSync(scriptURL);
-    if (src === null) {
-      console.warn('[inline-worker] no source for', scriptURL, '— stub port');
-      var ch0 = new MessageChannel();
-      return { port: ch0.port1, onerror: null, terminate: function () {} };
-    }
-    console.info('[inline-worker] running', scriptURL, '(' + src.length + ' bytes)');
-    runSourceInFakeScope(src, fake);
-
-    var chan = new MessageChannel();
-    var mainPort = chan.port1;
-    var workerPort = chan.port2;
-
-    setTimeout(function () {
-      if (typeof fake.onconnect === 'function') {
-        try { fake.onconnect({ ports: [workerPort], type: 'connect' }); }
-        catch (e) { console.error('[inline-worker] onconnect error:', e); }
-      } else if (typeof fake.onmessage === 'function') {
-        workerPort.onmessage = fake.onmessage;
-        try { workerPort.start(); } catch (_) {}
-      } else {
-        console.warn('[inline-worker] worker registered no onconnect/onmessage');
-      }
-    }, 0);
-
-    return { port: mainPort, onerror: null, terminate: function () {} };
-  }
-
-  function inlineWorker(scriptURL) {
-    var fake = buildFakeSelf(scriptURL);
-    var src = fetchScriptSync(scriptURL);
-    if (src === null) throw new Error('Cannot fetch worker: ' + scriptURL);
-
-    var worker = {
-      onmessage: null, onerror: null,
-      postMessage: function (data) {
-        setTimeout(function () {
-          if (typeof fake.onmessage === 'function') fake.onmessage({ data: data });
-        }, 0);
-      },
-      terminate: function () {},
-      addEventListener: function (t, fn) {
-        if (t !== 'message') return;
-        var prev = worker.onmessage;
-        worker.onmessage = function (e) { if (prev) prev(e); fn(e); };
-      },
-      removeEventListener: function () {}
-    };
-
-    fake.postMessage = function (data) {
-      setTimeout(function () {
-        if (typeof worker.onmessage === 'function') worker.onmessage({ data: data });
-      }, 0);
-    };
-
-    runSourceInFakeScope(src, fake);
-    return worker;
-  }
-
-  function isCrossOrigin(url) {
-    try { return new URL(url, location.href).origin !== location.origin; }
-    catch (_) { return true; }
-  }
-
-  /* ---------- 3. Replace constructors ---------- */
-  var RealSharedWorker = window.SharedWorker;
-  var RealWorker = window.Worker;
-
-  function makeShim(RealCtor, inlineMaker) {
-    function Shim(scriptURL, options) {
-      if (!isCrossOrigin(scriptURL)) {
-        if (RealCtor) {
-          try { return new RealCtor(scriptURL, options); }
-          catch (e) { console.warn('[shim] real ctor failed, inlining:', e.message); }
-        }
-      }
-      try { return inlineMaker(String(scriptURL), options); }
-      catch (e) {
-        console.error('[shim] inline failed:', e);
-        if (RealCtor) return new RealCtor(scriptURL, options);
-        throw e;
-      }
-    }
-    Shim.prototype = RealCtor ? RealCtor.prototype : {};
-    return Shim;
-  }
-
-  if (RealSharedWorker) window.SharedWorker = makeShim(RealSharedWorker, inlineSharedWorker);
-  if (RealWorker)       window.Worker       = makeShim(RealWorker, inlineWorker);
-})();
-`;
-
-/* ================================================================ */
-/* Rewrite fetched HTML: inject shim + <base href>                  */
-/* ================================================================ */
-function prepareGameHtml(rawHtml, pageUrl) {
-  const dirUrl = new URL('.', pageUrl).href;
-  const doctypeMatch = rawHtml.match(/<!doctype[^>]*>/i);
-  const doctype = doctypeMatch ? doctypeMatch[0] : '<!DOCTYPE html>';
-
-  const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
-  doc.querySelectorAll('base').forEach(el => el.remove());
-
-  const shimEl = doc.createElement('script');
-  shimEl.textContent = INJECTED_SHIM;
-
-  const baseEl = doc.createElement('base');
-  baseEl.setAttribute('href', dirUrl);
-
-  const head = doc.head || doc.documentElement;
-  head.insertBefore(shimEl, head.firstChild);
-  head.insertBefore(baseEl, head.firstChild);
-
-  return doctype + '\n' + doc.documentElement.outerHTML;
-}
+/* Games are loaded as real iframe documents below, not srcdoc or Blob pages. */
 
 /* ================================================================ */
 /* Launch / teardown                                                */
@@ -355,12 +107,8 @@ function prepareGameHtml(rawHtml, pageUrl) {
 const frame       = document.getElementById('gameFrame');
 const playerEl    = document.getElementById('player');
 const playerTitle = document.getElementById('playerTitle');
-let currentBlobUrl = null;
-let currentGame    = null;
+let currentGame = null;
 
-function revokeBlob() {
-  if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); currentBlobUrl = null; }
-}
 function openPlayer(game) {
   currentGame = game;
   playerTitle.textContent = game.title;
@@ -370,38 +118,21 @@ function closePlayer() {
   playerEl.classList.remove('open');
   frame.onload = null;
   frame.src = 'about:blank';
-  revokeBlob();
   currentGame = null;
   log('INFO', 'Launcher frame closed.');
 }
 
-async function launch(game) {
+function launch(game) {
   openPlayer(game);
-  revokeBlob();
-  try {
-    log('INFO', `Starting ${game.title}`);
-    log('INFO', 'Downloading HTML from GitHub Pages');
-    const res = await fetch(game.url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText} — ${game.url}`);
-    const rawHtml = await res.text();
-    log('INFO', `Loaded HTML from GitHub Pages (${rawHtml.length} bytes)`);
-    const prepared = prepareGameHtml(rawHtml, game.url);
-    currentBlobUrl = URL.createObjectURL(new Blob([prepared], { type: 'text/html' }));
-    frame.onload = () => {
-      log('INFO', 'Game is running inside the launcher frame.');
-      try {
-        frame.contentWindow.focus();
-        frame.contentWindow.addEventListener('error', e => {
-          log('ERROR', `[${game.title}] ${e.message || e.type}`);
-        });
-      } catch (_) {}
-    };
-    frame.src = currentBlobUrl;
-  } catch (err) {
-    log('ERROR', `Blob load failed: ${err && err.message ? err.message : err}`);
-    log('INFO', 'Falling back to direct iframe load');
-    frame.src = game.url;
-  }
+  log('INFO', `Starting ${game.title}`);
+  log('INFO', 'Opening the original GitHub Pages game URL directly.');
+  log('INFO', `Game URL: ${game.url}`);
+  frame.onload = () => {
+    log('INFO', `[${game.title}] iframe document loaded.`);
+    try { frame.contentWindow.focus(); } catch (_) {}
+  };
+  frame.onerror = () => log('ERROR', `[${game.title}] iframe navigation failed: ${game.url}`);
+  frame.src = game.url;
 }
 
 /* ================================================================ */
