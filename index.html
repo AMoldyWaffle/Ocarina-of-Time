@@ -263,7 +263,7 @@ function installWorkerBridge() {
       let patched = source;
 
       if (/<head\b[^>]*>/i.test(patched)) {
-        patched = patched.replace(/<head\b[^>*>]*>/i, match => match + scriptTag);
+        patched = patched.replace(/<head\b[^>]*>/i, match => match + scriptTag);
       } else {
         patched = scriptTag + patched;
       }
