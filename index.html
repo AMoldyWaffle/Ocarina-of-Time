@@ -111,7 +111,7 @@ const RUNNER_LOADER_RAW =
   'https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/runner-game.html';
 
 const PROXY_LOADER_URL =
-  new URL('proxy-game.html', location.href).href;
+  PAGES_BASE + 'proxy-game.html';
 
 log('INFO', RUNNER_MODE
   ? 'Environment: HTML runner (Blob document).'
