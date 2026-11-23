@@ -9,6 +9,7 @@
 <meta http-equiv="Expires" content="0">
 <title>Game Library</title>
 <style>
+[hidden]{display:none!important;}
 *{box-sizing:border-box}
 :root{color-scheme:dark;--ink:#eef1ff;--muted:#929bbd;--line:rgba(164,164,232,.18)}
 html{min-height:100%;scrollbar-gutter:stable}
@@ -47,7 +48,7 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
 #games,.game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px;padding:14px 0 0}
 .section-title{display:flex;align-items:center;gap:14px;margin:34px 0 4px;color:#c9c5ed;font-size:11px;letter-spacing:4px;text-transform:uppercase}
 .section-title:after{content:"";height:1px;flex:1;background:linear-gradient(90deg,rgba(140,128,217,.35),transparent)}
-.beta-tag{display:inline-block;margin:9px 15px 14px;padding:3px 8px;border:1px solid rgba(196,123,232,.45);border-radius:20px;color:#f0c5ff;font-size:9px;letter-spacing:1.2px}
+.beta-tag{display:block;width:max-content;margin:8px auto 14px;padding:3px 8px;border:1px solid rgba(196,123,232,.45);border-radius:20px;color:#f0c5ff;font-size:9px;letter-spacing:1.2px}
 .game{min-width:0;position:relative;overflow:hidden;border:1px solid rgba(119,116,163,.25);border-radius:13px;background:linear-gradient(145deg,rgba(21,24,45,.92),rgba(8,12,28,.94));box-shadow:0 10px 28px rgba(0,0,0,.16);transition:transform .28s,border-color .28s,box-shadow .28s;animation:fadeUp .55s both}
 .game:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(130deg,rgba(163,149,255,.08),transparent 35%,transparent 70%,rgba(104,202,229,.05));opacity:.6}
 .game:hover{transform:translateY(-7px);border-color:rgba(168,154,255,.72);box-shadow:0 17px 38px rgba(42,35,101,.3),0 0 22px rgba(112,98,189,.13)}
@@ -233,9 +234,13 @@ function log(level, args) {
 }
 
 async function markerExists(path) {
+  // Read marker files from the raw repository. GitHub Pages/Jekyll may omit
+  // extensionless files, so checking the Pages URL can incorrectly hide tags.
+  const markerUrl = "https://raw.githubusercontent.com/" +
+    OWNER + "/" + REPO + "/" + BRANCH + "/" + enc(path);
   try {
-    const response = await fetch(pagesUrl(path), {
-      method: "HEAD",
+    const response = await fetch(markerUrl, {
+      method: "GET",
       cache: "no-store"
     });
     return response.ok;
