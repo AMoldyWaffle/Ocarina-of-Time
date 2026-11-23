@@ -365,10 +365,12 @@ const betaSection = document.getElementById('betaSection');
 const mainSection = document.getElementById('mainSection');
 const emptyEl = document.getElementById('empty');
 const statusEl = document.getElementById('status');
-searchEl.addEventListener('input', filterCards);
+if (searchEl) searchEl.addEventListener('input', filterCards);
 
-document.getElementById('btnBack').addEventListener('click', closePlayer);
-document.getElementById('btnReload').addEventListener('click', () => {
+const backButton = document.getElementById('btnBack');
+if (backButton) backButton.addEventListener('click', closePlayer);
+const reloadButton = document.getElementById('btnReload');
+if (reloadButton) reloadButton.addEventListener('click', () => {
   if (currentGame) launch(currentGame);
 });
 document.addEventListener('keydown', event => {
