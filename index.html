@@ -222,7 +222,26 @@ const newGamesGrid=document.getElementById('newGamesGrid'), newGamesSection=docu
 const mainGrid=document.getElementById('mainGrid'), mainSection=document.getElementById('mainSection');
 const emptyEl=document.getElementById('empty'), viewer=document.getElementById('viewer');
 const frame=document.getElementById('frame'), viewerTitle=document.getElementById('viewerTitle');
-let entries=[];
+let entries=[], frameWriteToken=0;
+function setFrameHtml(html){
+ // Avoid Blob URLs: some proxy runtimes rewrite blob:null URLs as network paths.
+ // Load a same-origin blank frame, then write the fetched document into it.
+ const token=++frameWriteToken;
+ frame.removeAttribute('srcdoc');
+ frame.onload=function(){
+  if(token!==frameWriteToken)return;
+  frame.onload=null;
+  try{
+   const doc=frame.contentDocument || frame.contentWindow.document;
+   doc.open();
+   doc.write(String(html));
+   doc.close();
+  }catch(error){
+   console.error('[launcher] Could not write game document into viewer:',error);
+  }
+ };
+ frame.src='about:blank';
+}
 function setStatus(s){statusEl.textContent=s;}
 function encodePath(p){return p.split('/').map(encodeURIComponent).join('/');}
 function rawUrl(p){return RAW_ROOT+encodePath(p);}
@@ -319,14 +338,40 @@ function filterCards(){
 }
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function makeFallbackPatch(base){
- const mirrors=[base,base.replace('raw.githubusercontent.com','cdn.jsdelivr.net/gh').replace('/main/','@main/'),
-  base.replace('raw.githubusercontent.com','raw.githack.com')];
+ const normalizedBase=new URL(base,window.location.href).href;
+ const mirrors=[normalizedBase,normalizedBase.replace('raw.githubusercontent.com','cdn.jsdelivr.net/gh').replace('/main/','@main/'),
+  normalizedBase.replace('raw.githubusercontent.com','raw.githack.com')];
  return `<script>(function(){
- const original=${JSON.stringify(base)}, mirrors=${JSON.stringify(mirrors)};
+ const original=${JSON.stringify(normalizedBase)}, mirrors=${JSON.stringify(mirrors)};
+ const NativeURL=window.URL;
+ // Keep native URL behavior, but recover when a game passes an invalid/empty
+ // base for an otherwise relative asset URL.
+ function ProxySafeURL(input, suppliedBase){
+  if(arguments.length>1){
+   try{return new NativeURL(input,suppliedBase);}
+   catch(firstError){
+    try{return new NativeURL(input,original);}
+    catch(secondError){throw firstError;}
+   }
+  }
+  try{return new NativeURL(input);}
+  catch(firstError){
+   try{return new NativeURL(input,original);}
+   catch(secondError){throw firstError;}
+  }
+ }
+ ProxySafeURL.prototype=NativeURL.prototype;
+ try{Object.setPrototypeOf(ProxySafeURL,NativeURL);}catch(e){}
+ window.URL=ProxySafeURL;
+ window.__END_OF_LIGHT_GAME_BASE__=original;
  function alternatives(value){
-  try{let u=typeof value==='string'?value:(value&&value.url)||'';u=new URL(u,document.baseURI).href;
-   const i=mirrors.findIndex(x=>u.startsWith(x));if(i>=0)return mirrors.filter((_,n)=>n!==i).map(x=>x+u.slice(mirrors[i].length));
-  }catch(e){} return [];
+  try{
+   const raw=typeof value==='string'?value:(value&&value.url)||String(value||'');
+   const u=new NativeURL(raw,original).href;
+   const i=mirrors.findIndex(x=>u.startsWith(x));
+   if(i>=0)return mirrors.filter((_,n)=>n!==i).map(x=>x+u.slice(mirrors[i].length));
+  }catch(e){}
+  return [];
  }
  const nativeFetch=window.fetch&&window.fetch.bind(window);
  if(nativeFetch)window.fetch=function(input,init){const alts=alternatives(input);return nativeFetch(input,init).then(r=>{if(r.ok||!alts.length)return r;return tryNext(alts,0,init,r);}).catch(e=>alts.length?tryNext(alts,0,init):Promise.reject(e));};
@@ -336,24 +381,26 @@ function makeFallbackPatch(base){
  document.addEventListener('error',function(ev){const el=ev.target;if(!el||el.dataset.mirrorTried)return;const prop=('src'in el)?'src':(('href'in el)?'href':null);if(!prop)return;const a=alternatives(el[prop]);if(a.length){el.dataset.mirrorTried='1';el[prop]=a[0];}},true);
 })();<\/script>`;
 }
-async function launchEntry(e){
- viewerTitle.textContent=e.name.toUpperCase();viewer.classList.add('active');viewer.style.display='flex';document.body.style.overflow='hidden';
- frame.srcdoc='<body style="background:#000;color:white;font-family:Arial;padding:20px">Opening…</body>';
- try{
-  const loaded=await fetchText(e.html);let html=loaded.text;
-  const dir=e.html.split('/').slice(0,-1).join('/')+'/';
-  const base=rawUrl(dir), baseTag='<base href="'+base+'">';
-  const patch=makeFallbackPatch(base);
-  if(/<head[\s>]/i.test(html))html=html.replace(/<head([^>]*)>/i,m=>m+baseTag+patch);
-  else if(/<html[\s>]/i.test(html))html=html.replace(/<html([^>]*)>/i,m=>m+'<head>'+baseTag+patch+'</head>');
-  else html='<!doctype html><html><head>'+baseTag+patch+'</head><body>'+html+'</body></html>';
-  frame.removeAttribute('src');frame.srcdoc=html;
- }catch(err){
-  console.error('[launcher] Launch failed:',err);
-  frame.srcdoc='<body style="background:#080b18;color:white;font-family:Arial;padding:30px"><h2>Unable to open this entry</h2><p>'+escapeHtml(err.message)+'</p><p>This proxy may be blocking the file mirrors or inline iframe documents.</p></body>';
- }
+function launchEntry(e){
+ // Display the game's real hosted HTML page inside the existing viewer.
+ // Using a direct URL lets the browser resolve relative assets from the
+ // game's own directory, without srcdoc or Blob URLs.
+ if(!e || !e.html)return;
+ const gameUrl=pagesUrl(e.html);
+ viewerTitle.textContent=e.name.toUpperCase();
+ viewer.classList.add('active');
+ viewer.style.display='flex';
+ document.body.style.overflow='hidden';
+ frame.src=gameUrl;
 }
-function closeViewer(){viewer.classList.remove('active');viewer.style.display='none';frame.srcdoc='';document.body.style.overflow='';}
+
+function closeViewer(){
+ viewer.classList.remove('active');
+ viewer.style.display='none';
+ frame.src='about:blank';
+ document.body.style.overflow='';
+}
+
 document.getElementById('closeViewer').addEventListener('click',closeViewer);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&viewer.classList.contains('active'))closeViewer();});
 searchEl.addEventListener('input',filterCards);
