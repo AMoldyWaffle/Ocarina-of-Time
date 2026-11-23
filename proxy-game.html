@@ -3,40 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Game Loader</title>
+<title>Opening game…</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#000;color:#eee;font-family:system-ui,sans-serif;overflow:hidden}
-#bar{height:42px;display:flex;align-items:center;gap:10px;padding:6px 10px;background:#181818;border-bottom:1px solid #333}
-button{background:#2a2a2a;color:#eee;border:0;border-radius:6px;padding:6px 12px;font:inherit;cursor:pointer}
-#title{font-size:13px;color:#bbb;flex:1}iframe{display:block;width:100%;height:calc(100% - 42px);border:0;background:#000}
+html,body{margin:0;width:100%;height:100%;background:#000;color:#ddd;font:14px system-ui,sans-serif}
+body{display:grid;place-items:center}
 </style>
 </head>
 <body>
-<div id="bar">
-  <button id="back">← Back</button>
-  <span id="title">Loading game…</span>
-  <button id="reload">Reload</button>
-</div>
-<iframe id="game" allow="fullscreen; gamepad; autoplay; clipboard-read; clipboard-write" allowfullscreen></iframe>
+<div id="status">Opening game…</div>
 <script>
 "use strict";
 const params = new URLSearchParams(location.search);
 const gameUrl = params.get("game");
-const gameTitle = params.get("title") || "Game";
-const frame = document.getElementById("game");
-document.title = gameTitle + " — Game";
-document.getElementById("title").textContent = gameTitle;
-document.getElementById("back").addEventListener("click", () => {
-  if (history.length > 1) history.back();
-  else location.href = "./index.html";
-});
-document.getElementById("reload").addEventListener("click", () => {
-  if (gameUrl) frame.src = gameUrl;
-});
+const title = params.get("title") || "Game";
+
 if (!gameUrl) {
-  document.getElementById("title").textContent = "Missing game URL";
+  document.getElementById("status").textContent = "Missing game URL.";
 } else {
-  frame.src = gameUrl;
+  document.title = title;
+  // Replace this small loader document inside the launcher's existing iframe.
+  // The final game therefore runs at its original GitHub Pages URL and origin.
+  location.replace(gameUrl);
 }
 </script>
 </body>
