@@ -66,7 +66,9 @@ const HOSTS=[
  {name:"jsDelivr",base:"https://cdn.jsdelivr.net/gh/"+OWNER+"/"+REPO+"@"+BRANCH+"/"},
  {name:"Fastly CDN",base:"https://fastly.jsdelivr.net/gh/"+OWNER+"/"+REPO+"@"+BRANCH+"/"},
  {name:"Gcore CDN",base:"https://gcore.jsdelivr.net/gh/"+OWNER+"/"+REPO+"@"+BRANCH+"/"},
- {name:"GitHub Raw",base:"https://raw.githubusercontent.com/"+OWNER+"/"+REPO+"/"+BRANCH+"/"}
+ {name:"GitHub Raw",base:"https://raw.githubusercontent.com/"+OWNER+"/"+REPO+"/"+BRANCH+"/"},
+ {name:"Raw Githack",base:"https://raw.githack.com/"+OWNER+"/"+REPO+"/"+BRANCH+"/"},
+ {name:"Statically CDN",base:"https://cdn.statically.io/gh/"+OWNER+"/"+REPO+"/"+BRANCH+"/"}
 ];
 const $=id=>document.getElementById(id);
 const gamesNode=$("games"),statusNode=$("status"),frame=$("gameframe"),consoleNode=$("consolelog");
@@ -76,7 +78,7 @@ function enc(path){return path.split("/").map(encodeURIComponent).join("/")}
 function url(host,path){return host.base+enc(path)}
 async function get(url,ms=20000){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),ms);
- try{const r=await fetch(url,{mode:"cors",cache:"no-store",signal:controller.signal});if(!r.ok)throw Error("HTTP "+r.status);return r}
+ try{const r=await fetch(url,{mode:"cors",cache:"no-store",signal:controller.signal});if(!r.ok)throw Error("HTTP "+r.status+" — "+url);return r}
  finally{clearTimeout(timer)}
 }
 async function directory(path){
@@ -186,7 +188,7 @@ async function launch(game,preferred){
    frame.srcdoc=inject(html,base);
    addLog("info",["Loaded HTML from "+host.name,"Game is running inside the launcher frame."]);
    return;
-  }catch(e){addLog("warn",[host.name+" failed:",e.message])}
+  }catch(e){addLog("warn",[host.name+" failed:",e.message,"URL:",url(host,game.html)])}
  }
  addLog("error",["Could not load this game from any source."]);
 }
