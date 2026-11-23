@@ -58,9 +58,9 @@
 <pre id="log"></pre>
 
 <script>
-/* -------------------------------------------------------------- */
-/* Logging                                                        */
-/* -------------------------------------------------------------- */
+/* ================================================================ */
+/* Logging                                                          */
+/* ================================================================ */
 const logEl = document.getElementById('log');
 function log(level, msg) {
   const line = `[${new Date().toLocaleTimeString()}] [${level}] ${msg}`;
@@ -70,34 +70,34 @@ function log(level, msg) {
 }
 document.getElementById('toggleLog').addEventListener('click', () => logEl.classList.toggle('open'));
 
-/* -------------------------------------------------------------- */
-/* Repo config                                                    */
-/* -------------------------------------------------------------- */
+/* ================================================================ */
+/* Repo config                                                      */
+/* ================================================================ */
 const REPO       = 'AMoldyWaffle/Ocarina-of-Time';
 const PAGES_BASE = 'https://amoldywaffle.github.io/Ocarina-of-Time/';
-const GAMES_DIR  = 'Games';  // <-- capital G, matching your folder
+const GAMES_DIR  = 'Games';
 
-/* -------------------------------------------------------------- */
-/* Game discovery — scans Games/ via GitHub Contents API          */
-/* -------------------------------------------------------------- */
+/* ================================================================ */
+/* Cross-origin scripts that need rewriting into blob URLs          */
+/* (add more here if the games start using other cross-origin workers) */
+/* ================================================================ */
+const WORKER_URLS = [
+  'https://amoldywaffle.github.io/fuze/wiring/worker.js',
+];
+
+/* ================================================================ */
+/* Discovery: scan Games/ via GitHub Contents API                   */
+/* ================================================================ */
 function prettify(name) {
   return name.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
 }
-
 async function discoverGames() {
   const api = `https://api.github.com/repos/${REPO}/contents/${GAMES_DIR}`;
   log('INFO', `Scanning ${api}`);
-  const res = await fetch(api, {
-    headers: { Accept: 'application/vnd.github+json' },
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    throw new Error(`GitHub API HTTP ${res.status} ${res.statusText}`);
-  }
+  const res = await fetch(api, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+  if (!res.ok) throw new Error(`GitHub API HTTP ${res.status} ${res.statusText}`);
   const items = await res.json();
-  if (!Array.isArray(items)) {
-    throw new Error('Unexpected GitHub API response (not an array)');
-  }
+  if (!Array.isArray(items)) throw new Error('Unexpected GitHub API response');
   const dirs = items.filter(i => i.type === 'dir');
   log('INFO', `Found ${dirs.length} subfolder(s) in ${GAMES_DIR}/: ${dirs.map(d => d.name).join(', ') || '(none)'}`);
   return dirs.map(d => ({
@@ -107,67 +107,158 @@ async function discoverGames() {
   }));
 }
 
-/* -------------------------------------------------------------- */
-/* Origin shim injected into every game (fixes the URL error)     */
-/* -------------------------------------------------------------- */
-const ORIGIN_SHIM = String.raw`
+/* ================================================================ */
+/* Injected shim: fixes URL + SharedWorker/Worker cross-origin     */
+/* ================================================================ */
+const INJECTED_SHIM = String.raw`
 (function () {
-  if (window.__originShimInstalled) return;
-  window.__originShimInstalled = true;
+  if (window.__launcherShimInstalled) return;
+  window.__launcherShimInstalled = true;
+
   var RealURL = window.URL;
-  if (!RealURL) return;
-  function safeBase(b) {
-    if (b === null || b === undefined) return document.baseURI || location.href;
-    var s = String(b);
-    if (s === '' || s === 'null' || s === 'undefined' ||
-        s === 'about:blank' || s === 'about:srcdoc' ||
-        s.slice(0, 5) === 'blob:') {
-      return document.baseURI || location.href;
-    }
-    return b;
-  }
-  var Patched = new Proxy(RealURL, {
-    construct: function (target, args) {
-      var a = Array.prototype.slice.call(args);
-      if (a.length >= 2) a[1] = safeBase(a[1]);
-      else if (a.length === 1 && (a[0] == null || String(a[0]) === 'null')) a[0] = document.baseURI || location.href;
-      try { return Reflect.construct(target, a); }
-      catch (e) {
-        if (a.length >= 2) {
-          try { return Reflect.construct(target, [String(a[0]), document.baseURI || location.href]); }
-          catch (e2) {}
-        }
-        throw e;
+
+  /* ---------- 1. URL constructor fix ---------- */
+  if (RealURL) {
+    function safeBase(b) {
+      if (b === null || b === undefined) return document.baseURI || location.href;
+      var s = String(b);
+      if (s === '' || s === 'null' || s === 'undefined' ||
+          s === 'about:blank' || s === 'about:srcdoc' ||
+          s.slice(0, 5) === 'blob:') {
+        return document.baseURI || location.href;
       }
-    },
-    apply: function (target, thisArg, args) { return Reflect.construct(target, args); }
-  });
-  window.URL = Patched;
+      return b;
+    }
+    var PatchedURL = new Proxy(RealURL, {
+      construct: function (target, args) {
+        var a = Array.prototype.slice.call(args);
+        if (a.length >= 2) a[1] = safeBase(a[1]);
+        else if (a.length === 1 && (a[0] == null || String(a[0]) === 'null')) {
+          a[0] = document.baseURI || location.href;
+        }
+        try { return Reflect.construct(target, a); }
+        catch (e) {
+          if (a.length >= 2) {
+            try { return Reflect.construct(target, [String(a[0]), document.baseURI || location.href]); }
+            catch (e2) {}
+          }
+          throw e;
+        }
+      },
+      apply: function (target, thisArg, args) { return Reflect.construct(target, args); }
+    });
+    window.URL = PatchedURL;
+    RealURL = PatchedURL;
+  }
+
+  /* ---------- 2. Cross-origin Worker / SharedWorker fix ---------- */
+  var WORKER_URLS = ` + JSON.stringify(WORKER_URLS) + `;
+  var blobCache = {};
+
+  function urlMatches(url) {
+    var s = String(url);
+    for (var i = 0; i < WORKER_URLS.length; i++) {
+      var w = WORKER_URLS[i];
+      if (s === w || s.indexOf(w + '?') === 0 || s.indexOf(w + '#') === 0) return true;
+    }
+    return false;
+  }
+
+  function fetchWorkerAsBlobUrl(fullUrl) {
+    if (blobCache[fullUrl]) return blobCache[fullUrl];
+
+    var xhr = new XMLHttpRequest();
+    try {
+      xhr.open('GET', fullUrl, false); // synchronous, only at bootstrap
+      xhr.send(null);
+    } catch (e) {
+      try { console.warn('[shim] worker fetch failed:', fullUrl, e); } catch (_) {}
+      return null;
+    }
+    if (xhr.status < 200 || xhr.status >= 300) {
+      try { console.warn('[shim] worker fetch HTTP', xhr.status, fullUrl); } catch (_) {}
+      return null;
+    }
+
+    var originalDir;
+    try { originalDir = new URL('.', fullUrl).href; } catch (_) { originalDir = fullUrl; }
+
+    // Prepended prelude: importScripts() relative paths resolve against the
+    // *original* GitHub-Pages directory, not the blob URL.
+    var prelude =
+      'var __ORIG_BASE__ = ' + JSON.stringify(originalDir) + ';\n' +
+      '(function () {\n' +
+      '  try {\n' +
+      '    var _importScripts = self.importScripts.bind(self);\n' +
+      '    self.importScripts = function () {\n' +
+      '      var args = Array.prototype.slice.call(arguments).map(function (u) {\n' +
+      '        try { return new URL(u, __ORIG_BASE__).href; } catch (e) { return u; }\n' +
+      '      });\n' +
+      '      return _importScripts.apply(null, args);\n' +
+      '    };\n' +
+      '  } catch (e) {}\n' +
+      '})();\n';
+
+    var src = prelude + xhr.responseText;
+    var blob = new Blob([src], { type: 'application/javascript' });
+    var blobUrl = RealURL.createObjectURL(blob);
+    blobCache[fullUrl] = blobUrl;
+    try { console.log('[shim] worker blobified:', fullUrl, '->', blobUrl); } catch (_) {}
+    return blobUrl;
+  }
+
+  function rewriteCtor(OriginalCtor) {
+    if (!OriginalCtor) return OriginalCtor;
+    return new Proxy(OriginalCtor, {
+      construct: function (target, args) {
+        var a = Array.prototype.slice.call(args);
+        if (a.length >= 1 && urlMatches(a[0])) {
+          var blobUrl = fetchWorkerAsBlobUrl(String(a[0]));
+          if (blobUrl) a[0] = blobUrl;
+        }
+        return Reflect.construct(target, a);
+      }
+    });
+  }
+
+  if (window.SharedWorker) window.SharedWorker = rewriteCtor(window.SharedWorker);
+  if (window.Worker)       window.Worker       = rewriteCtor(window.Worker);
+
+  /* ---------- 3. Pre-fetch worker scripts (avoids blocking later) ---------- */
+  // Sync XHR — happens once, at game bootstrap, before the game's scripts run.
+  for (var i = 0; i < WORKER_URLS.length; i++) {
+    try { fetchWorkerAsBlobUrl(WORKER_URLS[i]); } catch (_) {}
+  }
 })();
 `;
 
-/* -------------------------------------------------------------- */
-/* Rewrite fetched HTML: <base href> + URL shim                   */
-/* -------------------------------------------------------------- */
+/* ================================================================ */
+/* Rewrite fetched HTML: <base href> + shim                        */
+/* ================================================================ */
 function prepareGameHtml(rawHtml, pageUrl) {
   const dirUrl = new URL('.', pageUrl).href;
   const doctypeMatch = rawHtml.match(/<!doctype[^>]*>/i);
   const doctype = doctypeMatch ? doctypeMatch[0] : '<!DOCTYPE html>';
+
   const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
   doc.querySelectorAll('base').forEach(el => el.remove());
+
   const shimEl = doc.createElement('script');
-  shimEl.textContent = ORIGIN_SHIM;
+  shimEl.textContent = INJECTED_SHIM;
+
   const baseEl = doc.createElement('base');
   baseEl.setAttribute('href', dirUrl);
+
   const head = doc.head || doc.documentElement;
   head.insertBefore(shimEl, head.firstChild);
   head.insertBefore(baseEl, head.firstChild);
+
   return doctype + '\n' + doc.documentElement.outerHTML;
 }
 
-/* -------------------------------------------------------------- */
-/* Launch / teardown                                              */
-/* -------------------------------------------------------------- */
+/* ================================================================ */
+/* Launch / teardown                                                */
+/* ================================================================ */
 const frame       = document.getElementById('gameFrame');
 const playerEl    = document.getElementById('player');
 const playerTitle = document.getElementById('playerTitle');
@@ -220,9 +311,9 @@ async function launch(game) {
   }
 }
 
-/* -------------------------------------------------------------- */
-/* UI                                                             */
-/* -------------------------------------------------------------- */
+/* ================================================================ */
+/* UI                                                              */
+/* ================================================================ */
 const grid     = document.getElementById('gameGrid');
 const statusEl = document.getElementById('status');
 
@@ -248,9 +339,9 @@ document.addEventListener('keydown', e => {
   if (playerEl.classList.contains('open')) closePlayer();
 });
 
-/* -------------------------------------------------------------- */
-/* Boot                                                           */
-/* -------------------------------------------------------------- */
+/* ================================================================ */
+/* Boot                                                            */
+/* ================================================================ */
 (async () => {
   try {
     const games = await discoverGames();
