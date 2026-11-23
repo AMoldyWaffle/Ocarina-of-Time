@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Loader</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#000;color:#eee;font-family:system-ui,sans-serif}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:#101010;color:#ddd;font:14px system-ui;z-index:999999}
+#details{max-width:90vw;white-space:pre-wrap;overflow-wrap:anywhere;text-align:center}
+</style>
+</head>
+<body>
+<div id="loading"><div id="details">Preparing game…</div></div>
+<script>
+"use strict";
+
+/* The launcher inserts the selected game's URL into this constant. */
+const GAME_URL = __GAME_URL__;
+const RAW_ROOT = "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/";
+const PAGES_ROOT = "https://amoldywaffle.github.io/Ocarina-of-Time/";
+
+function setStatus(message) {
+  const node = document.getElementById("details");
+  if (node) node.textContent = message;
+}
+
+function toRawUrl(pagesUrl) {
+  const parsed = new URL(pagesUrl);
+  const prefix = "/Ocarina-of-Time/";
+  if (!parsed.pathname.startsWith(prefix)) {
+    throw new Error("Game URL is outside the expected GitHub Pages repository.");
+  }
+  const relativePath = parsed.pathname.slice(prefix.length);
+  return RAW_ROOT + relativePath.split("/").map(part => encodeURIComponent(decodeURIComponent(part))).join("/");
+}
+
+(async function start() {
+  try {
+    setStatus("Downloading game HTML…");
+    const rawUrl = toRawUrl(GAME_URL);
+    const response = await fetch(rawUrl, { cache: "no-store" });
+    if (!response.ok) throw new Error("Game HTML request failed: HTTP " + response.status);
+    let html = await response.text();
+    if (!html.trim()) throw new Error("The downloaded game HTML was empty.");
+
+    /*
+      Keep the game's relative files pointed at its original GitHub Pages
+      directory. Existing <base> elements (for CDNs/custom asset roots) remain
+      untouched.
+    */
+    if (!/<base\b/i.test(html)) {
+      const base = new URL(".", GAME_URL).href;
+      if (/<head\b[^>]*>/i.test(html)) {
+        html = html.replace(/<head\b([^>]*)>/i, match => match + '\n<base href="' + base.replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '">');
+      } else {
+        html = '<base href="' + base + '">' + html;
+      }
+    }
+
+    setStatus("Starting game in this tab…");
+    document.open();
+    document.write(html);
+    document.close();
+  } catch (error) {
+    setStatus("Could not start game.\n" + (error && error.stack ? error.stack : String(error)));
+    console.error("[Runner game loader]", error);
+  }
+})();
+</script>
+</body>
+</html>
