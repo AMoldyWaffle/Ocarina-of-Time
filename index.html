@@ -5,348 +5,474 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>END OF LIGHT</title>
 <style>
-
-
 *{box-sizing:border-box}
-
 html{min-height:100%;overflow-y:scroll;scrollbar-gutter:stable}
-
 body{margin:0;min-height:100vh;overflow-x:hidden;background:#03040d;color:#eef1ff;font-family:Arial,Helvetica,sans-serif}
-
 #spaceBackground{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:radial-gradient(ellipse at 50% 110%,#171044 0%,#08091d 45%,#03040d 80%)}
-
 #spaceBackground:before{content:"";position:absolute;inset:-45%;background:radial-gradient(ellipse at 25% 35%,#38208055 0%,transparent 35%),radial-gradient(ellipse at 75% 55%,#075a8050 0%,transparent 38%),radial-gradient(ellipse at 50% 80%,#541d6650 0%,transparent 35%);filter:blur(55px);animation:nebulaDrift 28s ease-in-out infinite alternate}
-
 #spaceBackground:after{content:"";position:absolute;inset:-100%;opacity:.55;background-image:radial-gradient(1px 1px at 10% 20%,#fff 99%,transparent),radial-gradient(2px 2px at 30% 70%,#cbd9ff 99%,transparent),radial-gradient(1px 1px at 50% 40%,#fff 99%,transparent),radial-gradient(1px 1px at 70% 80%,#b8caff 99%,transparent),radial-gradient(2px 2px at 90% 15%,#fff 99%,transparent),radial-gradient(1px 1px at 80% 45%,#fff 99%,transparent);background-size:310px 280px;animation:starDrift 100s linear infinite}
-
 .shooting-star{position:absolute;width:180px;height:2px;opacity:0;background:linear-gradient(90deg,transparent,#a9d9ff,#fff);filter:drop-shadow(0 0 6px #8ccaff);transform:rotate(-35deg);animation:shoot 9s linear infinite}
-
 .shooting-star:nth-child(1){top:18%;left:75%;animation-delay:1s}
-
 .shooting-star:nth-child(2){top:48%;left:45%;animation-delay:5s;animation-duration:12s}
-
 .shooting-star:nth-child(3){top:70%;left:90%;animation-delay:8s;animation-duration:11s}
-
 @keyframes nebulaDrift{0%{transform:translate(-3%,-2%) rotate(0) scale(1)}100%{transform:translate(4%,3%) rotate(12deg) scale(1.12)}}
-
 @keyframes starDrift{from{transform:translateY(0)}to{transform:translateY(280px)}}
-
 @keyframes shoot{0%,72%{opacity:0;transform:translate(0,0) rotate(-35deg)}75%{opacity:1}85%{opacity:0;transform:translate(-420px,260px) rotate(-35deg)}100%{opacity:0}}
-
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-
 @keyframes titleGlow{0%,100%{text-shadow:0 0 15px #8b7aff55,0 0 35px #7164ff22}50%{text-shadow:0 0 22px #a99cffaa,0 0 55px #7164ff66}}
-
 @keyframes orbitSpin{to{rotate:360deg}}
-
 .page{position:relative;z-index:1;max-width:1250px;margin:auto;padding:48px 28px 80px}
-
 header{text-align:center;margin:30px auto 44px;animation:fadeUp .9s ease both}
-
 .eyebrow{font-size:11px;letter-spacing:5px;color:#a9a0df;text-transform:uppercase;margin-bottom:18px}
-
 h1{font-size:clamp(38px,7vw,76px);font-weight:800;letter-spacing:clamp(5px,1.5vw,15px);margin:0;color:#f5f3ff;animation:titleGlow 5s ease-in-out infinite}
-
 .subtitle{font-size:14px;color:#9ba2c9;letter-spacing:2px;margin-top:18px}
-
 .orbit{width:170px;height:170px;border:1px solid #9185ff35;border-radius:50%;position:absolute;top:35px;left:50%;translate:-50% 0;pointer-events:none;animation:orbitSpin 38s linear infinite}
-
 .orbit:before,.orbit:after{content:"";position:absolute;border:1px solid #9185ff28;border-radius:50%;inset:18px;transform:rotateX(65deg) rotate(35deg)}
-
 .orbit:after{inset:38px;transform:rotateX(65deg) rotate(-35deg)}
-
 .header-content{position:relative;z-index:1}
-
 .search-wrap{max-width:550px;margin:0 auto 44px;position:relative;animation:fadeUp 1s .15s both}
-
 #search{width:100%;padding:16px 20px;border-radius:30px;border:1px solid #8c83c65c;background:#0c1023cc;color:#fff;font-size:15px;outline:none;box-shadow:0 0 25px #6656d51a;transition:.25s}
-
 #search:focus{border-color:#a99aff;box-shadow:0 0 28px #7566ff44}
-
 #search::placeholder{color:#858bad}
-
 .status{text-align:center;color:#8e96bd;font-size:12px;letter-spacing:1px;margin:0 auto 28px;min-height:18px}
-
 .section-title{display:flex;align-items:center;gap:14px;margin:38px 0 20px;color:#c9c5ed;font-size:12px;letter-spacing:4px;text-transform:uppercase}
-
 .section-title:after{content:"";height:1px;flex:1;background:linear-gradient(90deg,#8c80d955,transparent)}
-
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}
-
 .card{min-width:0;position:relative;overflow:hidden;border:1px solid #7774a33d;border-radius:14px;background:linear-gradient(145deg,#15182dcc,#090d1dcc);cursor:pointer;transition:transform .25s,border-color .25s,box-shadow .25s;animation:fadeUp .6s both}
-
 .card:hover{transform:translateY(-6px);border-color:#a89aff99;box-shadow:0 12px 35px #6558ca2c,0 0 18px #7062bd20}
-
 .cover{width:100%;aspect-ratio:16/10;display:block;object-fit:cover;background:radial-gradient(circle at center,#24204a,#080b18);border-bottom:1px solid #7774a333}
-
 .cover-placeholder{width:100%;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#29234f,#090b18);color:#7774b0;font-size:34px;border-bottom:1px solid #7774a333}
-
 .card-info{padding:14px 15px 16px}
-
 .card-title{font-size:14px;font-weight:700;line-height:1.4;color:#f0efff;overflow-wrap:anywhere}
-
 .card-subtitle{font-size:10px;letter-spacing:1px;color:#858bb5;margin-top:7px;text-transform:uppercase}
-
-.beta-tag,.newgame-tag{display:inline-block;font-size:9px;letter-spacing:1px;border-radius:20px;padding:4px 8px;margin-top:10px}.beta-tag{color:#f0c5ff;border:1px solid #c47be866}.newgame-tag{color:#b8f3ff;border:1px solid #55cde866}
-
+.beta-tag,.newgame-tag{display:inline-block;font-size:9px;letter-spacing:1px;border-radius:20px;padding:4px 8px;margin-top:10px}
+.beta-tag{color:#f0c5ff;border:1px solid #c47be866}
+.newgame-tag{color:#b8f3ff;border:1px solid #55cde866}
 .empty{text-align:center;color:#858bb5;padding:45px 10px;font-size:14px}
-
 footer{text-align:center;color:#626b96;font-size:10px;letter-spacing:2px;margin-top:70px}
-
 #viewer{display:none;position:fixed;inset:0;z-index:20;background:#02030bf5}
-
 #viewer.active{display:flex;flex-direction:column}
-
 .viewer-bar{height:54px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#090c1d;border-bottom:1px solid #7774a344}
-
 #viewerTitle{font-size:12px;letter-spacing:2px;color:#d9d5ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
 #closeViewer{border:1px solid #9185ff66;background:#17152d;color:#fff;border-radius:20px;padding:9px 16px;cursor:pointer;font-size:12px}
-
 #closeViewer:hover{background:#30275b}
-
 #frame{width:100%;height:calc(100% - 54px);border:0;background:#000}
-
 @media(max-width:600px){.page{padding:35px 15px 60px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card-info{padding:11px}.card-title{font-size:12px}.orbit{top:18px;width:135px;height:135px}}
-
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition:none!important}}
-
-
 </style>
 </head>
 <body>
 
-
 <div id="spaceBackground" aria-hidden="true">
-
-  <i class="shooting-star"></i>
-
-  <i class="shooting-star"></i>
-
-  <i class="shooting-star"></i>
-
+<i class="shooting-star"></i>
+<i class="shooting-star"></i>
+<i class="shooting-star"></i>
 </div>
-
-
 
 <main class="page">
+<header>
+<div class="orbit"></div>
+<div class="header-content">
+<div class="eyebrow">A collection beyond the stars</div>
+<h1>END OF LIGHT</h1>
+<div class="subtitle">Beyond the edge of the universe</div>
+</div>
+</header>
 
-  <header>
-
-    <div class="orbit"></div>
-
-    <div class="header-content">
-
-      <div class="eyebrow">A collection beyond the stars</div>
-
-      <h1>END OF LIGHT</h1>
-
-      <div class="subtitle">Beyond the edge of the universe</div>
-
-    </div>
-
-  </header>
-
-
-
-  <div class="search-wrap">
-
-    <input id="search" type="search" placeholder="Search the cosmos..." autocomplete="off">
-
-  </div>
-
-
-
-  <div class="status" id="status">Mapping the stars...</div>
-
-
-
-  <section id="newGamesSection" hidden>
-
-    <div class="section-title">New Games</div>
-
-    <div class="grid" id="newGamesGrid"></div>
-
-  </section>
-
-
-
-
-
-  <section id="mainSection">
-
-    <div class="section-title">The Collection</div>
-
-    <div class="grid" id="mainGrid"></div>
-
-  </section>
-
-
-
-  <div class="empty" id="empty" hidden>No entries discovered.</div>
-
-  <footer>END OF LIGHT · EXPLORE THE UNKNOWN</footer>
-
-</main>
-
-
-
-<div id="viewer">
-
-  <div class="viewer-bar">
-
-    <div id="viewerTitle">NOW EXPLORING</div>
-
-    <button id="closeViewer">← Return</button>
-
-  </div>
-
-  <iframe id="frame" allow="autoplay; fullscreen; gamepad; clipboard-read; clipboard-write" allowfullscreen></iframe>
-
+<div class="search-wrap">
+<input id="search" type="search" placeholder="Search the cosmos..." autocomplete="off">
 </div>
 
+<div class="status" id="status">Mapping the stars...</div>
 
+<section id="newGamesSection" hidden>
+<div class="section-title">New Games</div>
+<div class="grid" id="newGamesGrid"></div>
+</section>
 
+<section id="mainSection">
+<div class="section-title">The Collection</div>
+<div class="grid" id="mainGrid"></div>
+</section>
+
+<div class="empty" id="empty" hidden>No entries discovered.</div>
+<footer>END OF LIGHT · EXPLORE THE UNKNOWN</footer>
+</main>
+
+<div id="viewer">
+<div class="viewer-bar">
+<div id="viewerTitle">NOW EXPLORING</div>
+<button id="closeViewer">← Return</button>
+</div>
+
+<iframe
+ id="frame"
+ allow="autoplay *; fullscreen *; gamepad *; clipboard-read *; clipboard-write *"
+ allowfullscreen
+ sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals allow-popups allow-popups-to-escape-sandbox">
+</iframe>
+</div>
 
 <script>
-
 'use strict';
-const OWNER='AMoldyWaffle', REPO='Ocarina-of-Time', BRANCH='main', GAMES_DIR='Games';
+
+const OWNER='AMoldyWaffle';
+const REPO='Ocarina-of-Time';
+const BRANCH='main';
+const GAMES_DIR='Games';
+
 const API_ROOT=`https://api.github.com/repos/${OWNER}/${REPO}`;
 const RAW_ROOT=`https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`;
 const CDN_ROOT=`https://cdn.jsdelivr.net/gh/${OWNER}/${REPO}@${BRANCH}/`;
 const PAGES_ROOT=`https://amoldywaffle.github.io/${REPO}/`;
 const ALL_ORIGINS='https://api.allorigins.win/raw?url=';
-const statusEl=document.getElementById('status'), searchEl=document.getElementById('search');
-const newGamesGrid=document.getElementById('newGamesGrid'), newGamesSection=document.getElementById('newGamesSection');
-const mainGrid=document.getElementById('mainGrid'), mainSection=document.getElementById('mainSection');
-const emptyEl=document.getElementById('empty'), viewer=document.getElementById('viewer');
-const frame=document.getElementById('frame'), viewerTitle=document.getElementById('viewerTitle');
-let entries=[], frameWriteToken=0;
-function setFrameHtml(html){
- // Avoid Blob URLs: some proxy runtimes rewrite blob:null URLs as network paths.
- // Load a same-origin blank frame, then write the fetched document into it.
- const token=++frameWriteToken;
- frame.removeAttribute('srcdoc');
- frame.onload=function(){
-  if(token!==frameWriteToken)return;
-  frame.onload=null;
-  try{
-   const doc=frame.contentDocument || frame.contentWindow.document;
-   doc.open();
-   doc.write(String(html));
-   doc.close();
-  }catch(error){
-   console.error('[launcher] Could not write game document into viewer:',error);
-  }
- };
- frame.src='about:blank';
+
+const statusEl=document.getElementById('status');
+const searchEl=document.getElementById('search');
+const newGamesGrid=document.getElementById('newGamesGrid');
+const newGamesSection=document.getElementById('newGamesSection');
+const mainGrid=document.getElementById('mainGrid');
+const mainSection=document.getElementById('mainSection');
+const emptyEl=document.getElementById('empty');
+const viewer=document.getElementById('viewer');
+const frame=document.getElementById('frame');
+const viewerTitle=document.getElementById('viewerTitle');
+
+let entries=[];
+let launchToken=0;
+
+function setStatus(s){
+ statusEl.textContent=s;
 }
-function setStatus(s){statusEl.textContent=s;}
-function encodePath(p){return p.split('/').map(encodeURIComponent).join('/');}
-function rawUrl(p){return RAW_ROOT+encodePath(p);}
-function cdnUrl(p){return CDN_ROOT+encodePath(p);}
-function pagesUrl(p){return PAGES_ROOT+encodePath(p);}
-function unique(a){return [...new Set(a)];}
-function jsonCandidates(url){return unique([url,ALL_ORIGINS+encodeURIComponent(url),'https://corsproxy.io/?url='+encodeURIComponent(url)]);}
+
+function encodePath(p){
+ return p.split('/').map(encodeURIComponent).join('/');
+}
+
+function rawUrl(p){
+ return RAW_ROOT+encodePath(p);
+}
+
+function cdnUrl(p){
+ return CDN_ROOT+encodePath(p);
+}
+
+function pagesUrl(p){
+ return PAGES_ROOT+encodePath(p);
+}
+
+function unique(a){
+ return [...new Set(a)];
+}
+
+function jsonCandidates(url){
+ return unique([
+  url,
+  ALL_ORIGINS+encodeURIComponent(url),
+  'https://corsproxy.io/?url='+encodeURIComponent(url)
+ ]);
+}
+
 async function fetchJson(url){
  let last;
+
  for(const u of jsonCandidates(url)){
   try{
    const r=await fetch(u,{cache:'no-store'});
    if(!r.ok)throw Error('HTTP '+r.status);
-   if(u.includes('allorigins.win')){const t=await r.text();try{return JSON.parse(t)}catch{const w=JSON.parse(t);return JSON.parse(w.contents)}}
+
+   if(u.includes('allorigins.win')){
+    const t=await r.text();
+
+    try{
+     return JSON.parse(t);
+    }catch{
+     const w=JSON.parse(t);
+     return JSON.parse(w.contents);
+    }
+   }
+
    return await r.json();
-  }catch(e){last=e;console.warn('[launcher] Listing source failed:',e.message);}
+  }catch(e){
+   last=e;
+   console.warn('[launcher] Listing source failed:',e.message);
+  }
  }
+
  throw Error('Could not retrieve the collection listing: '+(last?.message||'network or proxy restriction'));
 }
+
 async function fetchText(path){
- const urls=unique([rawUrl(path),cdnUrl(path),pagesUrl(path),
-  'https://api.allorigins.win/raw?url='+encodeURIComponent(rawUrl(path)),
-  'https://corsproxy.io/?url='+encodeURIComponent(rawUrl(path))]);
+ const originalUrl=rawUrl(path);
+
+ const urls=unique([
+  originalUrl,
+  cdnUrl(path),
+  pagesUrl(path),
+  'https://api.allorigins.win/raw?url='+encodeURIComponent(originalUrl),
+  'https://corsproxy.io/?url='+encodeURIComponent(originalUrl)
+ ]);
+
  let last;
+
  for(const u of urls){
   try{
    const r=await fetch(u,{cache:'no-store',mode:'cors'});
    if(!r.ok)throw Error('HTTP '+r.status);
+
    const text=await r.text();
    if(!text.trim())throw Error('empty response');
-   if(/^\s*<!doctype html|^\s*<html[\s>]/i.test(text)&&!/\.(html?)$/i.test(path))throw Error('received an error page');
-   if(/\.(html?)$/i.test(path)&&!/<(?:html|body)[\s>]/i.test(text))throw Error('not an HTML document');
-   console.info('[launcher] Loaded',path,'from',new URL(u).hostname);
+
+   if(/^\s*<!doctype html|^\s*<html[\s>]/i.test(text)&&!/\.(html?)$/i.test(path)){
+    throw Error('received an error page');
+   }
+
+   if(/\.(html?)$/i.test(path)&&!/<(?:html|body)[\s>]/i.test(text)){
+    throw Error('not an HTML document');
+   }
+
+   console.info('[launcher] Loaded',path);
    return {text,url:u};
-  }catch(e){last=e;console.warn('[launcher] File source failed:',new URL(u).hostname,e.message);}
+
+  }catch(e){
+   last=e;
+
+   try{
+    console.warn('[launcher] File source failed:',new URL(u).hostname,e.message);
+   }catch{}
+  }
  }
+
  throw Error('Could not load '+path+': '+(last?.message||'all sources failed'));
 }
-function fileName(p){return p.split('/').pop()||'';}
-function isImage(p){return /\.(png|jpe?g|gif|webp|avif)$/i.test(p);}
-function isHtml(p){return /\.html?$/i.test(p);}
+
+function fileName(p){
+ return p.split('/').pop()||'';
+}
+
+function isImage(p){
+ return /\.(png|jpe?g|gif|webp|avif)$/i.test(p);
+}
+
+function isHtml(p){
+ return /\.html?$/i.test(p);
+}
+
 function buildEntries(tree){
- const folders=new Map(), prefix=GAMES_DIR+'/';
+ const folders=new Map();
+ const prefix=GAMES_DIR+'/';
+
  for(const item of tree){
   if(item.type!=='blob'||!item.path.startsWith(prefix))continue;
+
   const parts=item.path.slice(prefix.length).split('/');
   if(parts.length<2)continue;
+
   const name=parts[0];
-  if(!folders.has(name))folders.set(name,{name,htmlFiles:[],coverFiles:[],beta:false,newGame:false});
-  const e=folders.get(name), rest=parts.slice(1), fn=fileName(item.path);
+
+  if(!folders.has(name)){
+   folders.set(name,{
+    name,
+    htmlFiles:[],
+    coverFiles:[],
+    beta:false,
+    newGame:false
+   });
+  }
+
+  const e=folders.get(name);
+  const rest=parts.slice(1);
+  const fn=fileName(item.path);
+
   if(rest.length===1&&/^beta/i.test(fn))e.beta=true;
   if(rest.length===1&&/^newgame/i.test(fn))e.newGame=true;
   if(rest.length===1&&isHtml(fn))e.htmlFiles.push(item.path);
-  if(rest.length>=2&&rest[0].toLowerCase()==='cover'&&isImage(fn))e.coverFiles.push(item.path);
+
+  if(rest.length>=2&&rest[0].toLowerCase()==='cover'&&isImage(fn)){
+   e.coverFiles.push(item.path);
+  }
  }
+
  const out=[];
+
  for(const e of folders.values()){
   if(!e.htmlFiles.length||!e.coverFiles.length)continue;
-  e.htmlFiles.sort((a,b)=>(/^index\.html?$/i.test(fileName(a))?0:1)-(/^index\.html?$/i.test(fileName(b))?0:1)||a.localeCompare(b));
+
+  e.htmlFiles.sort((a,b)=>
+   (/^index\.html?$/i.test(fileName(a))?0:1)-
+   (/^index\.html?$/i.test(fileName(b))?0:1)||
+   a.localeCompare(b)
+  );
+
   e.coverFiles.sort();
-  out.push({name:e.name,html:e.htmlFiles[0],cover:e.coverFiles[0],beta:e.beta,newGame:e.newGame});
+
+  out.push({
+   name:e.name,
+   html:e.htmlFiles[0],
+   cover:e.coverFiles[0],
+   beta:e.beta,
+   newGame:e.newGame
+  });
  }
+
  return out.sort((a,b)=>a.name.localeCompare(b.name));
 }
+
 async function loadCover(img,path){
  const candidates=[rawUrl(path),cdnUrl(path),pagesUrl(path)];
+
  for(const u of candidates){
-  try{await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=u;});return;}catch{}
+  try{
+   await new Promise((res,rej)=>{
+    img.onload=res;
+    img.onerror=rej;
+    img.src=u;
+   });
+   return;
+  }catch{}
  }
- const ph=document.createElement('div');ph.className='cover-placeholder';ph.textContent='✧';img.replaceWith(ph);
+
+ const ph=document.createElement('div');
+ ph.className='cover-placeholder';
+ ph.textContent='✧';
+ img.replaceWith(ph);
 }
+
 function makeCard(e){
- const card=document.createElement('article');card.className='card';card.dataset.search=e.name.toLowerCase();
- const img=document.createElement('img');img.className='cover';img.alt='';img.loading='lazy';loadCover(img,e.cover);card.appendChild(img);
- const info=document.createElement('div');info.className='card-info';
- const title=document.createElement('div');title.className='card-title';title.textContent=e.name;info.appendChild(title);
- const sub=document.createElement('div');sub.className='card-subtitle';sub.textContent='Ready to explore';info.appendChild(sub);
- if(e.beta){const t=document.createElement('span');t.className='beta-tag';t.textContent='BETA';info.appendChild(t);}
- if(e.newGame){const t=document.createElement('span');t.className='newgame-tag';t.textContent='NEW';info.appendChild(t);}
- card.appendChild(info);card.addEventListener('click',()=>launchEntry(e));return card;
+ const card=document.createElement('article');
+ card.className='card';
+ card.dataset.search=e.name.toLowerCase();
+
+ const img=document.createElement('img');
+ img.className='cover';
+ img.alt='';
+ img.loading='lazy';
+ loadCover(img,e.cover);
+ card.appendChild(img);
+
+ const info=document.createElement('div');
+ info.className='card-info';
+
+ const title=document.createElement('div');
+ title.className='card-title';
+ title.textContent=e.name;
+ info.appendChild(title);
+
+ const sub=document.createElement('div');
+ sub.className='card-subtitle';
+ sub.textContent='Ready to explore';
+ info.appendChild(sub);
+
+ if(e.beta){
+  const t=document.createElement('span');
+  t.className='beta-tag';
+  t.textContent='BETA';
+  info.appendChild(t);
+ }
+
+ if(e.newGame){
+  const t=document.createElement('span');
+  t.className='newgame-tag';
+  t.textContent='NEW';
+  info.appendChild(t);
+ }
+
+ card.appendChild(info);
+ card.addEventListener('click',()=>launchEntry(e));
+
+ return card;
 }
+
 function renderSection(grid,section,list){
- grid.replaceChildren();section.hidden=!list.length;
- list.forEach((e,i)=>{const c=makeCard(e);c.style.animationDelay=Math.min(i*35,350)+'ms';grid.appendChild(c);});
+ grid.replaceChildren();
+ section.hidden=!list.length;
+
+ list.forEach((e,i)=>{
+  const c=makeCard(e);
+  c.style.animationDelay=Math.min(i*35,350)+'ms';
+  grid.appendChild(c);
+ });
 }
+
 function renderCards(list){
  renderSection(newGamesGrid,newGamesSection,list.filter(e=>e.newGame));
  renderSection(mainGrid,mainSection,list.filter(e=>!e.newGame));
  emptyEl.hidden=list.length!==0;
 }
+
 function filterCards(){
  const q=searchEl.value.trim().toLowerCase();
  renderCards(entries.filter(e=>e.name.toLowerCase().includes(q)));
 }
-function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function escapeHtml(v){
+ return String(v).replace(/[&<>"']/g,c=>({
+  '&':'&amp;',
+  '<':'&lt;',
+  '>':'&gt;',
+  '"':'&quot;',
+  "'":'&#39;'
+ }[c]));
+}
+
 function makeFallbackPatch(base){
  const normalizedBase=new URL(base,window.location.href).href;
- const mirrors=[normalizedBase,normalizedBase.replace('raw.githubusercontent.com','cdn.jsdelivr.net/gh').replace('/main/','@main/'),
-  normalizedBase.replace('raw.githubusercontent.com','raw.githack.com')];
+
+ const mirrors=[
+  normalizedBase,
+  normalizedBase.replace('raw.githubusercontent.com','cdn.jsdelivr.net/gh').replace('/main/','@main/'),
+  normalizedBase.replace('raw.githubusercontent.com','raw.githack.com')
+ ];
+
  return `<script>(function(){
- const original=${JSON.stringify(normalizedBase)}, mirrors=${JSON.stringify(mirrors)};
+
+ const original=${JSON.stringify(normalizedBase)};
+ const mirrors=${JSON.stringify(mirrors)};
  const NativeURL=window.URL;
- // Keep native URL behavior, but recover when a game passes an invalid/empty
- // base for an otherwise relative asset URL.
- function ProxySafeURL(input, suppliedBase){
+
+ /*
+  * GAMEPAD PERMISSION FALLBACK
+  * If Chrome denies gamepad access, return an empty list
+  * instead of allowing the exception to crash the game.
+  */
+ try{
+  const nativeGetGamepads=navigator.getGamepads.bind(navigator);
+
+  Object.defineProperty(navigator,'getGamepads',{
+   configurable:true,
+   writable:true,
+   value:function(){
+    try{
+     return nativeGetGamepads();
+    }catch(error){
+     return [];
+    }
+   }
+  });
+ }catch(error){
+  try{
+   const proto=Object.getPrototypeOf(navigator);
+   const descriptor=Object.getOwnPropertyDescriptor(proto,'getGamepads');
+
+   if(descriptor&&descriptor.value){
+    const nativeGetGamepads=descriptor.value;
+
+    Object.defineProperty(proto,'getGamepads',{
+     configurable:true,
+     writable:true,
+     value:function(){
+      try{
+       return nativeGetGamepads.call(this);
+      }catch(error){
+       return [];
+      }
+     }
+    });
+   }
+  }catch(error){}
+ }
+
+ function ProxySafeURL(input,suppliedBase){
   if(arguments.length>1){
    try{return new NativeURL(input,suppliedBase);}
    catch(firstError){
@@ -354,73 +480,228 @@ function makeFallbackPatch(base){
     catch(secondError){throw firstError;}
    }
   }
+
   try{return new NativeURL(input);}
   catch(firstError){
    try{return new NativeURL(input,original);}
    catch(secondError){throw firstError;}
   }
  }
+
  ProxySafeURL.prototype=NativeURL.prototype;
- try{Object.setPrototypeOf(ProxySafeURL,NativeURL);}catch(e){}
+
+ try{
+  Object.setPrototypeOf(ProxySafeURL,NativeURL);
+ }catch(e){}
+
  window.URL=ProxySafeURL;
  window.__END_OF_LIGHT_GAME_BASE__=original;
+
  function alternatives(value){
   try{
-   const raw=typeof value==='string'?value:(value&&value.url)||String(value||'');
+   const raw=typeof value==='string'
+    ?value
+    :(value&&value.url)||String(value||'');
+
    const u=new NativeURL(raw,original).href;
    const i=mirrors.findIndex(x=>u.startsWith(x));
-   if(i>=0)return mirrors.filter((_,n)=>n!==i).map(x=>x+u.slice(mirrors[i].length));
+
+   if(i>=0){
+    return mirrors
+     .filter((_,n)=>n!==i)
+     .map(x=>x+u.slice(mirrors[i].length));
+   }
   }catch(e){}
+
   return [];
  }
+
  const nativeFetch=window.fetch&&window.fetch.bind(window);
- if(nativeFetch)window.fetch=function(input,init){const alts=alternatives(input);return nativeFetch(input,init).then(r=>{if(r.ok||!alts.length)return r;return tryNext(alts,0,init,r);}).catch(e=>alts.length?tryNext(alts,0,init):Promise.reject(e));};
- function tryNext(a,i,init,last){if(i>=a.length)return last?Promise.resolve(last):Promise.reject(Error('All asset mirrors failed'));return nativeFetch(a[i],init).then(r=>r.ok?r:tryNext(a,i+1,init,r)).catch(()=>tryNext(a,i+1,init,last));}
- function patchWorker(k){const N=window[k];if(!N)return;try{window[k]=function(url,opt){try{return new N(url,opt)}catch(e){const a=alternatives(url);if(a.length)return new N(a[0],opt);throw e;}};window[k].prototype=N.prototype;}catch(e){}}
- patchWorker('Worker');patchWorker('SharedWorker');
- document.addEventListener('error',function(ev){const el=ev.target;if(!el||el.dataset.mirrorTried)return;const prop=('src'in el)?'src':(('href'in el)?'href':null);if(!prop)return;const a=alternatives(el[prop]);if(a.length){el.dataset.mirrorTried='1';el[prop]=a[0];}},true);
+
+ if(nativeFetch){
+  window.fetch=function(input,init){
+   const alts=alternatives(input);
+
+   return nativeFetch(input,init).then(r=>{
+    if(r.ok||!alts.length)return r;
+    return tryNext(alts,0,init,r);
+   }).catch(e=>{
+    return alts.length
+     ?tryNext(alts,0,init)
+     :Promise.reject(e);
+   });
+  };
+ }
+
+ function tryNext(a,i,init,last){
+  if(i>=a.length){
+   return last
+    ?Promise.resolve(last)
+    :Promise.reject(Error('All asset mirrors failed'));
+  }
+
+  return nativeFetch(a[i],init)
+   .then(r=>r.ok?r:tryNext(a,i+1,init,r))
+   .catch(()=>tryNext(a,i+1,init,last));
+ }
+
+ function patchWorker(k){
+  const N=window[k];
+  if(!N)return;
+
+  try{
+   window[k]=function(url,opt){
+    try{
+     return new N(url,opt);
+    }catch(e){
+     const a=alternatives(url);
+     if(a.length)return new N(a[0],opt);
+     throw e;
+    }
+   };
+
+   window[k].prototype=N.prototype;
+  }catch(e){}
+ }
+
+ patchWorker('Worker');
+ patchWorker('SharedWorker');
+
+ document.addEventListener('error',function(ev){
+  const el=ev.target;
+  if(!el||el.dataset.mirrorTried)return;
+
+  const prop=('src'in el)
+   ?'src'
+   :(('href'in el)?'href':null);
+
+  if(!prop)return;
+
+  const a=alternatives(el[prop]);
+
+  if(a.length){
+   el.dataset.mirrorTried='1';
+   el[prop]=a[0];
+  }
+ },true);
+
 })();<\/script>`;
 }
-function launchEntry(e){
- // Display the game's real hosted HTML page inside the existing viewer.
- // Using a direct URL lets the browser resolve relative assets from the
- // game's own directory, without srcdoc or Blob URLs.
- if(!e || !e.html)return;
- const gameUrl=pagesUrl(e.html);
+
+function setFrameHtml(html){
+ frame.onload=null;
+ frame.removeAttribute('src');
+ frame.srcdoc=String(html);
+}
+
+async function launchEntry(e){
+ if(!e||!e.html)return;
+
+ const thisLaunch=++launchToken;
+
  viewerTitle.textContent=e.name.toUpperCase();
  viewer.classList.add('active');
  viewer.style.display='flex';
  document.body.style.overflow='hidden';
- frame.src=gameUrl;
+
+ setStatus('Opening '+e.name+'…');
+
+ try{
+  const result=await fetchText(e.html);
+
+  if(thisLaunch!==launchToken)return;
+
+  let html=result.text;
+
+  const base=new URL('.',rawUrl(e.html)).href;
+
+  html=html.replace(/<base\b[^>]*>/gi,'');
+
+  const injection=
+   '<base href="'+escapeHtml(base)+'">'+
+   makeFallbackPatch(base);
+
+  if(/<head\b[^>]*>/i.test(html)){
+   html=html.replace(/<head\b[^>]*>/i,match=>match+injection);
+  }else if(/<html\b[^>]*>/i.test(html)){
+   html=html.replace(
+    /<html\b[^>]*>/i,
+    match=>match+'<head>'+injection+'</head>'
+   );
+  }else{
+   html='<!DOCTYPE html><html><head>'+
+    injection+
+    '</head><body>'+html+'</body></html>';
+  }
+
+  setFrameHtml(html);
+  setStatus(entries.length+' destinations discovered');
+
+ }catch(error){
+  if(thisLaunch!==launchToken)return;
+
+  console.error('[launcher] Game loading failed:',error);
+  setStatus('Unable to open '+e.name+': '+error.message);
+ }
 }
 
 function closeViewer(){
+ launchToken++;
+
+ frame.onload=null;
+ frame.removeAttribute('srcdoc');
+ frame.src='about:blank';
+
  viewer.classList.remove('active');
  viewer.style.display='none';
- frame.src='about:blank';
  document.body.style.overflow='';
 }
 
 document.getElementById('closeViewer').addEventListener('click',closeViewer);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&viewer.classList.contains('active'))closeViewer();});
+
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'&&viewer.classList.contains('active')){
+  closeViewer();
+ }
+});
+
 searchEl.addEventListener('input',filterCards);
+
 async function init(){
  try{
   setStatus('Mapping the stars…');
+
   const data=await fetchJson(`${API_ROOT}/git/trees/${BRANCH}?recursive=1`);
-  if(!Array.isArray(data.tree))throw Error('The repository listing could not be read.');
-  if(data.truncated)console.warn('[launcher] Repository tree listing was truncated.');
+
+  if(!Array.isArray(data.tree)){
+   throw Error('The repository listing could not be read.');
+  }
+
+  if(data.truncated){
+   console.warn('[launcher] Repository tree listing was truncated.');
+  }
+
   entries=buildEntries(data.tree);
-  if(!entries.length){setStatus('No entries found. Check the collection structure.');renderCards([]);return;}
-  renderCards(entries);setStatus(entries.length+' destinations discovered');
+
+  if(!entries.length){
+   setStatus('No entries found. Check the collection structure.');
+   renderCards([]);
+   return;
+  }
+
+  renderCards(entries);
+  setStatus(entries.length+' destinations discovered');
+
  }catch(err){
   console.error('[launcher] Collection loading failed:',err);
   setStatus('Unable to map the collection: '+err.message);
-  emptyEl.hidden=false;emptyEl.textContent='The collection could not be loaded. This proxy may be blocking the listing service.';
+
+  emptyEl.hidden=false;
+  emptyEl.textContent='The collection could not be loaded. This proxy may be blocking the listing service.';
  }
 }
-init();
 
+init();
 </script>
 </body>
 </html>
