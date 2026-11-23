@@ -88,10 +88,6 @@ footer{text-align:center;color:#626b96;font-size:10px;letter-spacing:2px;margin-
     <div class="grid" id="newGamesGrid"></div>
   </section>
 
-  <section id="betaSection" hidden>
-    <div class="section-title">Beta</div>
-    <div class="grid" id="betaGrid"></div>
-  </section>
 
   <section id="mainSection">
     <div class="section-title">The Collection</div>
@@ -123,11 +119,9 @@ const RAW_ROOT = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}/`
 
 const statusEl = document.getElementById('status');
 const searchEl = document.getElementById('search');
-const betaGrid = document.getElementById('betaGrid');
 const newGamesGrid = document.getElementById('newGamesGrid');
 const newGamesSection = document.getElementById('newGamesSection');
 const mainGrid = document.getElementById('mainGrid');
-const betaSection = document.getElementById('betaSection');
 const mainSection = document.getElementById('mainSection');
 const emptyEl = document.getElementById('empty');
 const viewer = document.getElementById('viewer');
@@ -313,11 +307,9 @@ function renderSection(grid, section, list) {
 
 function renderCards(list) {
   const newGameItems = list.filter(entry => entry.newGame);
-  const betaItems = list.filter(entry => entry.beta && !entry.newGame);
-  const regularItems = list.filter(entry => !entry.newGame && !entry.beta);
+  const regularItems = list.filter(entry => !entry.newGame);
 
   renderSection(newGamesGrid, newGamesSection, newGameItems);
-  renderSection(betaGrid, betaSection, betaItems);
   renderSection(mainGrid, mainSection, regularItems);
 
   emptyEl.hidden = list.length !== 0;
