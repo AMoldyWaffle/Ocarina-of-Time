@@ -91,6 +91,10 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
     <button id="rescan">↻ &nbsp; RESCAN</button>
   </div>
   <div id="status">Mapping the stars...</div>
+  <section id="newSection" hidden>
+    <div class="section-title">New Games</div>
+    <div class="game-grid" id="newGames"></div>
+  </section>
   <section id="betaSection" hidden>
     <div class="section-title">Beta</div>
     <div class="game-grid" id="betaGames"></div>
@@ -133,6 +137,8 @@ const PROXY_LOADER_URL = PAGES_BASE + "proxy-game.html";
 
 const $ = id => document.getElementById(id);
 const gamesNode = $("games");
+const newGamesNode = $("newGames");
+const newSection = $("newSection");
 const betaGamesNode = $("betaGames");
 const betaSection = $("betaSection");
 const statusNode = $("status");
@@ -210,7 +216,8 @@ async function scan() {
           path: html.path,
           url: pagesUrl(html.path),
           cover,
-          beta: files.some(item => item.type === "file" && /^beta/i.test(item.name))
+          beta: files.some(item => item.type === "file" && item.name === "beta"),
+          isNew: files.some(item => item.type === "file" && item.name === "newgame")
         };
       } catch (error) {
         console.warn("[Launcher] Skipped " + folder.name, error);
@@ -274,14 +281,19 @@ function render() {
     game.title.toLowerCase().includes(query) ||
     game.name.toLowerCase().includes(query)
   );
-  const betaItems = visibleGames.filter(game => game.beta);
-  const regularItems = visibleGames.filter(game => !game.beta);
+  const newItems = visibleGames.filter(game => game.isNew);
+  const betaItems = visibleGames.filter(game => !game.isNew && game.beta);
+  const regularItems = visibleGames.filter(game => !game.isNew && !game.beta);
 
   gamesNode.innerHTML = "";
+  newGamesNode.innerHTML = "";
   betaGamesNode.innerHTML = "";
+
+  newSection.hidden = newItems.length === 0;
   betaSection.hidden = betaItems.length === 0;
   $("mainSection").hidden = regularItems.length === 0;
 
+  newItems.forEach((game, index) => newGamesNode.appendChild(makeGameCard(game, index)));
   betaItems.forEach((game, index) => betaGamesNode.appendChild(makeGameCard(game, index)));
   regularItems.forEach((game, index) => gamesNode.appendChild(makeGameCard(game, index)));
 
