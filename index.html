@@ -123,8 +123,75 @@ const OWNER = "AMoldyWaffle";
 const REPO = "Ocarina-of-Time";
 const BRANCH = "main";
 const GAME_DIR = "Games";
-const API = "https://api.github.com/repos/" + OWNER + "/" + REPO;
 const PAGES_BASE = "https://amoldywaffle.github.io/Ocarina-of-Time/";
+const GAME_CATALOG = [
+  {
+    "name": "Angry Birds Rio",
+    "title": "Angry Birds Rio",
+    "path": "Games/Angry Birds Rio/index.html",
+    "cover": "Games/Angry Birds Rio/Cover/images.jpg"
+  },
+  {
+    "name": "Cuphead",
+    "title": "Cuphead",
+    "path": "Games/Cuphead/index.html",
+    "cover": "Games/Cuphead/Cover/images.png"
+  },
+  {
+    "name": "Grand Theft Auto 3",
+    "title": "Grand Theft Auto 3",
+    "path": "Games/Grand Theft Auto 3/index.html",
+    "cover": "Games/Grand Theft Auto 3/Cover/images.jpg"
+  },
+  {
+    "name": "Grand Theft Auto Vice City",
+    "title": "Grand Theft Auto Vice City",
+    "path": "Games/Grand Theft Auto Vice City/index.html",
+    "cover": "Games/Grand Theft Auto Vice City/Cover/10107835_ALT01.jpg"
+  },
+  {
+    "name": "Hollow Knight",
+    "title": "Hollow Knight",
+    "path": "Games/Hollow Knight/index.html",
+    "cover": "Games/Hollow Knight/Cover/images.jpg"
+  },
+  {
+    "name": "Mario Kart 64",
+    "title": "Mario Kart 64",
+    "path": "Games/Mario Kart 64/index.html",
+    "cover": "Games/Mario Kart 64/Cover/images.jpg"
+  },
+  {
+    "name": "Ocarina of Time",
+    "title": "Ocarina Of Time",
+    "path": "Games/Ocarina of Time/index.html",
+    "cover": "Games/Ocarina of Time/Cover/images.jpg"
+  },
+  {
+    "name": "Pokemon Emerald",
+    "title": "Pokemon Emerald",
+    "path": "Games/Pokemon Emerald/index.html",
+    "cover": "Games/Pokemon Emerald/Cover/images.jpg"
+  },
+  {
+    "name": "Super Mario Bros 3",
+    "title": "Super Mario Bros 3",
+    "path": "Games/Super Mario Bros 3/index.html",
+    "cover": "Games/Super Mario Bros 3/Cover/download (3).jpg"
+  },
+  {
+    "name": "Super Mario World",
+    "title": "Super Mario World",
+    "path": "Games/Super Mario World/index.html",
+    "cover": "Games/Super Mario World/Cover/images.jpg"
+  },
+  {
+    "name": "The Binding of Isaac",
+    "title": "The Binding Of Isaac",
+    "path": "Games/The Binding of Isaac/isaac_flash_launcher.html",
+    "cover": "Games/The Binding of Isaac/Cover/TBoI.jpg"
+  }
+];
 const RUNNER_MODE =
   location.protocol === "blob:" ||
   location.hostname === "codetester.io" ||
@@ -165,42 +232,45 @@ function log(level, args) {
   console[method]("[Launcher]", ...args);
 }
 
-async function getJson(url) {
-  const response = await fetch(url, {
-    headers: { Accept: "application/vnd.github+json" },
-    cache: "no-store"
-  });
-  if (!response.ok) throw new Error("GitHub API HTTP " + response.status);
-  const data = await response.json();
-  if (!Array.isArray(data)) throw new Error("Unexpected GitHub API response");
-  return data;
-}
-
-function pickHtml(files) {
-  const html = files.filter(file => file.type === "file" && /\.html?$/i.test(file.name));
-  return html.find(file => file.name.toLowerCase() === "index.html") ||
-         html.find(file => /launcher/i.test(file.name)) ||
-         html[0] || null;
+async function markerExists(path) {
+  try {
+    const response = await fetch(pagesUrl(path), {
+      method: "HEAD",
+      cache: "no-store"
+    });
+    return response.ok;
+  } catch (error) {
+    log("warn", ["Could not check marker file:", path, error.message || error]);
+    return false;
+  }
 }
 
 async function scan() {
   if (scanning) return;
   scanning = true;
   gamesNode.innerHTML = '<div class="empty">Loading library...</div>';
-  statusNode.textContent = "Finding games...";
+  statusNode.textContent = "Checking game folders...";
   try {
-    const response = await fetch(PAGES_BASE + "games.json?v=" + Date.now(), { cache: "no-store" });
-    if (!response.ok) throw new Error("Game catalog HTTP " + response.status);
-    const catalog = await response.json();
-    if (!catalog || !Array.isArray(catalog.games)) throw new Error("Invalid game catalog");
-    games = catalog.games.map(game => ({ ...game, url: pagesUrl(game.path) }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    games = await Promise.all(GAME_CATALOG.map(async game => {
+      const folder = game.path.slice(0, game.path.lastIndexOf("/"));
+      const [beta, isNew] = await Promise.all([
+        markerExists(folder + "/beta"),
+        markerExists(folder + "/newgame")
+      ]);
+      return {
+        ...game,
+        url: pagesUrl(game.path),
+        beta,
+        isNew
+      };
+    }));
+    games.sort((a, b) => a.name.localeCompare(b.name));
     render();
-    log("info", ["Loaded", games.length, "games from catalog"]);
+    log("info", ["Scanned marker files beside", games.length, "game HTML files"]);
   } catch (error) {
-    statusNode.textContent = "Could not load game catalog: " + error.message;
-    gamesNode.innerHTML = '<div class="empty">Game catalog could not be loaded. Try rescan.</div>';
-    log("error", ["Game catalog failed:", error.message]);
+    statusNode.textContent = "Could not scan game folders: " + error.message;
+    gamesNode.innerHTML = '<div class="empty">Game folders could not be checked. Try rescan.</div>';
+    log("error", ["Game scan failed:", error.message]);
   } finally {
     scanning = false;
   }
