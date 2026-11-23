@@ -41,7 +41,10 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
 #search{width:100%;height:40px;padding:0 15px 0 42px;border:1px solid rgba(140,131,198,.35);border-radius:24px;background:rgba(12,16,35,.76);color:#fff;outline:none;transition:.25s}
 #search:focus{border-color:#a99aff;box-shadow:0 0 25px rgba(117,102,255,.2)}#search::placeholder{color:#858bad}#rescan{font-size:11px;letter-spacing:1px;padding:10px 14px}
 #status{min-height:20px;padding:18px 2px 8px;text-align:left;color:#8e96bd;font-size:11px;letter-spacing:1px}
-#games{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px;padding:14px 0 0}
+#games,.game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px;padding:14px 0 0}
+.section-title{display:flex;align-items:center;gap:14px;margin:34px 0 4px;color:#c9c5ed;font-size:11px;letter-spacing:4px;text-transform:uppercase}
+.section-title:after{content:"";height:1px;flex:1;background:linear-gradient(90deg,rgba(140,128,217,.35),transparent)}
+.beta-tag{display:inline-block;margin:9px 15px 14px;padding:3px 8px;border:1px solid rgba(196,123,232,.45);border-radius:20px;color:#f0c5ff;font-size:9px;letter-spacing:1.2px}
 .game{min-width:0;position:relative;overflow:hidden;border:1px solid rgba(119,116,163,.25);border-radius:13px;background:linear-gradient(145deg,rgba(21,24,45,.92),rgba(8,12,28,.94));box-shadow:0 10px 28px rgba(0,0,0,.16);transition:transform .28s,border-color .28s,box-shadow .28s;animation:fadeUp .55s both}
 .game:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(130deg,rgba(163,149,255,.08),transparent 35%,transparent 70%,rgba(104,202,229,.05));opacity:.6}
 .game:hover{transform:translateY(-7px);border-color:rgba(168,154,255,.72);box-shadow:0 17px 38px rgba(42,35,101,.3),0 0 22px rgba(112,98,189,.13)}
@@ -50,15 +53,17 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
 .play{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 30px);margin:8px 15px 15px;background:linear-gradient(100deg,rgba(85,72,157,.65),rgba(40,87,119,.55));border-color:rgba(163,151,255,.38);font-size:10px;font-weight:800;letter-spacing:2px}
 .play:after{content:"↗";font-size:13px;color:#b9e9f3}
 .empty{text-align:center;color:#858bb5;padding:48px 10px;font-size:13px}footer{text-align:center;padding:25px 15px 38px;color:#626b96;font-size:9px;letter-spacing:3px}
-#player{display:none;position:fixed;inset:0;z-index:10;padding:14px;background:rgba(2,3,11,.97);backdrop-filter:blur(16px)}
-#playerbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:2px 0 12px;max-width:1500px;margin:auto}
+#player{display:none;position:fixed;inset:0;z-index:10;padding:10px;background:rgba(2,3,11,.97);backdrop-filter:blur(16px);flex-direction:column;gap:8px}
+#playerbar{display:flex;flex:0 0 auto;gap:10px;align-items:center;flex-wrap:wrap;padding:0 0 2px;width:100%;max-width:1800px;margin:0 auto}
 #playing{font-weight:700;flex:1;min-width:100px;color:#e3dfff;letter-spacing:1px}
-#gameframe{width:100%;height:calc(100vh - 235px);min-height:300px;border:1px solid rgba(145,133,255,.35);border-radius:9px;background:#000;display:block;max-width:1500px;margin:auto;box-shadow:0 0 35px rgba(91,73,178,.12)}
-#consolebox{max-width:1500px;margin:9px auto 0;border:1px solid rgba(119,116,163,.25);background:rgba(9,9,19,.95);border-radius:8px;overflow:hidden}
-#consolehead{display:flex;align-items:center;gap:8px;padding:7px 10px;color:#c9c5ed;font-size:11px;letter-spacing:1px}#consolehead strong{flex:1}
-#consolelog{height:115px;overflow:auto;padding:8px 10px;color:#b9e5b9;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+#gameframe{width:100%;height:auto;min-height:0;flex:1 1 auto;border:1px solid rgba(145,133,255,.35);border-radius:9px;background:#000;display:block;max-width:1800px;margin:0 auto;box-shadow:0 0 35px rgba(91,73,178,.12)}
+#consolebox{flex:0 0 auto;width:100%;max-width:1800px;margin:0 auto;border:1px solid rgba(119,116,163,.25);background:rgba(9,9,19,.95);border-radius:8px;overflow:hidden}
+#consolehead{display:flex;align-items:center;gap:8px;padding:6px 10px;color:#c9c5ed;font-size:11px;letter-spacing:1px}#consolehead strong{flex:1}
+#consolelog{height:min(17vh,145px);min-height:65px;overflow:auto;padding:8px 10px;color:#b9e5b9;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+#consolebox.collapsed #consolelog{display:none}
+@media(max-width:650px){#player{padding:6px;gap:6px}#playerbar{gap:6px}#playerbar button{padding:8px 10px;font-size:11px}#gameframe{border-radius:6px}}
 .log-error{color:#ff8888}.log-warn{color:#ffd27d}
-@media(max-width:650px){.topline{padding:0 16px}.hero{padding:65px 14px 39px}.orbit{width:185px;height:185px}#toolbar{gap:10px}.toolbar-left{flex-basis:100%}.search-box{flex:1 1 180px}#games{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.name{font-size:12px;padding:11px 10px 4px}.play{width:calc(100% - 20px);margin:7px 10px 11px;padding:9px 6px}#player{padding:8px}#gameframe{height:calc(100vh - 250px);min-height:240px}}
+@media(max-width:650px){.topline{padding:0 16px}.hero{padding:65px 14px 39px}.orbit{width:185px;height:185px}#toolbar{gap:10px}.toolbar-left{flex-basis:100%}.search-box{flex:1 1 180px}#games,.game-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.name{font-size:12px;padding:11px 10px 4px}.play{width:calc(100% - 20px);margin:7px 10px 11px;padding:9px 6px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition:none!important}}
 </style>
 </head>
@@ -86,7 +91,14 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
     <button id="rescan">↻ &nbsp; RESCAN</button>
   </div>
   <div id="status">Mapping the stars...</div>
-  <main id="games"><div class="empty">Searching the archive...</div></main>
+  <section id="betaSection" hidden>
+    <div class="section-title">Beta</div>
+    <div class="game-grid" id="betaGames"></div>
+  </section>
+  <section id="mainSection">
+    <div class="section-title">The Collection</div>
+    <main id="games"><div class="empty">Searching the archive...</div></main>
+  </section>
 </div>
 <section id="player">
   <div id="playerbar">
@@ -95,8 +107,8 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
     <button id="clearlog">CLEAR CONSOLE</button>
   </div>
   <iframe id="gameframe" title="Game" allow="autoplay; fullscreen; gamepad; clipboard-write" allowfullscreen></iframe>
-  <div id="consolebox">
-    <div id="consolehead"><strong>LAUNCH TELEMETRY</strong><button id="toggleconsole">HIDE CONSOLE</button></div>
+  <div id="consolebox" class="collapsed">
+    <div id="consolehead"><strong>LAUNCH TELEMETRY</strong><button id="toggleconsole">SHOW CONSOLE</button></div>
     <div id="consolelog"></div>
   </div>
 </section>
@@ -121,13 +133,15 @@ const PROXY_LOADER_URL = PAGES_BASE + "proxy-game.html";
 
 const $ = id => document.getElementById(id);
 const gamesNode = $("games");
+const betaGamesNode = $("betaGames");
+const betaSection = $("betaSection");
 const statusNode = $("status");
 const frame = $("gameframe");
 const consoleNode = $("consolelog");
 
 let games = [];
 let scanning = false;
-let consoleVisible = true;
+let consoleVisible = false;
 let currentGame = null;
 
 function enc(path) {
@@ -195,7 +209,8 @@ async function scan() {
           title: folder.name.replace(/[-_]+/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
           path: html.path,
           url: pagesUrl(html.path),
-          cover
+          cover,
+          beta: files.some(item => item.type === "file" && /^beta/i.test(item.name))
         };
       } catch (error) {
         console.warn("[Launcher] Skipped " + folder.name, error);
@@ -214,52 +229,65 @@ async function scan() {
   }
 }
 
+function makeGameCard(game, index) {
+  const card = document.createElement("article");
+  card.className = "game";
+  card.style.animationDelay = Math.min(index * 45, 360) + "ms";
+
+  if (game.cover) {
+    const img = document.createElement("img");
+    img.className = "cover";
+    img.alt = game.name;
+    img.loading = "lazy";
+    img.src = pagesUrl(game.cover);
+    img.onerror = () => {
+      img.onerror = null;
+      img.src = "https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/" + BRANCH + "/" + enc(game.cover);
+      img.onerror = () => img.remove();
+    };
+    card.appendChild(img);
+  }
+
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = game.title;
+  card.appendChild(name);
+
+  if (game.beta) {
+    const tag = document.createElement("span");
+    tag.className = "beta-tag";
+    tag.textContent = "BETA";
+    card.appendChild(tag);
+  }
+
+  const play = document.createElement("button");
+  play.className = "play";
+  play.textContent = "LAUNCH";
+  play.onclick = () => launch(game);
+  card.appendChild(play);
+  return card;
+}
+
 function render() {
   const query = $("search").value.trim().toLowerCase();
   const visibleGames = games.filter(game =>
     game.title.toLowerCase().includes(query) ||
     game.name.toLowerCase().includes(query)
   );
+  const betaItems = visibleGames.filter(game => game.beta);
+  const regularItems = visibleGames.filter(game => !game.beta);
 
   gamesNode.innerHTML = "";
+  betaGamesNode.innerHTML = "";
+  betaSection.hidden = betaItems.length === 0;
+  $("mainSection").hidden = regularItems.length === 0;
+
+  betaItems.forEach((game, index) => betaGamesNode.appendChild(makeGameCard(game, index)));
+  regularItems.forEach((game, index) => gamesNode.appendChild(makeGameCard(game, index)));
+
   if (!visibleGames.length) {
     gamesNode.innerHTML = '<div class="empty">No destinations found in this sector.</div>';
-    statusNode.textContent = query ? "No matches for “" + query + "”." : "0 games found.";
-    $("gameCount").textContent = "0 DESTINATIONS";
-    return;
-  }
-
-  for (const [index, game] of visibleGames.entries()) {
-    const card = document.createElement("article");
-    card.className = "game";
-    card.style.animationDelay = Math.min(index * 45, 360) + "ms";
-
-    if (game.cover) {
-      const img = document.createElement("img");
-      img.className = "cover";
-      img.alt = game.name;
-      img.loading = "lazy";
-      img.src = pagesUrl(game.cover);
-      img.onerror = () => {
-        img.onerror = null;
-        img.src = "https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/" + BRANCH + "/" + enc(game.cover);
-        img.onerror = () => img.remove();
-      };
-      card.appendChild(img);
-    }
-
-    const name = document.createElement("div");
-    name.className = "name";
-    name.textContent = game.title;
-    card.appendChild(name);
-
-    const play = document.createElement("button");
-    play.className = "play";
-    play.textContent = "LAUNCH";
-    play.onclick = () => launch(game);
-    card.appendChild(play);
-
-    gamesNode.appendChild(card);
+    $("mainSection").hidden = false;
   }
 
   statusNode.textContent = query
@@ -270,7 +298,7 @@ function render() {
 function openPlayer(game) {
   currentGame = game;
   $("library").style.display = "none";
-  $("player").style.display = "block";
+  $("player").style.display = "flex";
   $("playing").textContent = game.title;
   consoleNode.innerHTML = "";
   log("info", ["Starting " + game.title]);
@@ -334,8 +362,8 @@ $("rescan").onclick = scan;
 $("clearlog").onclick = () => { consoleNode.innerHTML = ""; };
 $("toggleconsole").onclick = () => {
   consoleVisible = !consoleVisible;
-  consoleNode.style.display = consoleVisible ? "block" : "none";
-  $("toggleconsole").textContent = consoleVisible ? "Hide console" : "Show console";
+  $("consolebox").classList.toggle("collapsed", !consoleVisible);
+  $("toggleconsole").textContent = consoleVisible ? "HIDE CONSOLE" : "SHOW CONSOLE";
 };
 
 scan();
