@@ -99,7 +99,23 @@ async function discoverGames() {
   }));
 }
 
-/* Games are loaded as real iframe documents below, not srcdoc or Blob pages. */
+/* ================================================================ */
+/* Environment detection                                            */
+/* ================================================================ */
+const RUNNER_MODE =
+  location.protocol === 'blob:' ||
+  location.hostname === 'codetester.io' ||
+  location.hostname.endsWith('.codetester.io');
+
+const RUNNER_LOADER_RAW =
+  'https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/runner-game.html';
+
+const PROXY_LOADER_URL =
+  PAGES_BASE + 'proxy-game.html';
+
+log('INFO', RUNNER_MODE
+  ? 'Environment: HTML runner (Blob document).'
+  : 'Environment: GitHub Pages / proxy.');
 
 /* ================================================================ */
 /* Launch / teardown                                                */
@@ -122,17 +138,52 @@ function closePlayer() {
   log('INFO', 'Launcher frame closed.');
 }
 
+async function launchInRunner(game) {
+  log('INFO', 'Runner mode: loading the dedicated same-tab game loader.');
+  log('INFO', `Game URL: ${game.url}`);
+
+  try {
+    const response = await fetch(RUNNER_LOADER_RAW, { cache: 'no-store' });
+    if (!response.ok) throw new Error('Runner loader download failed: HTTP ' + response.status);
+
+    let loaderHtml = await response.text();
+    const marker = '__GAME_URL__';
+    if (!loaderHtml.includes(marker)) throw new Error('Runner loader is missing its game URL placeholder.');
+
+    loaderHtml = loaderHtml.replace(marker, JSON.stringify(game.url));
+
+    const blob = new Blob([loaderHtml], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    log('INFO', 'Replacing the current Blob tab with the runner game loader.');
+    location.replace(blobUrl);
+  } catch (error) {
+    log('ERROR', 'Runner launch failed: ' + (error.message || error));
+    statusEl.textContent = 'Runner launch failed: ' + (error.message || error);
+  }
+}
+
 function launch(game) {
+  if (RUNNER_MODE) {
+    launchInRunner(game);
+    return;
+  }
+
   openPlayer(game);
   log('INFO', `Starting ${game.title}`);
-  log('INFO', 'Opening the original GitHub Pages game URL directly.');
+  log('INFO', 'Using the dedicated GitHub Pages / proxy loader.');
   log('INFO', `Game URL: ${game.url}`);
+
+  const loaderUrl = PROXY_LOADER_URL +
+    '?game=' + encodeURIComponent(game.url) +
+    '&title=' + encodeURIComponent(game.title);
+
   frame.onload = () => {
-    log('INFO', `[${game.title}] iframe document loaded.`);
+    log('INFO', `[${game.title}] proxy loader loaded.`);
     try { frame.contentWindow.focus(); } catch (_) {}
   };
-  frame.onerror = () => log('ERROR', `[${game.title}] iframe navigation failed: ${game.url}`);
-  frame.src = game.url;
+  frame.onerror = () => log('ERROR', `[${game.title}] proxy loader navigation failed.`);
+  frame.src = loaderUrl;
 }
 
 /* ================================================================ */
