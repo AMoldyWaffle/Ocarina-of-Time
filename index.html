@@ -189,50 +189,22 @@ async function scan() {
   gamesNode.innerHTML = '<div class="empty">Loading library...</div>';
   statusNode.textContent = "Finding games...";
   try {
-    const folders = (await getJson(API + "/contents/" + GAME_DIR + "?ref=" + BRANCH))
-      .filter(item => item.type === "dir");
-
-    const found = await Promise.all(folders.map(async folder => {
-      try {
-        const files = await getJson(API + "/contents/" + enc(folder.path) + "?ref=" + BRANCH);
-        const html = pickHtml(files);
-        if (!html) return null;
-
-        let cover = null;
-        const coverDir = files.find(item => item.type === "dir" && item.name.toLowerCase() === "cover");
-        if (coverDir) {
-          const images = (await getJson(API + "/contents/" + enc(coverDir.path) + "?ref=" + BRANCH))
-            .filter(item => item.type === "file" && /\.(png|jpe?g|webp|gif|avif)$/i.test(item.name));
-          const selected = images.find(item => item.name.toLowerCase() === "cover.png") || images[0];
-          if (selected) cover = selected.path;
-        }
-
-        return {
-          name: folder.name,
-          title: folder.name.replace(/[-_]+/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-          path: html.path,
-          url: pagesUrl(html.path),
-          cover,
-          beta: files.some(item => item.type === "file" && item.name.toLowerCase() === "beta.txt"),
-          isNew: files.some(item => item.type === "file" && item.name.toLowerCase() === "newgame.txt")
-        };
-      } catch (error) {
-        console.warn("[Launcher] Skipped " + folder.name, error);
-        return null;
-      }
-    }));
-
-    games = found.filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+    const response = await fetch(PAGES_BASE + "games.json?v=" + Date.now(), { cache: "no-store" });
+    if (!response.ok) throw new Error("Game catalog HTTP " + response.status);
+    const catalog = await response.json();
+    if (!catalog || !Array.isArray(catalog.games)) throw new Error("Invalid game catalog");
+    games = catalog.games.map(game => ({ ...game, url: pagesUrl(game.path) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
     render();
+    log("info", ["Loaded", games.length, "games from catalog"]);
   } catch (error) {
-    statusNode.textContent = "Could not scan games: " + error.message;
-    gamesNode.innerHTML = '<div class="empty">Repository scan failed. Check the console or try again.</div>';
-    log("error", ["Game scan failed:", error.message]);
+    statusNode.textContent = "Could not load game catalog: " + error.message;
+    gamesNode.innerHTML = '<div class="empty">Game catalog could not be loaded. Try rescan.</div>';
+    log("error", ["Game catalog failed:", error.message]);
   } finally {
     scanning = false;
   }
 }
-
 function makeGameCard(game, index) {
   const card = document.createElement("article");
   card.className = "game";
