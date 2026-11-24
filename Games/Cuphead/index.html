@@ -333,27 +333,26 @@ function checkEnvironment() {
 ========================================================= */
 
 async function cleanupCupheadCache() {
-    setStatus("Checking old Cuphead cache...");
+    setStatus("Checking existing Cuphead cache...");
 
     if (!("caches" in window)) {
-        log("Cache Storage unavailable.");
+        log("Cache Storage unavailable; browser HTTP cache will be used.");
         return;
     }
 
     try {
         const keys = await caches.keys();
+        const cupheadCaches = keys.filter(key =>
+            key.toLowerCase().includes("cuphead")
+        );
 
-        for (const key of keys) {
-            if (key.toLowerCase().includes("cuphead")) {
-                await caches.delete(key);
-                log("Removed old cache: " + key);
-            }
+        if (cupheadCaches.length) {
+            log("Preserving existing Cuphead caches: " + cupheadCaches.join(", "));
+        } else {
+            log("No dedicated Cuphead cache exists yet.");
         }
-
-        log("Cuphead cache cleanup complete.");
-
     } catch (error) {
-        log("Cache cleanup warning: " + error.message);
+        log("Cache inspection warning: " + error.message);
     }
 }
 
