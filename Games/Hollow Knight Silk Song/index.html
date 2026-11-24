@@ -271,10 +271,13 @@
     <button id="fullscreen-button">Fullscreen</button>
 
     <select id="resolution-scale" title="Graphics resolution">
-      <option value="0.75" selected>Graphics: 0.75x</option>
-      <option value="0.60">Graphics: 0.60x</option>
       <option value="1.00">Graphics: 1.00x</option>
+      <option value="0.85">Graphics: 0.85x</option>
+      <option value="0.75">Graphics: 0.75x</option>
+      <option value="0.70">Graphics: 0.70x</option>
+      <option value="0.60" selected>Graphics: 0.60x</option>
       <option value="0.50">Graphics: 0.50x</option>
+      <option value="0.45">Graphics: 0.45x</option>
     </select>
 
     <button id="show-console-button">Show Console</button>
@@ -367,6 +370,13 @@
   const showConsoleButton = document.getElementById("show-console-button");
   const loadingScreen = document.getElementById("loading-screen");
   const resolutionScaleSelect = document.getElementById("resolution-scale");
+  const SILK_SCALE_KEY = "silksongGraphicsScale";
+  try {
+    const savedScale = localStorage.getItem(SILK_SCALE_KEY);
+    if (savedScale && Array.from(resolutionScaleSelect.options).some(option => option.value === savedScale)) {
+      resolutionScaleSelect.value = savedScale;
+    }
+  } catch (_) {}
 
   /* =========================================================
      GRAPHICS RESOLUTION SELECTOR
@@ -374,6 +384,7 @@
 
   resolutionScaleSelect.addEventListener("change", () => {
     const scale = Number(resolutionScaleSelect.value);
+    try { localStorage.setItem(SILK_SCALE_KEY, resolutionScaleSelect.value); } catch (_) {}
 
     log(
       "Graphics resolution selected: " +
@@ -1718,6 +1729,11 @@
         storeName,
         "readonly"
       );
+      const transactionComplete = new Promise((resolve, reject) => {
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error || new Error("Save export transaction failed."));
+        transaction.onabort = () => reject(transaction.error || new Error("Save export transaction was cancelled."));
+      });
 
       const store = transaction.objectStore(storeName);
 
@@ -1744,6 +1760,7 @@
         autoIncrement: store.autoIncrement,
         records
       });
+      await transactionComplete;
     }
 
     db.close();
@@ -1805,7 +1822,9 @@
 
       link.href = url;
       link.download = "Silksong-Game-Save.silksong-save";
+      document.body.appendChild(link);
       link.click();
+      link.remove();
 
       setTimeout(() => URL.revokeObjectURL(url), 3000);
 
@@ -1870,8 +1889,9 @@
     );
 
     for (const storeData of data.stores) {
-      if (!db.objectStoreNames.contains(storeData.name)) {
-        continue;
+      if (!Array.isArray(storeData.records) || !db.objectStoreNames.contains(storeData.name)) {
+        db.close();
+        throw new Error("Save storage layout is incomplete: " + storeData.name);
       }
 
       await new Promise((resolve, reject) => {
@@ -1916,13 +1936,21 @@
         );
       }
 
-      if (!Array.isArray(data.databases)) {
+      if (!Array.isArray(data.databases) || data.databases.length === 0) {
         throw new Error(
           "The save file contains no database data."
         );
       }
 
+      if (!confirm("Import this Silksong save? Existing browser save data in the included databases will be replaced.")) {
+        log("Save import cancelled.");
+        return;
+      }
+
       for (const database of data.databases) {
+        if (!database || typeof database.name !== "string" || !Array.isArray(database.stores)) {
+          throw new Error("The save file contains an invalid database entry.");
+        }
         log("Restoring database: " + database.name);
 
         await importDatabase(database);
