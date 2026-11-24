@@ -630,6 +630,7 @@
       log("WASM INSPECTION FAILED: " + error.message, "error");
     }
   }
+  window.__inspectWasmMemory = inspectWasmMemory;
 
   /* WEBASSEMBLY INSTANTIATION MONITOR */
 
@@ -1117,7 +1118,7 @@
                   "WASM binary decompressed. Inspecting memory..."
                 );
 
-                inspectWasmMemory(result);
+                window.__inspectWasmMemory(result);
               }
 
               return result;
