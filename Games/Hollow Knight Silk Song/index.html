@@ -1,22 +1,13 @@
 <!DOCTYPE html>
 <html lang="en-us">
 <head>
-  <base href="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/">
+  <base href="https://raw.githubusercontent.com/AMoldyWaffle/Silk-Song/main/">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hollow Knight: Silksong</title>
-  <link rel="shortcut icon" href="TemplateData/favicon.ico">
-  <link rel="stylesheet" href="TemplateData/style.css">
 
   <style>
-    :root {
-      color-scheme: dark;
-      --panel: #151922;
-      --border: #303846;
-      --text: #f1f4f8;
-      --muted: #aab4c2;
-      --accent: #4b91e2;
-    }
+    * { box-sizing: border-box; }
 
     html, body {
       margin: 0;
@@ -24,39 +15,45 @@
       height: 100%;
       overflow: hidden;
       background: #000;
-      color: var(--text);
-      font-family: Arial, Helvetica, sans-serif;
+      color: #eee;
+      font-family: Arial, sans-serif;
     }
 
     #download-screen {
-      position: relative;
-      z-index: 30;
-      width: min(760px, calc(100% - 32px));
-      max-height: calc(100vh - 32px);
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      background: #10141d;
       overflow: auto;
-      box-sizing: border-box;
-      margin: 28px auto;
+    }
+
+    #download-panel {
+      width: min(760px, 100%);
       padding: 22px;
-      background: var(--panel);
-      border: 1px solid var(--border);
+      background: #171e29;
+      border: 1px solid #344154;
       border-radius: 12px;
     }
 
-    #download-title {
-      margin: 0 0 7px;
+    h1 {
+      margin: 0 0 8px;
       font-size: 25px;
     }
 
-    #download-subtitle {
+    #subtitle {
       margin: 0 0 20px;
-      color: var(--muted);
-      font-size: 14px;
+      color: #aab6c7;
+      font-size: 13px;
     }
 
     #loading-text {
       margin-bottom: 12px;
-      font-size: 15px;
-      font-weight: 600;
+      font-size: 14px;
       overflow-wrap: anywhere;
     }
 
@@ -64,75 +61,72 @@
       width: 100%;
       height: 12px;
       overflow: hidden;
-      background: #303846;
-      border-radius: 99px;
+      border-radius: 20px;
+      background: #303b4b;
     }
 
-    #download-progress,
-    #unity-progress-bar-full {
+    #download-progress {
       width: 0%;
       height: 100%;
-      background: var(--accent);
-      transition: width 120ms linear;
+      background: #4b91e2;
+      transition: width .15s linear;
     }
 
     #progress-details {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       margin-top: 8px;
-      color: var(--muted);
+      color: #aab6c7;
       font-size: 12px;
     }
 
     #download-list {
       display: grid;
-      gap: 6px;
-      max-height: 210px;
-      overflow: auto;
-      margin-top: 18px;
-      padding-right: 5px;
+      gap: 5px;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-top: 16px;
     }
 
     .download-item {
       display: flex;
-      align-items: center;
-      gap: 9px;
-      min-width: 0;
+      justify-content: space-between;
+      gap: 12px;
       padding: 7px 9px;
-      background: #0e131b;
-      border: 1px solid #252e3a;
-      border-radius: 6px;
+      background: #10151e;
+      border: 1px solid #283444;
+      border-radius: 5px;
       font-size: 12px;
     }
 
-    .download-item .state {
-      flex: 0 0 72px;
-      color: var(--muted);
-    }
-
-    .download-item.done .state { color: #80c99a; }
-    .download-item.failed .state { color: #ff8585; }
-
-    .download-item .filename {
+    .filename {
       overflow: hidden;
-      color: #dce4ee;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
+    .state {
+      flex-shrink: 0;
+      color: #aab6c7;
+    }
+
+    .done .state { color: #83d49b; }
+    .failed .state { color: #ff8585; }
+
     #download-console {
-      margin-top: 16px;
-      padding: 10px;
-      background: #080b10;
-      border: 1px solid #303846;
-      border-radius: 7px;
-      color: #c7d3e2;
-      font: 11px/1.45 Consolas, monospace;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
+      width: 100%;
       max-height: 150px;
       overflow: auto;
+      margin-top: 15px;
+      padding: 10px;
+      background: #080b10;
+      border: 1px solid #303b4b;
+      border-radius: 6px;
+      color: #c7d3e2;
+      font: 11px/1.5 Consolas, monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
     }
 
     #unity-container {
@@ -153,112 +147,106 @@
       outline: none;
     }
 
-    #unity-container:fullscreen,
-    #unity-container:fullscreen #unity-canvas {
-      width: 100vw;
-      height: 100vh;
-    }
-
     #game-toolbar {
       display: none;
       position: fixed;
       z-index: 20;
       top: 10px;
       right: 10px;
-      gap: 8px;
       align-items: center;
+      gap: 8px;
       padding: 7px;
-      background: rgba(12, 16, 23, .88);
+      background: rgba(12, 16, 23, .9);
       border: 1px solid #465164;
-      border-radius: 9px;
+      border-radius: 8px;
     }
 
-    #game-toolbar button {
-      appearance: none;
+    button {
+      padding: 8px 12px;
+      color: white;
+      background: #26364b;
       border: 1px solid #52647c;
       border-radius: 6px;
-      padding: 8px 12px;
-      color: #fff;
-      background: #26364b;
-      font: 600 13px Arial, sans-serif;
       cursor: pointer;
     }
 
-    #game-toolbar button:hover { background: #355477; }
-    #save-status { color: #d4deea; font-size: 12px; max-width: 210px; }
+    button:hover { background: #355477; }
+
+    #save-status {
+      max-width: 200px;
+      color: #d4deea;
+      font-size: 12px;
+    }
 
     #unity-loading-bar {
       display: none;
       position: absolute;
-      left: 50%;
       top: 50%;
+      left: 50%;
       width: min(300px, 70%);
       transform: translate(-50%, -50%);
     }
 
-    #unity-logo {
-      height: 45px;
-      margin-bottom: 12px;
-      background: url("TemplateData/unity-logo-light.png") center / contain no-repeat;
-    }
-
-    #unity-progress-bar-empty {
+    #unity-progress-empty {
       height: 10px;
       overflow: hidden;
-      background: #303846;
-      border-radius: 99px;
+      border-radius: 20px;
+      background: #303b4b;
+    }
+
+    #unity-progress-full {
+      width: 0%;
+      height: 100%;
+      background: #4b91e2;
     }
 
     #unity-warning {
       position: absolute;
+      z-index: 5;
       top: 10px;
       left: 10px;
       right: 10px;
-      z-index: 5;
-    }
-
-    @media (max-width: 600px) {
-      #download-screen { margin: 12px auto; padding: 16px; }
-      #download-title { font-size: 21px; }
     }
   </style>
 </head>
 
 <body>
+
   <section id="download-screen">
-    <h1 id="download-title">Hollow Knight: Silksong</h1>
-    <p id="download-subtitle">Preparing game files...</p>
+    <div id="download-panel">
+      <h1>Hollow Knight: Silksong</h1>
+      <p id="subtitle">Preparing game files...</p>
 
-    <div id="loading-text">Preparing download list...</div>
+      <div id="loading-text">Checking files...</div>
 
-    <div class="progress-track">
-      <div id="download-progress"></div>
+      <div class="progress-track">
+        <div id="download-progress"></div>
+      </div>
+
+      <div id="progress-details">
+        <span id="progress-count">0 / 0 files</span>
+        <span id="progress-size">0 MB</span>
+      </div>
+
+      <div id="download-list"></div>
+      <div id="download-console">[launcher] Diagnostics will appear here.</div>
     </div>
-
-    <div id="progress-details">
-      <span id="progress-count">0 / 0 files</span>
-      <span id="progress-size">0 MB</span>
-    </div>
-
-    <div id="download-list"></div>
-    <div id="download-console" role="log" aria-live="polite">[launcher] Download diagnostics will appear here.</div>
   </section>
 
   <div id="unity-container">
     <div id="game-toolbar">
-      <button id="save-game" type="button">Save</button>
-      <button id="load-game" type="button">Load</button>
-      <button id="fullscreen-game" type="button">Fullscreen</button>
-      <span id="save-status" aria-live="polite"></span>
-      <input id="save-file" type="file" accept=".silksong-save,.json,application/json" hidden>
+      <button id="save-game">Save</button>
+      <button id="load-game">Load</button>
+      <button id="fullscreen-game">Fullscreen</button>
+      <span id="save-status"></span>
+      <input id="save-file" type="file" accept=".silksong-save,.json" hidden>
     </div>
 
     <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
 
     <div id="unity-loading-bar">
-      <div id="unity-logo"></div>
-      <div id="unity-progress-bar-empty">
-        <div id="unity-progress-bar-full"></div>
+      <div id="unity-progress-empty">
+        <div id="unity-progress-full"></div>
       </div>
     </div>
 
@@ -269,46 +257,31 @@
 (() => {
   "use strict";
 
-  const BASE_URL = "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/";
-  const CACHE_NAME = "silksong-game-cache-v5";
+  const BASE_URL =
+    "https://raw.githubusercontent.com/AMoldyWaffle/Silk-Song/main/";
 
-  // Only the support files are downloaded individually.
-  // The WebGL asset bundles are contained in the split ZIP archive.
-  const GAME_FILES = [
+  const CACHE_NAME = "silksong-game-cache-v6";
+
+  /*
+    IMPORTANT:
+    The game repository contains the individual Unity bundles as well as
+    the large split ZIP archive.
+
+    This launcher now downloads the individual bundles only when Unity
+    actually requests them. It no longer downloads the 2.08 GB ZIP archive.
+  */
+
+  const CORE_FILES = [
     "Build/w-pt.data.unityweb",
     "Build/w-pt.framework.js.unityweb",
     "Build/w-pt.loader.js",
     "Build/w-pt.wasm.unityweb",
-    "StreamingAssets/VideoClip/Act_03_Intro.webm",
-    "StreamingAssets/VideoClip/Bellbeast_Travel_Children.webm",
-    "StreamingAssets/VideoClip/Bellbeast_Travel_Children_30.webm",
-    "StreamingAssets/VideoClip/Bellbeast_Travel_Normal.webm",
-    "StreamingAssets/VideoClip/Bellbeast_Travel_Normal_30.webm",
-    "StreamingAssets/VideoClip/Bellhart_Intro.webm",
-    "StreamingAssets/VideoClip/City_Reveal.webm",
-    "StreamingAssets/VideoClip/City_Reveal_Inner.webm",
-    "StreamingAssets/VideoClip/Diving_Bell.webm",
-    "StreamingAssets/VideoClip/Doctor_Cure.webm",
-    "StreamingAssets/VideoClip/Ending_A.webm",
-    "StreamingAssets/VideoClip/Ending_B.webm",
-    "StreamingAssets/VideoClip/Ending_C.webm",
-    "StreamingAssets/VideoClip/Ending_D.webm",
-    "StreamingAssets/VideoClip/Ending_E.webm",
-    "StreamingAssets/VideoClip/Farsight.webm",
-    "StreamingAssets/VideoClip/Intro_Cinematic.webm",
-    "StreamingAssets/VideoClip/Lace_Battle.webm",
-    "StreamingAssets/VideoClip/Last_Dive.webm",
-    "StreamingAssets/VideoClip/Mr_Mushroom.webm",
-    "StreamingAssets/VideoClip/Pinstress_Battle.webm",
-    "StreamingAssets/VideoClip/Plinney_Sharpen.webm",
-    "StreamingAssets/VideoClip/Plinney_Sharpen_Oil.webm",
-    "StreamingAssets/VideoClip/Red_Memory_Ritual.webm",
-    "StreamingAssets/VideoClip/Seamstress_Flash.webm",
-    "StreamingAssets/VideoClip/Slab_Cinematic.webm",
+
     "StreamingAssets/aa/AddressablesLink/link.xml",
     "StreamingAssets/aa/catalog.bin",
     "StreamingAssets/aa/catalog.hash",
     "StreamingAssets/aa/settings.json",
+
     "TemplateData/favicon.ico",
     "TemplateData/icons/unity-logo-dark.png",
     "TemplateData/icons/unity-logo-light.png",
@@ -322,87 +295,90 @@
     "TemplateData/webmemd-icon.png"
   ];
 
-  const ZIP_PARTS = Array.from(
-    { length: 100 },
-    (_, index) => `StreamingAssets/aa/WebGL.zip.part${index + 1}`
-  );
+  const FALLBACK_BASES = [
+    BASE_URL,
+    "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/",
+    "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/"
+  ];
 
-  const loadingText = document.getElementById("loading-text");
-  const progressBar = document.getElementById("download-progress");
-  const progressCount = document.getElementById("progress-count");
-  const progressSize = document.getElementById("progress-size");
-  const downloadList = document.getElementById("download-list");
-  const downloadScreen = document.getElementById("download-screen");
-  const downloadConsole = document.getElementById("download-console");
+  const $ = id => document.getElementById(id);
 
-  const consoleLines = [];
-  const originalConsole = {
-    log: console.log.bind(console),
-    warn: console.warn.bind(console),
-    error: console.error.bind(console)
-  };
+  const downloadScreen = $("download-screen");
+  const loadingText = $("loading-text");
+  const progressBar = $("download-progress");
+  const progressCount = $("progress-count");
+  const progressSize = $("progress-size");
+  const downloadList = $("download-list");
+  const downloadConsole = $("download-console");
 
-  function logDownload(message, detail) {
+  let completedFiles = 0;
+  let downloadedBytes = 0;
+  let totalFiles = CORE_FILES.length;
+
+  const logs = [];
+
+  function log(message, detail = "") {
     const line =
       `[${new Date().toLocaleTimeString()}] ${message}` +
-      (detail ? " — " + detail : "");
+      (detail ? ` — ${detail}` : "");
 
-    consoleLines.push(line);
+    logs.push(line);
 
-    if (consoleLines.length > 180) {
-      consoleLines.shift();
-    }
+    if (logs.length > 180) logs.shift();
 
-    downloadConsole.textContent = consoleLines.join("\n");
+    downloadConsole.textContent = logs.join("\n");
     downloadConsole.scrollTop = downloadConsole.scrollHeight;
 
-    originalConsole.log(line);
+    console.log(line);
   }
 
   window.addEventListener("error", event => {
-    logDownload("Browser error", event.message || event.error || "Unknown error");
+    log("Browser error", event.message || "Unknown error");
   });
 
   window.addEventListener("unhandledrejection", event => {
-    logDownload(
-      "Unhandled promise rejection",
-      event.reason?.message || event.reason || "Unknown rejection"
+    log(
+      "Unhandled rejection",
+      event.reason?.message || String(event.reason)
     );
   });
 
-  const originalFetch = window.fetch.bind(window);
-
-  function formatBytes(bytes) {
-    if (!Number.isFinite(bytes) || bytes <= 0) return "0 MB";
+  function bytesText(bytes) {
     return `${(bytes / 1048576).toFixed(1)} MB`;
   }
 
-  function updateOverall(done, total, bytes) {
-    const percent = total ? (done / total) * 100 : 0;
+  function updateProgress() {
+    const percent = totalFiles
+      ? completedFiles / totalFiles * 100
+      : 0;
+
     progressBar.style.width = `${percent}%`;
-    progressCount.textContent = `${done} / ${total} files`;
-    progressSize.textContent = formatBytes(bytes);
+    progressCount.textContent = `${completedFiles} / ${totalFiles} files`;
+    progressSize.textContent = bytesText(downloadedBytes);
   }
 
-  function makeFileRow(path) {
+  function createRow(path) {
     const row = document.createElement("div");
     row.className = "download-item";
+
+    const filename = document.createElement("span");
+    filename.className = "filename";
+    filename.textContent = path;
 
     const state = document.createElement("span");
     state.className = "state";
     state.textContent = "Waiting";
 
-    const name = document.createElement("span");
-    name.className = "filename";
-    name.textContent = path;
-
-    row.append(state, name);
+    row.append(filename, state);
     downloadList.appendChild(row);
 
     return {
       start() {
         state.textContent = "Downloading";
-        row.classList.remove("done", "failed");
+      },
+
+      retry(message) {
+        state.textContent = message;
       },
 
       done() {
@@ -410,46 +386,31 @@
         row.classList.add("done");
       },
 
-      retry(message) {
-        state.textContent = message;
-        row.classList.remove("done", "failed");
-      },
-
       failed(message) {
         state.textContent = "Failed";
         row.classList.add("failed");
-        row.title = message || "Download failed";
+        row.title = message;
       }
     };
   }
 
-  function encodedPath(path) {
+  function encodePath(path) {
     return path.split("/").map(encodeURIComponent).join("/");
   }
 
-  function sourceCandidates(path) {
-    const file = encodedPath(path);
-
-    return [
-      BASE_URL + file,
-      "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/" + file,
-      "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/" + file,
-      "https://raw.githubusercontent.com/AMoldyWaffle/Silk-Song/main/" + file
-    ];
+  function getUrl(base, path) {
+    return base + encodePath(path);
   }
 
-  async function fetchWithFallback(path, row) {
-    const candidates = sourceCandidates(path);
+  async function fetchWithFallback(path) {
     const errors = [];
 
     for (let attempt = 1; attempt <= 3; attempt++) {
-      for (let i = 0; i < candidates.length; i++) {
-        if (attempt > 1 || i > 0) {
-          row.retry(`Retry ${attempt}/3, source ${i + 1}/${candidates.length}`);
-        }
+      for (let source = 0; source < FALLBACK_BASES.length; source++) {
+        const url = getUrl(FALLBACK_BASES[source], path);
 
         try {
-          const response = await originalFetch(candidates[i], {
+          const response = await fetch(url, {
             cache: "no-store",
             credentials: "omit",
             mode: "cors"
@@ -461,287 +422,107 @@
 
           return response;
         } catch (error) {
-          const message = `${new URL(candidates[i]).hostname}: ${error.message}`;
+          const message =
+            `${new URL(url).hostname}: ${error.message}`;
+
           errors.push(message);
-          logDownload(`Source failed for ${path}`, message);
+          log(`Source failed: ${path}`, message);
         }
       }
 
       if (attempt < 3) {
-        await new Promise(resolve => setTimeout(resolve, attempt * 1200));
+        await new Promise(resolve =>
+          setTimeout(resolve, attempt * 700)
+        );
       }
     }
 
-    throw new Error(
-      `All sources failed after 3 attempts (${errors.slice(-8).join("; ")})`
-    );
+    throw new Error(errors.slice(-6).join("; "));
   }
 
-  async function downloadOne(path, cache, row, progress) {
-    const url = BASE_URL + encodedPath(path);
-    const cacheKey = new Request(url);
+  async function downloadCoreFile(path, cache, row) {
+    const cacheKey = new Request(getUrl(BASE_URL, path));
 
     const cached = await cache.match(cacheKey);
 
     if (cached) {
       row.done();
-      progress.complete();
+      completedFiles++;
+      updateProgress();
       return;
     }
 
     row.start();
 
-    const response = await fetchWithFallback(path, row);
-    const expectedLength = Number(response.headers.get("content-length")) || 0;
+    const response = await fetchWithFallback(path);
 
-    // Let the browser manage the response buffer instead of keeping
-    // a separate JavaScript array of every streamed chunk.
+    /*
+      Do not compare Content-Length against the received byte count.
+      Some CDN responses omit or alter that header. The browser's
+      completed response body is used instead.
+    */
     const blob = await response.blob();
 
     if (!blob.size) {
       throw new Error("The server returned an empty file.");
     }
 
-    if (expectedLength && blob.size !== expectedLength) {
-      throw new Error(
-        `Incomplete download: received ${blob.size.toLocaleString()} of ` +
-        `${expectedLength.toLocaleString()} bytes.`
-      );
-    }
-
-    progress.add(blob.size);
-
-    logDownload(
-      `Downloaded ${path}`,
-      `${formatBytes(blob.size)}${expectedLength ? ` / ${formatBytes(expectedLength)}` : ""}`
+    await cache.put(
+      cacheKey,
+      new Response(blob, {
+        headers: {
+          "Content-Type": blob.type || "application/octet-stream"
+        }
+      })
     );
 
-    await cache.put(cacheKey, new Response(blob, {
-      headers: {
-        "Content-Type": blob.type || "application/octet-stream"
-      }
-    }));
+    downloadedBytes += blob.size;
+    completedFiles++;
 
     row.done();
-    progress.complete();
+    updateProgress();
+
+    log(`Downloaded ${path}`, bytesText(blob.size));
   }
 
-  async function loadJSZip() {
-    if (window.JSZip) return window.JSZip;
-
-    const sources = [
-      "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
-      "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
-    ];
-
-    for (const src of sources) {
-      try {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = src;
-          script.onload = resolve;
-          script.onerror = () => reject(
-            new Error("Could not load ZIP extractor: " + src)
-          );
-          document.head.appendChild(script);
-        });
-
-        if (window.JSZip) return window.JSZip;
-      } catch (error) {
-        logDownload("ZIP library source failed", error.message);
-      }
-    }
-
-    throw new Error(
-      "Could not load the ZIP extractor. Check whether the script host is blocked."
-    );
-  }
-
-  async function extractWebGLArchive() {
-    const cache = await caches.open(CACHE_NAME);
-    const partBlobs = [];
-    let totalPartBytes = 0;
-
-    loadingText.textContent = "Checking downloaded ZIP parts...";
-    logDownload("Checking downloaded ZIP parts", `${ZIP_PARTS.length} parts expected`);
-
-    for (let i = 0; i < ZIP_PARTS.length; i++) {
-      const url = BASE_URL + encodedPath(ZIP_PARTS[i]);
-      const response = await cache.match(new Request(url));
-
-      if (!response) {
-        throw new Error(
-          `Missing ZIP part ${i + 1} of ${ZIP_PARTS.length}. ` +
-          "Reload the page to retry the download."
-        );
-      }
-
-      const partBlob = await response.blob();
-
-      if (!partBlob.size) {
-        throw new Error(`ZIP part ${i + 1} is empty.`);
-      }
-
-      totalPartBytes += partBlob.size;
-      partBlobs.push(partBlob);
-
-      if ((i + 1) % 5 === 0 || i + 1 === ZIP_PARTS.length) {
-        loadingText.textContent =
-          `Preparing archive... (${i + 1}/${ZIP_PARTS.length} parts)`;
-
-        logDownload(
-          `ZIP parts checked: ${i + 1}/${ZIP_PARTS.length}`,
-          formatBytes(totalPartBytes)
-        );
-      }
-    }
-
-    loadingText.textContent = "Loading ZIP extractor...";
-    const JSZip = await loadJSZip();
-
-    logDownload("Combining ZIP parts", `Total ${formatBytes(totalPartBytes)}`);
-
-    // Blob concatenation references the downloaded blobs rather than
-    // copying every part into another large JavaScript byte array.
-    const archiveBlob = new Blob(partBlobs, { type: "application/zip" });
-    partBlobs.length = 0;
-
-    loadingText.textContent = "Opening game archive...";
-    logDownload("Opening combined ZIP", "ZIP processing can temporarily use substantial memory.");
-
-    let zip;
-
-    try {
-      zip = await JSZip.loadAsync(archiveBlob, {
-        checkCRC32: false,
-        createFolders: false
-      });
-    } catch (error) {
-      logDownload("ZIP extraction failed", error.message);
-
-      throw new Error(
-        `ZIP is incomplete or corrupt: ${error.message}. ` +
-        "The downloaded parts may have been truncated; reload to retry."
-      );
-    }
-
-    const files = Object.values(zip.files).filter(file => !file.dir);
-
-    if (!files.length) {
-      throw new Error("The downloaded archive contains no game files.");
-    }
-
-    let processed = 0;
-
-    // Extract one file at a time to limit simultaneous decompression memory.
-    const batchSize = 1;
-
-    for (let i = 0; i < files.length; i += batchSize) {
-      const batch = files.slice(i, i + batchSize);
-
-      await Promise.all(batch.map(async file => {
-        const blob = await file.async("blob");
-        const cleanName = file.name.replace(/^\.\//, "");
-        const basename = cleanName.split("/").pop();
-
-        const response = new Response(blob, {
-          headers: {
-            "Content-Type": blob.type || "application/octet-stream"
-          }
-        });
-
-        // Keep a single cache copy for each bundle.
-        await cache.put(
-          new Request(BASE_URL + encodeURIComponent(basename)),
-          response
-        );
-
-        processed++;
-
-        if (processed % 10 === 0 || processed === files.length) {
-          logDownload(
-            `Extracted ${processed}/${files.length} assets`,
-            file.name
-          );
-        }
-      }));
-
-      loadingText.textContent =
-        `Extracting game assets... (${processed}/${files.length})`;
-
-      // Yield to the browser between files so the page can update.
-      await new Promise(resolve => setTimeout(resolve, 0));
-    }
-
-    // Release references to the ZIP object and its file index.
-    zip = null;
-
-    loadingText.textContent = `Extracted ${files.length} game assets.`;
-    logDownload(`ZIP extraction complete: ${files.length} assets`);
-  }
-
-  async function downloadFiles(files) {
+  async function downloadCoreFiles() {
     const cache = await caches.open(CACHE_NAME);
     const rows = new Map();
 
-    files.forEach(path => {
-      rows.set(path, makeFileRow(path));
+    CORE_FILES.forEach(path => {
+      rows.set(path, createRow(path));
     });
 
-    let completed = 0;
-    let downloadedBytes = 0;
     let nextIndex = 0;
     const failed = [];
 
-    updateOverall(0, files.length, 0);
-
-    function progressFor() {
-      let fileBytes = 0;
-
-      return {
-        add(amount) {
-          fileBytes += amount;
-          downloadedBytes += amount;
-          progressSize.textContent = formatBytes(downloadedBytes);
-        },
-
-        complete() {
-          completed++;
-          updateOverall(completed, files.length, downloadedBytes);
-        }
-      };
-    }
-
-    loadingText.textContent =
-      `Downloading ${files.length} game files...`;
-
-    // Only one large file downloads at once to reduce peak memory use
-    // and lower the chance of interrupted CDN transfers.
-    const workerCount = Math.min(1, files.length);
+    /*
+      Four concurrent downloads provide a balance between speed and
+      memory use. The previous version used only one worker.
+    */
+    const workerCount = 4;
 
     async function worker() {
       while (true) {
         const index = nextIndex++;
 
-        if (index >= files.length) return;
+        if (index >= CORE_FILES.length) return;
 
-        const path = files[index];
+        const path = CORE_FILES[index];
 
         loadingText.textContent = `Downloading ${path}`;
 
         try {
-          await downloadOne(
+          await downloadCoreFile(
             path,
             cache,
-            rows.get(path),
-            progressFor()
+            rows.get(path)
           );
         } catch (error) {
-          logDownload(`DOWNLOAD FAILED: ${path}`, error.message);
-          originalConsole.error("Download failed:", path, error);
-
           rows.get(path).failed(error.message);
           failed.push({ path, error });
+
+          log(`DOWNLOAD FAILED: ${path}`, error.message);
         }
       }
     }
@@ -752,65 +533,134 @@
 
     if (failed.length) {
       throw new Error(
-        `${failed.length} file(s) failed to download. ` +
-        `First failure: ${failed[0].path} — ${failed[0].error.message}`
+        `${failed.length} core file(s) failed. ` +
+        `First failure: ${failed[0].path}: ${failed[0].error.message}`
       );
     }
 
-    loadingText.textContent = "Downloads complete. Extracting game archive...";
-    await extractWebGLArchive();
-
-    await cache.put(
-      "SILKSONG_CACHE_COMPLETE",
-      new Response("ok")
-    );
-
-    loadingText.textContent =
-      "All game files downloaded and extracted. Starting Unity...";
-
-    logDownload("Download and extraction completed successfully.");
+    log("Core downloads complete.");
   }
 
-  // Unity's asset requests are served from Cache Storage.
-  window.fetch = async function(resource, options) {
-    const url = typeof resource === "string" ? resource : resource.url;
-    const resolved = new URL(url, document.baseURI);
+  /*
+    Lazy asset loader:
+    Unity asks for bundles as it needs them. The launcher fetches each
+    requested bundle directly from the raw repository, then caches it.
 
-    if (resolved.origin === new URL(BASE_URL).origin) {
-      try {
-        const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(new Request(resolved.href));
+    This replaces the old ZIP download and extraction process.
+  */
 
-        if (cached) return cached;
+  const originalFetch = window.fetch.bind(window);
 
-        const basename = resolved.pathname.split("/").pop();
+  function isGameAssetUrl(url) {
+    return (
+      url.startsWith(BASE_URL) ||
+      url.startsWith(
+        "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/"
+      ) ||
+      url.startsWith(
+        "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/"
+      )
+    );
+  }
 
-        const rawName = await cache.match(
-          new Request(BASE_URL + basename)
-        );
+  function getRelativePath(url) {
+    const parsed = new URL(url);
+    const path = parsed.pathname;
 
-        if (rawName) return rawName;
+    const marker = "/Silk-Song/main/";
+    const index = path.indexOf(marker);
 
-        const encodedName = await cache.match(
-          new Request(BASE_URL + encodeURIComponent(basename))
-        );
+    if (index === -1) return null;
 
-        if (encodedName) return encodedName;
-      } catch (error) {
-        originalConsole.warn("Cache lookup failed; using network:", error);
+    return decodeURIComponent(path.slice(index + marker.length));
+  }
+
+  const activeAssetRequests = new Map();
+
+  async function fetchGameAsset(url, options) {
+    const relativePath = getRelativePath(url);
+
+    if (!relativePath) {
+      return originalFetch(url, options);
+    }
+
+    const cache = await caches.open(CACHE_NAME);
+    const cacheKey = new Request(getUrl(BASE_URL, relativePath));
+
+    const cached = await cache.match(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    /*
+      Prevent duplicate requests for the same bundle if Unity requests
+      it more than once before the first download finishes.
+    */
+    if (activeAssetRequests.has(relativePath)) {
+      const response = await activeAssetRequests.get(relativePath);
+      return response.clone();
+    }
+
+    const requestPromise = (async () => {
+      const response = await fetchWithFallback(relativePath);
+      const blob = await response.blob();
+
+      if (!blob.size) {
+        throw new Error("Empty asset response.");
       }
+
+      const result = new Response(blob, {
+        headers: {
+          "Content-Type": blob.type || "application/octet-stream"
+        }
+      });
+
+      /*
+        Cache writes are best-effort. A full browser cache should not
+        prevent Unity from receiving the downloaded asset.
+      */
+      try {
+        await cache.put(cacheKey, result.clone());
+      } catch (error) {
+        log("Could not cache asset", `${relativePath}: ${error.message}`);
+      }
+
+      log("Loaded Unity asset", `${relativePath} (${bytesText(blob.size)})`);
+
+      return result;
+    })();
+
+    activeAssetRequests.set(relativePath, requestPromise);
+
+    try {
+      const response = await requestPromise;
+      return response.clone();
+    } finally {
+      activeAssetRequests.delete(relativePath);
+    }
+  }
+
+  window.fetch = function(resource, options) {
+    const url =
+      typeof resource === "string"
+        ? new URL(resource, document.baseURI).href
+        : resource.url;
+
+    if (isGameAssetUrl(url)) {
+      return fetchGameAsset(url, options);
     }
 
     return originalFetch(resource, options);
   };
 
-  // Save and load support.
+  // Save / Load support
+
   const SAVE_FORMAT = "silksong-browser-save";
   const SAVE_VERSION = 1;
 
-  const saveStatus = document.getElementById("save-status");
-  const saveInput = document.getElementById("save-file");
-  const toolbar = document.getElementById("game-toolbar");
+  const saveStatus = $("save-status");
+  const saveInput = $("save-file");
 
   function isGameDatabase(name) {
     return /unity|em_fs_|idbfs/i.test(name || "");
@@ -884,13 +734,13 @@
     }
 
     if (value && typeof value === "object") {
-      const out = {};
+      const result = {};
 
       for (const [key, item] of Object.entries(value)) {
-        out[key] = await packValue(item);
+        result[key] = await packValue(item);
       }
 
-      return out;
+      return result;
     }
 
     return value;
@@ -908,6 +758,10 @@
 
       if (value.__type === "TypedArray") {
         const bytes = base64ToBytes(value.data);
+        const copy = bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength
+        );
 
         const constructors = {
           Uint8Array,
@@ -930,11 +784,6 @@
           throw new Error("Unsupported saved data type: " + value.name);
         }
 
-        const copy = bytes.buffer.slice(
-          bytes.byteOffset,
-          bytes.byteOffset + bytes.byteLength
-        );
-
         return value.name === "DataView"
           ? new DataView(copy)
           : new Ctor(copy);
@@ -951,13 +800,13 @@
         return new Date(value.data);
       }
 
-      const out = {};
+      const result = {};
 
       for (const [key, item] of Object.entries(value)) {
-        out[key] = unpackValue(item);
+        result[key] = unpackValue(item);
       }
 
-      return out;
+      return result;
     }
 
     return value;
@@ -978,10 +827,10 @@
 
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(
-        request.error || new Error("Could not open " + name)
+        request.error || new Error("Could not open database")
       );
       request.onblocked = () => reject(
-        new Error("Database is busy: " + name)
+        new Error("Database is busy. Close other game tabs.")
       );
     });
   }
@@ -1009,12 +858,10 @@
 
   async function exportGameSave() {
     if (!indexedDB.databases) {
-      throw new Error("This browser does not support IndexedDB backup.");
+      throw new Error("This browser does not support database backups.");
     }
 
     saveStatus.textContent = "Preparing save...";
-
-    await new Promise(resolve => setTimeout(resolve, 1500));
 
     const listed = (await indexedDB.databases()).filter(
       info => info.name && isGameDatabase(info.name)
@@ -1022,15 +869,14 @@
 
     if (!listed.length) {
       throw new Error(
-        "No Unity save database was found yet. " +
-        "Reach an in-game save point, then try again."
+        "No Unity save database found. Try saving in-game first."
       );
     }
 
     const databases = [];
 
     for (const info of listed) {
-      saveStatus.textContent = "Reading " + info.name + "...";
+      saveStatus.textContent = "Reading " + info.name;
 
       const db = await openDatabase(info.name);
       const stores = [];
@@ -1041,8 +887,8 @@
           "readonly"
         ).objectStore(storeName);
 
-        const indexes = Array.from(store.indexNames).map(indexName => {
-          const index = store.index(indexName);
+        const indexes = Array.from(store.indexNames).map(name => {
+          const index = store.index(name);
 
           return {
             name: index.name,
@@ -1084,21 +930,21 @@
     );
 
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const link = document.createElement("a");
 
-    a.href = url;
-    a.download =
+    link.href = url;
+    link.download =
       "silksong-save-" +
       new Date().toISOString().replace(/[:.]/g, "-") +
       ".silksong-save";
 
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 
     setTimeout(() => URL.revokeObjectURL(url), 30000);
 
-    saveStatus.textContent = "Save file downloaded.";
+    saveStatus.textContent = "Save downloaded.";
   }
 
   function createDatabaseFromSave(definition) {
@@ -1134,10 +980,10 @@
 
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(
-        request.error || new Error("Could not create save database")
+        request.error || new Error("Could not create database")
       );
       request.onblocked = () => reject(
-        new Error("Close other game tabs before loading a save.")
+        new Error("Close other game tabs before loading.")
       );
     });
   }
@@ -1150,37 +996,31 @@
     const save = JSON.parse(await file.text());
 
     if (
-      !save ||
       save.format !== SAVE_FORMAT ||
       save.version !== SAVE_VERSION ||
       !Array.isArray(save.databases)
     ) {
-      throw new Error("That file is not a supported Silksong save.");
+      throw new Error("This is not a supported Silksong save file.");
     }
 
     for (const definition of save.databases) {
       if (!isGameDatabase(definition.name)) {
-        throw new Error("The save contains an unexpected database.");
+        throw new Error("Unexpected database in save file.");
       }
 
-      saveStatus.textContent = "Restoring " + definition.name + "...";
+      saveStatus.textContent = "Restoring " + definition.name;
 
       const db = await createDatabaseFromSave(definition);
 
-      const missing = definition.stores.filter(
-        store => !db.objectStoreNames.contains(store.name)
-      );
-
-      if (missing.length) {
-        db.close();
-
-        throw new Error(
-          "Save database layout does not match this game version. " +
-          "Load the same game build used to create the save."
-        );
-      }
-
       for (const storeDef of definition.stores) {
+        if (!db.objectStoreNames.contains(storeDef.name)) {
+          db.close();
+
+          throw new Error(
+            "Save database layout does not match this game version."
+          );
+        }
+
         const tx = db.transaction(storeDef.name, "readwrite");
         const store = tx.objectStore(storeDef.name);
 
@@ -1199,7 +1039,7 @@
         await new Promise((resolve, reject) => {
           tx.oncomplete = resolve;
           tx.onerror = () => reject(
-            tx.error || new Error("Could not write restored save data")
+            tx.error || new Error("Could not restore save data")
           );
           tx.onabort = () => reject(
             tx.error || new Error("Save restore was cancelled")
@@ -1210,27 +1050,27 @@
       db.close();
     }
 
-    saveStatus.textContent = "Save restored. Reloading game...";
+    saveStatus.textContent = "Save restored. Reloading...";
     setTimeout(() => location.reload(), 700);
   }
 
-  document.getElementById("save-game").addEventListener("click", () => {
+  $("save-game").addEventListener("click", () => {
     exportGameSave().catch(error => {
-      originalConsole.error("Save export failed:", error);
+      console.error(error);
       saveStatus.textContent = "Save failed: " + error.message;
     });
   });
 
-  document.getElementById("load-game").addEventListener("click", () => {
+  $("load-game").addEventListener("click", () => {
     saveInput.click();
   });
 
   saveInput.addEventListener("change", () => {
-    const file = saveInput.files && saveInput.files[0];
+    const file = saveInput.files?.[0];
 
     importGameSave(file)
       .catch(error => {
-        originalConsole.error("Save import failed:", error);
+        console.error(error);
         saveStatus.textContent = "Load failed: " + error.message;
       })
       .finally(() => {
@@ -1238,46 +1078,43 @@
       });
   });
 
-  document.getElementById("fullscreen-game").addEventListener("click", async () => {
+  $("fullscreen-game").addEventListener("click", async () => {
     try {
       if (!document.fullscreenElement) {
-        await document.getElementById("unity-container").requestFullscreen();
+        await $("unity-container").requestFullscreen();
       } else {
         await document.exitFullscreen();
       }
     } catch (error) {
-      saveStatus.textContent = "Fullscreen unavailable: " + error.message;
+      saveStatus.textContent = error.message;
     }
   });
 
   document.addEventListener("fullscreenchange", () => {
-    document.getElementById("fullscreen-game").textContent =
+    $("fullscreen-game").textContent =
       document.fullscreenElement ? "Exit fullscreen" : "Fullscreen";
   });
 
+  // Start Unity
+
   function startUnity() {
-    // The download interface and its diagnostic console disappear
-    // before the game starts.
     downloadScreen.style.display = "none";
 
-    const canvas = document.getElementById("unity-canvas");
-    const loadingBar = document.getElementById("unity-loading-bar");
-    const unityProgress = document.getElementById("unity-progress-bar-full");
-    const warningBanner = document.getElementById("unity-warning");
-    const unityContainer = document.getElementById("unity-container");
+    const container = $("unity-container");
+    const canvas = $("unity-canvas");
+    const loadingBar = $("unity-loading-bar");
+    const unityProgress = $("unity-progress-full");
+    const warning = $("unity-warning");
 
-    function unityShowBanner(message, type) {
+    function showWarning(message, type) {
       const div = document.createElement("div");
       div.textContent = message;
       div.style.cssText = "padding:10px;margin:4px 0;";
 
-      if (type === "error") {
-        div.style.background = "#a51d2d";
-      } else if (type === "warning") {
-        div.style.background = "#8a6818";
-      }
+      div.style.background =
+        type === "error" ? "#a51d2d" : "#80651d";
 
-      warningBanner.appendChild(div);
+      warning.appendChild(div);
 
       if (type !== "error") {
         setTimeout(() => div.remove(), 5000);
@@ -1292,10 +1129,10 @@
       companyName: "EDUrocks Group, Truffled, GN-Math",
       productName: "Hollow Knight SilkSong",
       productVersion: "1.0",
-      showBanner: unityShowBanner
+      showBanner: showWarning
     };
 
-    unityContainer.style.display = "block";
+    container.style.display = "block";
     loadingBar.style.display = "block";
 
     const script = document.createElement("script");
@@ -1303,7 +1140,7 @@
 
     script.onload = () => {
       if (typeof createUnityInstance !== "function") {
-        warningBanner.textContent = "ERROR: Unity loader did not initialize.";
+        warning.textContent = "Unity loader failed to initialize.";
         return;
       }
 
@@ -1311,66 +1148,47 @@
         unityProgress.style.width = `${progress * 100}%`;
       }).then(() => {
         loadingBar.remove();
-        toolbar.style.display = "flex";
+        $("game-toolbar").style.display = "flex";
       }).catch(error => {
-        originalConsole.error(error);
-        warningBanner.textContent =
-          `UNITY ERROR: ${error.message || error}`;
+        console.error(error);
+        warning.textContent =
+          "UNITY ERROR: " + (error.message || error);
       });
     };
 
     script.onerror = () => {
-      script.onerror = () => {
-        warningBanner.textContent =
-          "ERROR: Could not load the Unity loader from either source.";
-      };
-
-      script.src =
-        "https://raw.githubusercontent.com/AMoldyWaffle/Silk-Song/main/Build/w-pt.loader.js";
-
-      document.body.appendChild(script);
+      warning.textContent = "Could not load the Unity loader.";
     };
 
     document.body.appendChild(script);
   }
 
+  // Initial startup
+
   (async () => {
     try {
-      loadingText.textContent = "Checking saved game files...";
+      loadingText.textContent = "Checking game files...";
 
-      const cache = await caches.open(CACHE_NAME);
-      const complete = await cache.match("SILKSONG_CACHE_COMPLETE");
+      await downloadCoreFiles();
 
-      if (!complete) {
-        await downloadFiles([...GAME_FILES, ...ZIP_PARTS]);
-      } else {
-        loadingText.textContent =
-          "Game files already downloaded. Starting Unity...";
+      loadingText.textContent =
+        "Core files ready. Starting Hollow Knight: Silksong...";
 
-        // Remove unnecessary old full-path bundle entries, if present.
-        const keys = await cache.keys();
-
-        for (const key of keys) {
-          const path = new URL(key.url).pathname;
-
-          if (
-            path.includes("/StreamingAssets/aa/WebGL/") &&
-            !path.includes("WebGL.zip.part")
-          ) {
-            await cache.delete(key);
-          }
-        }
-      }
+      log("Starting Unity. Additional assets will load when needed.");
 
       startUnity();
     } catch (error) {
-      originalConsole.error(error);
-      logDownload("LAUNCHER ERROR", error.message || error);
+      console.error(error);
+
+      log("LAUNCHER ERROR", error.message || error);
+
       loadingText.textContent =
-        `ERROR: ${error.message || error}`;
+        "ERROR: " + (error.message || error);
     }
   })();
+
 })();
 </script>
+
 </body>
 </html>
