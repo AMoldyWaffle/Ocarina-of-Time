@@ -214,9 +214,7 @@
   (() => {
     "use strict";
 
-    /* =========================================================
-       CONFIGURATION
-    ========================================================= */
+    /* CONFIGURATION */
 
     const BASE_URL =
       "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/";
@@ -246,9 +244,7 @@
 
     let BUILD_BASE_URL = BASE_URL;
 
-    /* =========================================================
-       ELEMENTS AND LOGGING
-    ========================================================= */
+    /* ELEMENTS */
 
     const statusElement = document.getElementById("status");
     const progressElement = document.getElementById("progress-inner");
@@ -269,6 +265,8 @@
       diagnostics.textContent += line + "\n";
       diagnostics.scrollTop = diagnostics.scrollHeight;
     }
+
+    window.__silkLog = log;
 
     function setStatus(message) {
       statusElement.textContent = message;
@@ -298,9 +296,7 @@
       return new Promise(resolve => setTimeout(resolve, 0));
     }
 
-    /* =========================================================
-       URL HELPERS
-    ========================================================= */
+    /* URL HELPERS */
 
     function partUrl(partNumber, sourceIndex) {
       return FALLBACK_BASES[sourceIndex] +
@@ -320,9 +316,9 @@
       return CACHE_ORIGIN + encodeURI(clean);
     }
 
-    /* =========================================================
-       DOWNLOAD A SINGLE ZIP PART
-    ========================================================= */
+    /* NETWORK HELPERS */
+
+    const originalFetch = window.fetch.bind(window);
 
     async function fetchWithTimeout(url, timeoutMs, controller) {
       const timer = setTimeout(
@@ -331,7 +327,7 @@
       );
 
       try {
-        const response = await fetch(url, {
+        const response = await originalFetch(url, {
           method: "GET",
           cache: "no-store",
           signal: controller.signal
@@ -344,6 +340,8 @@
         throw error;
       }
     }
+
+    /* ZIP PART DOWNLOAD */
 
     async function downloadPart(partNumber) {
       const expectedBytes = EXPECTED_PART_BYTES(partNumber);
@@ -492,9 +490,7 @@
       }
     }
 
-    /* =========================================================
-       STREAMING ZIP EXTRACTION
-    ========================================================= */
+    /* STREAMING ZIP EXTRACTION */
 
     async function streamDownloadAndExtract() {
       setStatus("Preparing streaming extractor...");
@@ -596,8 +592,6 @@
         file.start();
       });
 
-      // Do not use AsyncUnzipInflate here.
-      // It creates a SharedWorker that the runner may block.
       unzip.register(fflate.UnzipInflate);
 
       const readyParts = new Map();
@@ -812,9 +806,7 @@
       );
     }
 
-    /* =========================================================
-       CACHE CHECK
-    ========================================================= */
+    /* CACHE CHECK */
 
     async function cacheIsComplete() {
       try {
@@ -827,11 +819,7 @@
       }
     }
 
-    /* =========================================================
-       FETCH INTERCEPTION
-    ========================================================= */
-
-    const originalFetch = window.fetch.bind(window);
+    /* FETCH INTERCEPTION */
 
     window.fetch = async function(resource, options) {
       try {
@@ -844,6 +832,7 @@
           document.baseURI
         );
 
+        // Serve the Unity framework from its verified cache.
         if (
           parsed.pathname.endsWith(
             "/Build/w-pt.framework.js.unityweb"
@@ -858,6 +847,25 @@
           }
         }
 
+        // Serve the Unity WASM and data files from cache.
+        if (
+          parsed.pathname.endsWith("/Build/w-pt.wasm.unityweb") ||
+          parsed.pathname.endsWith("/Build/w-pt.data.unityweb")
+        ) {
+          const cache = await caches.open(CACHE_NAME);
+          const cachedBuildFile = await cache.match(parsed.href);
+
+          if (cachedBuildFile) {
+            log(
+              "Serving Unity build file from cache: " +
+              parsed.pathname.split("/").pop()
+            );
+
+            return cachedBuildFile;
+          }
+        }
+
+        // Serve extracted StreamingAssets from cache.
         const marker = "/StreamingAssets/aa/WebGL/";
         const markerIndex = parsed.pathname.indexOf(marker);
 
@@ -885,16 +893,7 @@
       return originalFetch(resource, options);
     };
 
-    /* =========================================================
-       UNITY FRAMEWORK VALIDATION
-
-       Important:
-       - Verify the actual GZIP stream, not just its first bytes.
-       - Cache the original compressed bytes.
-       - Remove HTTP Content-Encoding from the cached response.
-       - Unity will receive the compressed bytes and our patched
-         loader will decompress this one file with fflate.
-    ========================================================= */
+    /* FRAMEWORK VALIDATION */
 
     async function selectBuildMirror() {
       const cache = await caches.open(CACHE_NAME);
@@ -911,17 +910,6 @@
         return Array.from(bytes.slice(0, count))
           .map(byte => byte.toString(16).padStart(2, "0"))
           .join(" ");
-      }
-
-      function bytesToText(bytes, count = 100) {
-        return Array.from(bytes.slice(0, count))
-          .map(byte => {
-            if (byte >= 32 && byte <= 126) {
-              return String.fromCharCode(byte);
-            }
-            return ".";
-          })
-          .join("");
       }
 
       for (let i = 0; i < FALLBACK_BASES.length; i++) {
@@ -961,17 +949,12 @@
           log("RECEIVED SIZE: " + buffer.byteLength + " bytes");
           log("FIRST 32 BYTES: " + bytesToHex(bytes));
 
-          if (
-            bytes[0] !== 0x1f ||
-            bytes[1] !== 0x8b
-          ) {
+          if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) {
             throw new Error(
               "The framework does not have a GZIP header."
             );
           }
 
-          // This is a real decompression test.
-          // A matching 1f 8b prefix alone is not enough.
           let decompressed;
 
           try {
@@ -1002,25 +985,6 @@
             "DECOMPRESSED PREVIEW: " +
             decodedStart.substring(0, 120).replace(/\n/g, " ")
           );
-
-          if (
-            !decodedStart.includes("function") &&
-            !decodedStart.includes("var ") &&
-            !decodedStart.includes("Unity") &&
-            !decodedStart.includes("(()=>")
-          ) {
-            log(
-              "WARNING: Framework preview does not look like " +
-              "ordinary JavaScript. Continuing because Unity " +
-              "framework bundles can begin with other syntax."
-            );
-          }
-
-          /*
-            The downloaded body is already the original GZIP file.
-            Do not set Content-Encoding: gzip here. Unity needs to
-            receive these compressed bytes for its own processing.
-          */
 
           const headers = new Headers(response.headers);
 
@@ -1064,56 +1028,131 @@
       );
     }
 
-    /* =========================================================
-       PATCH UNITY LOADER
+    /* CACHE UNITY BUILD FILES */
 
-       The upstream loader creates a Blob-based Worker to
-       decompress .unityweb files.
+    async function cacheUnityBuildFiles() {
+      const cache = await caches.open(CACHE_NAME);
 
-       The runner has restrictions around dynamically created
-       workers. The framework is only about 104 KB compressed,
-       so we decompress that specific file with fflate directly.
+      const files = [
+        "Build/w-pt.wasm.unityweb",
+        "Build/w-pt.data.unityweb"
+      ];
 
-       The large WASM and data files still use Unity's original
-       decompression path.
-    ========================================================= */
+      for (const path of files) {
+        const url = BUILD_BASE_URL + path;
+
+        setStatus("Preparing Unity engine files...");
+        log("----------------------------------------");
+        log("Checking Unity build file: " + path);
+
+        const existing = await cache.match(url);
+
+        if (existing) {
+          log("Already cached: " + path);
+          continue;
+        }
+
+        log("Downloading: " + url);
+
+        const response = await originalFetch(url, {
+          method: "GET",
+          cache: "no-store"
+        });
+
+        log("HTTP STATUS: " + response.status);
+
+        if (!response.ok) {
+          throw new Error(
+            "Could not download " + path +
+            ". HTTP " + response.status
+          );
+        }
+
+        const buffer = await response.arrayBuffer();
+
+        if (!buffer.byteLength) {
+          throw new Error(
+            "Downloaded file is empty: " + path
+          );
+        }
+
+        log(
+          "Downloaded " + path + ": " +
+          (buffer.byteLength / 1048576).toFixed(2) +
+          " MB"
+        );
+
+        const headers = new Headers(response.headers);
+
+        headers.delete("content-encoding");
+        headers.delete("content-length");
+        headers.delete("transfer-encoding");
+        headers.delete("content-range");
+
+        const cachedResponse = new Response(buffer, {
+          status: 200,
+          statusText: "OK",
+          headers
+        });
+
+        await cache.put(url, cachedResponse);
+
+        log("Successfully cached: " + path);
+      }
+    }
+
+    /* PATCH UNITY LOADER */
 
     function patchUnityLoaderSource(source) {
-  const pattern =
-    /return i = e\.parsedBody,\s*s = b\[t\],\s*new Promise\(function\(e, t\) \{/;
+      const pattern =
+        /return i = e\.parsedBody,\s*s = b\[t\],\s*new Promise\(function\(e, t\) \{/;
 
-  if (!pattern.test(source)) {
-    throw new Error(
-      "Could not locate Unity's decompression function."
-    );
-  }
+      if (!pattern.test(source)) {
+        throw new Error(
+          "Could not locate Unity's decompression function."
+        );
+      }
 
-  const replacement = `
-    return i = e.parsedBody,
-    s = b[t],
-    s && s.indexOf("framework.js.unityweb") !== -1
-      ? Promise.resolve(
-          window.fflate.gunzipSync(i)
-        )
-      : new Promise(function(e, t) {
-  `;
+      const replacement = `
+        return i = e.parsedBody,
+        s = b[t],
+        s && s.indexOf(".unityweb") !== -1
+          ? Promise.resolve().then(function() {
+              try {
+                window.__silkLog(
+                  "Decompressing Unity file: " + s
+                );
 
-  const patched = source.replace(pattern, replacement);
+                var result = window.fflate.gunzipSync(i);
 
-  if (patched === source) {
-    throw new Error("Unity loader patch failed.");
-  }
+                window.__silkLog(
+                  "Decompressed successfully: " +
+                  result.length + " bytes"
+                );
 
-  log(
-    "Unity framework Worker bypass enabled."
-  );
+                return result;
+              } catch (error) {
+                window.__silkLog(
+                  "DECOMPRESSION FAILED: " + error.message
+                );
+                throw error;
+              }
+            })
+          : new Promise(function(e, t) {
+      `;
 
-  return patched;
-}
+      const patched = source.replace(pattern, replacement);
 
-    /* =========================================================
-       UNITY BANNER
-    ========================================================= */
+      if (patched === source) {
+        throw new Error("Unity loader patch failed.");
+      }
+
+      log("Unity .unityweb Worker bypass enabled.");
+
+      return patched;
+    }
+
+    /* UNITY BANNER */
 
     function unityShowBanner(message, type) {
       const div = document.createElement("div");
@@ -1135,9 +1174,7 @@
       document.getElementById("unity-warning").appendChild(div);
     }
 
-    /* =========================================================
-       START UNITY
-    ========================================================= */
+    /* START UNITY */
 
     async function startUnity() {
       setStatus("Checking Unity framework...");
@@ -1146,6 +1183,9 @@
       unityLoadingBar.style.display = "block";
 
       await selectBuildMirror();
+
+      // Download and cache the actual WASM and data files.
+      await cacheUnityBuildFiles();
 
       const config = {
         dataUrl:
@@ -1215,6 +1255,8 @@
             );
           }
 
+          log("Starting Unity instance...");
+
           const instance = await createUnityInstance(
             canvas,
             config,
@@ -1254,9 +1296,7 @@
       document.body.appendChild(script);
     }
 
-    /* =========================================================
-       SAVE SYSTEM
-    ========================================================= */
+    /* SAVE SYSTEM */
 
     function encodeValue(value) {
       if (value instanceof ArrayBuffer) {
@@ -1623,9 +1663,7 @@
       }
     );
 
-    /* =========================================================
-       FULLSCREEN
-    ========================================================= */
+    /* FULLSCREEN */
 
     document.getElementById("fullscreen-button").addEventListener(
       "click",
@@ -1645,9 +1683,7 @@
       }
     );
 
-    /* =========================================================
-       MAIN
-    ========================================================= */
+    /* MAIN */
 
     async function main() {
       try {
