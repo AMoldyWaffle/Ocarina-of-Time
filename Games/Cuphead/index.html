@@ -386,7 +386,7 @@ function getNormalURL(filename, source) {
 
 async function downloadBlob(url, expectedSize) {
     const response = await fetch(url, {
-        cache: "no-store",
+        cache: "default",
         mode: "cors"
     });
 
