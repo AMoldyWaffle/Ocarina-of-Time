@@ -1,1259 +1,1353 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<base href="https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hollow Knight: Silksong</title>
+  <base href="https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hollow Knight: Silksong</title>
 
-<style>
-* {
-  box-sizing: border-box;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-html, body {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #080a10;
-  color: white;
-  font-family: Arial, sans-serif;
-}
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #080a10;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
 
-#game {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
+    #game {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
 
-#toolbar {
-  height: 42px;
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  background: #151923;
-  z-index: 10;
-}
+    #toolbar {
+      height: 42px;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      background: #151923;
+      z-index: 10;
+    }
 
-button {
-  background: #30394b;
-  color: white;
-  border: 1px solid #56627a;
-  border-radius: 5px;
-  padding: 7px 13px;
-  cursor: pointer;
-}
+    button {
+      background: #30394b;
+      color: white;
+      border: 1px solid #56627a;
+      border-radius: 5px;
+      padding: 7px 13px;
+      cursor: pointer;
+    }
 
-button:hover {
-  background: #46536b;
-}
+    button:hover {
+      background: #46536b;
+    }
 
-#unity-container {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  background: black;
-}
+    #unity-container {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      background: black;
+    }
 
-#unity-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-  background: black;
-}
+    #unity-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: black;
+    }
 
-#loading-screen {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  background: #080a10;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
+    #loading-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background: #080a10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
 
-#loading-title {
-  font-size: 28px;
-  font-weight: bold;
-  margin-bottom: 12px;
-}
+    #loading-title {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      text-align: center;
+    }
 
-#status {
-  margin: 12px 0;
-  color: #cbd3e2;
-  text-align: center;
-  overflow-wrap: anywhere;
-}
+    #status {
+      margin: 12px 0;
+      color: #cbd3e2;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
 
-#progress-outer {
-  width: min(650px, 90vw);
-  height: 17px;
-  border-radius: 10px;
-  background: #252b38;
-  overflow: hidden;
-  border: 1px solid #46516a;
-}
+    #progress-outer {
+      width: min(650px, 90vw);
+      height: 17px;
+      border-radius: 10px;
+      background: #252b38;
+      overflow: hidden;
+      border: 1px solid #46516a;
+    }
 
-#progress-inner {
-  width: 0%;
-  height: 100%;
-  background: #4d83d8;
-  transition: width 0.15s linear;
-}
+    #progress-inner {
+      width: 0%;
+      height: 100%;
+      background: #4d83d8;
+      transition: width 0.15s linear;
+    }
 
-#progress-detail {
-  margin-top: 8px;
-  color: #9ca9bd;
-  font-size: 13px;
-}
+    /* Animated indicator while the ZIP archive is being parsed. */
+    #progress-inner.indeterminate {
+      width: 35% !important;
+      transition: none;
+      animation: archive-loading 1.4s ease-in-out infinite;
+    }
 
-#diagnostics {
-  width: min(850px, 90vw);
-  height: 170px;
-  overflow: auto;
-  margin-top: 18px;
-  padding: 10px;
-  background: #10141d;
-  border: 1px solid #30394b;
-  border-radius: 5px;
-  color: #aebbd0;
-  font: 12px monospace;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
+    @keyframes archive-loading {
+      0% {
+        transform: translateX(-110%);
+      }
 
-#unity-loading-bar {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: min(400px, 80%);
-  display: none;
-}
+      100% {
+        transform: translateX(310%);
+      }
+    }
 
-#unity-progress-outer {
-  height: 12px;
-  background: #222;
-  border-radius: 8px;
-  overflow: hidden;
-}
+    #progress-detail {
+      margin-top: 8px;
+      color: #9ca9bd;
+      font-size: 13px;
+      text-align: center;
+    }
 
-#unity-progress-inner {
-  height: 100%;
-  width: 0%;
-  background: #4d83d8;
-}
+    #diagnostics {
+      width: min(850px, 90vw);
+      height: 170px;
+      overflow: auto;
+      margin-top: 18px;
+      padding: 10px;
+      background: #10141d;
+      border: 1px solid #30394b;
+      border-radius: 5px;
+      color: #aebbd0;
+      font: 12px monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
 
-#unity-warning {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 10px;
-  z-index: 30;
-}
+    #unity-loading-bar {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(400px, 80%);
+      display: none;
+    }
 
-#error-overlay {
-  display: none;
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  background: rgba(0,0,0,.92);
-  padding: 30px;
-  overflow: auto;
-  white-space: pre-wrap;
-  font-family: monospace;
-}
-</style>
+    #unity-progress-outer {
+      height: 12px;
+      background: #222;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #unity-progress-inner {
+      height: 100%;
+      width: 0%;
+      background: #4d83d8;
+    }
+
+    #unity-warning {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 30;
+    }
+
+    #error-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      background: rgba(0, 0, 0, 0.92);
+      padding: 30px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+  </style>
 </head>
 
 <body>
-<div id="game">
+  <div id="game">
 
-  <div id="toolbar">
-    <button id="save-button">Save</button>
-    <button id="load-button">Load</button>
-    <button id="fullscreen-button">Fullscreen</button>
-    <input id="save-file" type="file" accept=".silksong-save,.json" hidden>
-  </div>
-
-  <div id="unity-container">
-
-    <canvas id="unity-canvas" tabindex="-1"></canvas>
-
-    <div id="unity-loading-bar">
-      <div id="unity-progress-outer">
-        <div id="unity-progress-inner"></div>
-      </div>
+    <div id="toolbar">
+      <button id="save-button">Save</button>
+      <button id="load-button">Load</button>
+      <button id="fullscreen-button">Fullscreen</button>
+      <input id="save-file" type="file"
+             accept=".silksong-save,.json" hidden>
     </div>
 
-    <div id="unity-warning"></div>
+    <div id="unity-container">
 
-    <div id="error-overlay"></div>
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
 
-    <div id="loading-screen">
-      <div id="loading-title">HOLLOW KNIGHT: SILKSONG</div>
-      <div id="status">Preparing downloader...</div>
-
-      <div id="progress-outer">
-        <div id="progress-inner"></div>
+      <div id="unity-loading-bar">
+        <div id="unity-progress-outer">
+          <div id="unity-progress-inner"></div>
+        </div>
       </div>
 
-      <div id="progress-detail">Waiting...</div>
-      <div id="diagnostics"></div>
+      <div id="unity-warning"></div>
+      <div id="error-overlay"></div>
+
+      <div id="loading-screen">
+        <div id="loading-title">HOLLOW KNIGHT: SILKSONG</div>
+        <div id="status">Preparing downloader...</div>
+
+        <div id="progress-outer">
+          <div id="progress-inner"></div>
+        </div>
+
+        <div id="progress-detail">Waiting...</div>
+        <div id="diagnostics"></div>
+      </div>
+
     </div>
-
   </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
-<script>
-(() => {
-"use strict";
+  <script>
+  (() => {
+    "use strict";
 
-/* =========================================================
-   CONFIGURATION
-========================================================= */
+    /* =========================================================
+       CONFIGURATION
+    ========================================================= */
 
-const BASE_URL =
-  "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/";
+    const BASE_URL =
+      "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/";
 
-const CACHE_NAME = "hksilksongcache-v8";
-const CACHE_ORIGIN = "https://silksong-cache.invalid/";
-const CACHE_MARKER = CACHE_ORIGIN + "__CACHE_COMPLETE__";
+    const CACHE_NAME = "hksilksongcache-v8";
+    const CACHE_ORIGIN = "https://silksong-cache.invalid/";
+    const CACHE_MARKER = CACHE_ORIGIN + "__CACHE_COMPLETE__";
 
-const TOTAL_PARTS = 100;
+    const TOTAL_PARTS = 100;
 
-// Three workers reduce CDN throttling while keeping downloads parallel.
-const WORKER_COUNT = 3;
-const MAX_PART_ATTEMPTS = 4;
+    // Keep concurrency moderate to reduce CDN errors.
+    const WORKER_COUNT = 3;
 
-// Verified sizes from the repository.
-const EXPECTED_PART_BYTES = partNumber =>
-  partNumber === 100 ? 17340100 : 20866662;
+    // Retry all mirrors this many times if a part fails.
+    const MAX_PART_ATTEMPTS = 4;
 
-const FALLBACK_BASES = [
-  "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
-  "https://fastly.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
-  "https://raw.githubusercontent.com/web-ports/hollow-knight-silksong/master/",
-  "https://raw.githack.com/web-ports/hollow-knight-silksong/master/"
-];
+    const EXPECTED_PART_BYTES = partNumber =>
+      partNumber === 100 ? 17340100 : 20866662;
 
-/* =========================================================
-   ELEMENTS
-========================================================= */
+    const FALLBACK_BASES = [
+      "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
+      "https://fastly.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
+      "https://raw.githubusercontent.com/web-ports/hollow-knight-silksong/master/",
+      "https://raw.githack.com/web-ports/hollow-knight-silksong/master/"
+    ];
 
-const statusElement = document.getElementById("status");
-const progressElement = document.getElementById("progress-inner");
-const progressDetail = document.getElementById("progress-detail");
-const diagnostics = document.getElementById("diagnostics");
-const loadingScreen = document.getElementById("loading-screen");
+    /* =========================================================
+       ELEMENTS
+    ========================================================= */
 
-const canvas = document.getElementById("unity-canvas");
-const unityLoadingBar = document.getElementById("unity-loading-bar");
-const unityProgress = document.getElementById("unity-progress-inner");
+    const statusElement = document.getElementById("status");
+    const progressElement = document.getElementById("progress-inner");
+    const progressDetail = document.getElementById("progress-detail");
+    const diagnostics = document.getElementById("diagnostics");
+    const loadingScreen = document.getElementById("loading-screen");
 
-const errorOverlay = document.getElementById("error-overlay");
+    const canvas = document.getElementById("unity-canvas");
+    const unityLoadingBar = document.getElementById("unity-loading-bar");
+    const unityProgress = document.getElementById("unity-progress-inner");
 
-function log(message) {
-  const line = "[" + new Date().toLocaleTimeString() + "] " + message;
+    const errorOverlay = document.getElementById("error-overlay");
 
-  console.log(line);
-  diagnostics.textContent += line + "\n";
-  diagnostics.scrollTop = diagnostics.scrollHeight;
-}
+    function log(message) {
+      const line =
+        "[" + new Date().toLocaleTimeString() + "] " + message;
 
-function setStatus(message) {
-  statusElement.textContent = message;
-}
+      console.log(line);
 
-function setProgress(percent, detail) {
-  progressElement.style.width =
-    Math.max(0, Math.min(100, percent)) + "%";
+      diagnostics.textContent += line + "\n";
+      diagnostics.scrollTop = diagnostics.scrollHeight;
+    }
 
-  if (detail) {
-    progressDetail.textContent = detail;
-  }
-}
+    function setStatus(message) {
+      statusElement.textContent = message;
+    }
 
-function showFatalError(error) {
-  const message = error && error.stack
-    ? error.stack
-    : String(error);
+    function setProgress(percent, detail) {
+      progressElement.style.width =
+        Math.max(0, Math.min(100, percent)) + "%";
 
-  log("FATAL ERROR: " + message);
-  setStatus("DOWNLOAD OR STARTUP FAILED");
-  progressDetail.textContent = "See diagnostics below.";
-}
-
-/* =========================================================
-   URL HELPERS
-========================================================= */
-
-function partUrl(partNumber, sourceIndex) {
-  const path =
-    "StreamingAssets/aa/WebGL.zip.part" + partNumber;
-
-  return FALLBACK_BASES[sourceIndex] + path;
-}
-
-function assetCacheKey(path) {
-  const clean = path
-    .replace(/^\/+/, "")
-    .replace(/^StreamingAssets\/aa\/WebGL\//, "");
-
-  return CACHE_ORIGIN + encodeURI(clean);
-}
-
-/* =========================================================
-   PARALLEL MIRROR DOWNLOAD SYSTEM
-========================================================= */
-
-async function fetchWithTimeout(url, timeoutMs = 120000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      cache: "no-store",
-      signal: controller.signal
-    });
-
-    return { response, controller, timer };
-
-  } catch (error) {
-    clearTimeout(timer);
-    throw error;
-  }
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function downloadPart(partNumber) {
-  const expectedBytes = EXPECTED_PART_BYTES(partNumber);
-  const failures = [];
-
-  for (let attempt = 1; attempt <= MAX_PART_ATTEMPTS; attempt++) {
-
-    log(
-      "Part " + partNumber +
-      ": attempt " + attempt + "/" + MAX_PART_ATTEMPTS
-    );
-
-    const startingMirror = (attempt - 1) % FALLBACK_BASES.length;
-
-    for (let offset = 0; offset < FALLBACK_BASES.length; offset++) {
-
-      const sourceIndex =
-        (startingMirror + offset) % FALLBACK_BASES.length;
-
-      const url = partUrl(partNumber, sourceIndex);
-      let result = null;
-
-      try {
-        log(
-          "Part " + partNumber +
-          ": trying mirror " + (sourceIndex + 1) +
-          " (" + new URL(url).hostname + ")"
-        );
-
-        result = await fetchWithTimeout(url);
-
-        if (!result.response.ok) {
-          throw new Error("HTTP " + result.response.status);
-        }
-
-        const blob = await result.response.blob();
-
-        if (blob.size !== expectedBytes) {
-          throw new Error(
-            "Incomplete download: expected " +
-            expectedBytes +
-            " bytes, received " +
-            blob.size
-          );
-        }
-
-        log(
-          "Part " + partNumber +
-          " complete from mirror " +
-          (sourceIndex + 1) +
-          " (" +
-          (blob.size / 1024 / 1024).toFixed(2) +
-          " MB)"
-        );
-
-        return blob;
-
-      } catch (error) {
-
-        const message = error && error.message
-          ? error.message
-          : String(error);
-
-        failures.push(
-          "Attempt " + attempt +
-          ", mirror " + (sourceIndex + 1) +
-          ": " + message
-        );
-
-        log(
-          "Part " + partNumber +
-          " failed on mirror " +
-          (sourceIndex + 1) +
-          ": " + message
-        );
-
-      } finally {
-        if (result) {
-          clearTimeout(result.timer);
-        }
+      if (detail) {
+        progressDetail.textContent = detail;
       }
     }
 
-    if (attempt < MAX_PART_ATTEMPTS) {
+    function showFatalError(error) {
+      const message = error && error.stack
+        ? error.stack
+        : String(error);
 
-      const delay = 2000 * Math.pow(2, attempt - 1);
+      log("FATAL ERROR: " + message);
+      setStatus("DOWNLOAD OR STARTUP FAILED");
+      progressDetail.textContent = "See diagnostics below.";
+    }
 
-      log(
-        "All mirrors failed for part " + partNumber +
-        ". Retrying in " + (delay / 1000) + " seconds..."
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /* =========================================================
+       URL HELPERS
+    ========================================================= */
+
+    function partUrl(partNumber, sourceIndex) {
+      return FALLBACK_BASES[sourceIndex] +
+        "StreamingAssets/aa/WebGL.zip.part" + partNumber;
+    }
+
+    function assetCacheKey(path) {
+      let clean = String(path);
+
+      clean = clean.replace(/^\/+/, "");
+
+      clean = clean.replace(
+        /^StreamingAssets\/aa\/WebGL\//i,
+        ""
       );
 
-      await sleep(delay);
+      clean = clean.replace(/^WebGL\//i, "");
+
+      return CACHE_ORIGIN + encodeURI(clean);
     }
-  }
 
-  throw new Error(
-    "Part " + partNumber +
-    " failed after " + MAX_PART_ATTEMPTS +
-    " attempts across all mirrors.\n" +
-    failures.join("\n")
-  );
-}
+    /* =========================================================
+       FETCH WITH TIMEOUT
+    ========================================================= */
 
-/* =========================================================
-   DOWNLOAD ALL PARTS WITH LIMITED CONCURRENCY
-========================================================= */
+    async function fetchWithTimeout(url, timeoutMs = 120000) {
+      const controller = new AbortController();
 
-async function downloadAllParts() {
-  const parts = new Array(TOTAL_PARTS);
-
-  let nextPart = 1;
-  let completed = 0;
-  let failed = false;
-
-  const workers = [];
-
-  async function worker() {
-
-    while (true) {
-
-      if (failed) return;
-
-      const partNumber = nextPart++;
-
-      if (partNumber > TOTAL_PARTS) {
-        return;
-      }
+      const timer = setTimeout(
+        () => controller.abort(),
+        timeoutMs
+      );
 
       try {
-        setStatus(
-          "Downloading game files... " +
-          completed + "/" + TOTAL_PARTS
-        );
+        const response = await fetch(url, {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal
+        });
 
-        const blob = await downloadPart(partNumber);
-
-        parts[partNumber - 1] = blob;
-        completed++;
-
-        setProgress(
-          (completed / TOTAL_PARTS) * 45,
-          "ZIP parts downloaded: " +
-          completed + "/" + TOTAL_PARTS
-        );
+        return {
+          response,
+          controller,
+          timer
+        };
 
       } catch (error) {
-
-        failed = true;
+        clearTimeout(timer);
         throw error;
       }
     }
-  }
 
-  // Start the configured number of independent workers.
-  for (let i = 0; i < WORKER_COUNT; i++) {
-    workers.push(worker());
-  }
+    /* =========================================================
+       DOWNLOAD ONE ZIP PART
+    ========================================================= */
 
-  await Promise.all(workers);
+    async function downloadPart(partNumber) {
+      const expectedBytes = EXPECTED_PART_BYTES(partNumber);
+      const failures = [];
 
-  if (parts.some(part => !part)) {
-    throw new Error(
-      "One or more ZIP parts are missing."
-    );
-  }
-
-  return parts;
-}
-
-/* =========================================================
-   EXTRACT ZIP AND CACHE ASSETS
-========================================================= */
-
-async function extractAndCache(parts) {
-  setStatus("Combining ZIP parts...");
-  setProgress(48, "Combining downloaded files...");
-
-  const zipBlob = new Blob(parts, {
-    type: "application/zip"
-  });
-
-  log(
-    "Combined ZIP size: " +
-    (zipBlob.size / 1024 / 1024).toFixed(2) +
-    " MB"
-  );
-
-  setStatus("Opening game archive...");
-  setProgress(50, "Reading ZIP archive...");
-
-  const zip = await JSZip.loadAsync(zipBlob);
-
-  const files = Object.values(zip.files).filter(file => {
-    return !file.dir;
-  });
-
-  if (!files.length) {
-    throw new Error(
-      "The ZIP archive contained no files."
-    );
-  }
-
-  log(
-    "Found " + files.length +
-    " files inside the archive."
-  );
-
-  const cache = await caches.open(CACHE_NAME);
-
-  let completed = 0;
-  let failures = [];
-
-  const batchSize = 8;
-
-  for (
-    let i = 0;
-    i < files.length;
-    i += batchSize
-  ) {
-
-    const batch = files.slice(i, i + batchSize);
-
-    await Promise.all(batch.map(async file => {
-
-      try {
-        const blob = await file.async("blob");
-
-        let path = file.name.replace(/^\/+/, "");
-
-        // ZIP entries may include the WebGL directory prefix.
-        path = path.replace(/^WebGL\//, "");
-
-        const key = assetCacheKey(path);
-
-        await cache.put(
-          key,
-          new Response(blob)
-        );
-
-      } catch (error) {
-
-        failures.push(
-          file.name + ": " +
-          (error.message || error)
-        );
-
+      for (
+        let round = 1;
+        round <= MAX_PART_ATTEMPTS;
+        round++
+      ) {
         log(
-          "Extraction/cache failure: " +
-          file.name
+          "Part " + partNumber +
+          ": download attempt " + round +
+          "/" + MAX_PART_ATTEMPTS
         );
+
+        for (
+          let sourceIndex = 0;
+          sourceIndex < FALLBACK_BASES.length;
+          sourceIndex++
+        ) {
+          const url = partUrl(partNumber, sourceIndex);
+
+          let result = null;
+
+          try {
+            log(
+              "Part " + partNumber +
+              ": trying mirror " + (sourceIndex + 1) +
+              " (" + new URL(url).hostname + ")"
+            );
+
+            result = await fetchWithTimeout(url);
+
+            if (!result.response.ok) {
+              throw new Error(
+                "HTTP " + result.response.status
+              );
+            }
+
+            const blob = await result.response.blob();
+
+            if (blob.size !== expectedBytes) {
+              throw new Error(
+                "Incomplete download: expected " +
+                expectedBytes +
+                " bytes, received " +
+                blob.size
+              );
+            }
+
+            log(
+              "Part " + partNumber +
+              " complete from mirror " +
+              (sourceIndex + 1) +
+              " (" +
+              (blob.size / 1024 / 1024).toFixed(2) +
+              " MB)"
+            );
+
+            return blob;
+
+          } catch (error) {
+            const message = error.message || String(error);
+
+            failures.push(
+              "Attempt " + round +
+              ", mirror " + (sourceIndex + 1) +
+              ": " + message
+            );
+
+            log(
+              "Part " + partNumber +
+              " mirror " + (sourceIndex + 1) +
+              " failed: " + message
+            );
+
+          } finally {
+            if (result) {
+              clearTimeout(result.timer);
+            }
+          }
+        }
+
+        if (round < MAX_PART_ATTEMPTS) {
+          const delay = 2000 * Math.pow(2, round - 1);
+
+          log(
+            "Part " + partNumber +
+            ": all mirrors failed; retrying in " +
+            (delay / 1000) + " seconds."
+          );
+
+          await sleep(delay);
+        }
       }
 
-      completed++;
-
-      const percent =
-        50 + (completed / files.length) * 45;
-
-      setProgress(
-        percent,
-        "Extracting assets: " +
-        completed + "/" + files.length
+      throw new Error(
+        "Could not download complete ZIP part " +
+        partNumber + ".\n" +
+        failures.join("\n")
       );
+    }
 
-    }));
-  }
+    /* =========================================================
+       DOWNLOAD ALL PARTS WITH LIMITED CONCURRENCY
+    ========================================================= */
 
-  if (failures.length) {
-    throw new Error(
-      failures.length +
-      " asset(s) failed to extract or cache.\n" +
-      failures.slice(0, 10).join("\n")
-    );
-  }
+    async function downloadAllParts() {
+      const parts = new Array(TOTAL_PARTS);
 
-  await cache.put(
-    CACHE_MARKER,
-    new Response("complete")
-  );
+      let nextPart = 1;
+      let completed = 0;
+      let failed = false;
 
-  log("All extracted assets were cached.");
-}
+      const workers = [];
 
-/* =========================================================
-   CACHE CHECK
-========================================================= */
+      async function worker() {
+        while (true) {
+          if (failed) return;
 
-async function cacheIsComplete() {
-  try {
-    const cache = await caches.open(CACHE_NAME);
+          const partNumber = nextPart++;
 
-    return !!(await cache.match(CACHE_MARKER));
+          if (partNumber > TOTAL_PARTS) {
+            return;
+          }
 
-  } catch (error) {
+          try {
+            setStatus(
+              "Downloading game files... " +
+              completed + "/" + TOTAL_PARTS
+            );
 
-    log("Cache check failed: " + error.message);
-    return false;
-  }
-}
+            const blob = await downloadPart(partNumber);
 
-/* =========================================================
-   INTERCEPT UNITY ASSET REQUESTS
-========================================================= */
+            parts[partNumber - 1] = blob;
+            completed++;
 
-const originalFetch = window.fetch.bind(window);
+            setProgress(
+              (completed / TOTAL_PARTS) * 45,
+              "ZIP parts downloaded: " +
+              completed + "/" + TOTAL_PARTS
+            );
 
-window.fetch = async function(resource, options) {
-  let requestUrl;
-
-  try {
-    requestUrl = typeof resource === "string"
-      ? resource
-      : resource.url;
-
-    const parsed = new URL(
-      requestUrl,
-      document.baseURI
-    );
-
-    const marker = "/StreamingAssets/aa/WebGL/";
-
-    const markerIndex =
-      parsed.pathname.indexOf(marker);
-
-    if (markerIndex !== -1) {
-
-      const relativePath =
-        parsed.pathname.substring(
-          markerIndex + marker.length
-        );
-
-      const cache = await caches.open(CACHE_NAME);
-      const key = assetCacheKey(relativePath);
-
-      const cached = await cache.match(key);
-
-      if (cached) {
-        return cached;
+          } catch (error) {
+            failed = true;
+            throw error;
+          }
+        }
       }
 
       log(
-        "Asset not in cache; trying network: " +
-        relativePath
-      );
-    }
-
-  } catch (error) {
-
-    log(
-      "Cache lookup warning: " +
-      error.message
-    );
-  }
-
-  return originalFetch(resource, options);
-};
-
-/* =========================================================
-   UNITY BANNER
-========================================================= */
-
-function unityShowBanner(message, type) {
-  const div = document.createElement("div");
-
-  div.textContent = message;
-
-  div.style.padding = "10px";
-  div.style.marginBottom = "5px";
-
-  if (type === "error") {
-
-    div.style.background = "#a00000";
-
-  } else {
-
-    div.style.background = "#8a6900";
-
-    setTimeout(() => {
-      div.remove();
-    }, 5000);
-  }
-
-  document.getElementById("unity-warning").appendChild(div);
-}
-
-/* =========================================================
-   START UNITY
-========================================================= */
-
-async function startUnity() {
-  setStatus("Starting Unity...");
-  setProgress(96, "Loading game engine...");
-
-  unityLoadingBar.style.display = "block";
-
-  const config = {
-    dataUrl: "Build/w-pt.data.unityweb",
-    frameworkUrl: "Build/w-pt.framework.js.unityweb",
-    codeUrl: "Build/w-pt.wasm.unityweb",
-    streamingAssetsUrl: "StreamingAssets",
-
-    companyName: "EDUrocks Group, Truffled, GN-Math",
-    productName: "Hollow Knight SilkSong",
-    productVersion: "1.0",
-
-    showBanner: unityShowBanner
-  };
-
-  const script = document.createElement("script");
-
-  script.src = BASE_URL + "Build/w-pt.loader.js";
-
-  script.onload = async () => {
-
-    try {
-      log("Unity loader downloaded.");
-
-      const instance = await createUnityInstance(
-        canvas,
-        config,
-        progress => {
-          unityProgress.style.width =
-            (progress * 100) + "%";
-        }
+        "Starting " + WORKER_COUNT +
+        " download workers."
       );
 
-      window.unityInstance = instance;
+      for (let i = 0; i < WORKER_COUNT; i++) {
+        workers.push(worker());
+      }
 
-      log("Unity started successfully.");
+      await Promise.all(workers);
 
-      loadingScreen.style.display = "none";
-      unityLoadingBar.style.display = "none";
+      if (parts.some(part => !part)) {
+        throw new Error(
+          "One or more ZIP parts are missing."
+        );
+      }
 
-    } catch (error) {
+      log("All " + TOTAL_PARTS + " ZIP parts downloaded.");
 
-      showFatalError(error);
-
-      errorOverlay.style.display = "block";
-
-      errorOverlay.textContent =
-        "UNITY STARTUP ERROR\n\n" + error.stack;
-    }
-  };
-
-  script.onerror = () => {
-    showFatalError(
-      new Error(
-        "Could not load Unity loader: " + script.src
-      )
-    );
-  };
-
-  document.body.appendChild(script);
-}
-
-/* =========================================================
-   SAVE SYSTEM
-========================================================= */
-
-function encodeValue(value) {
-  if (value instanceof ArrayBuffer) {
-    return {
-      __type: "ArrayBuffer",
-      data: arrayBufferToBase64(value)
-    };
-  }
-
-  if (ArrayBuffer.isView(value)) {
-    return {
-      __type: "TypedArray",
-      name: value.constructor.name,
-      data: arrayBufferToBase64(
-        value.buffer.slice(
-          value.byteOffset,
-          value.byteOffset + value.byteLength
-        )
-      )
-    };
-  }
-
-  if (value instanceof Blob) {
-    return {
-      __type: "Blob",
-      type: value.type,
-      data: arrayBufferToBase64(value)
-    };
-  }
-
-  if (value instanceof Date) {
-    return {
-      __type: "Date",
-      data: value.toISOString()
-    };
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(encodeValue);
-  }
-
-  if (value && typeof value === "object") {
-    const output = {};
-
-    for (const key of Object.keys(value)) {
-      output[key] = encodeValue(value[key]);
+      return parts;
     }
 
-    return output;
-  }
+    /* =========================================================
+       EXTRACT ZIP AND CACHE ASSETS
+    ========================================================= */
 
-  return value;
-}
+    async function extractAndCache(parts) {
+      setStatus("Combining ZIP parts...");
+      setProgress(48, "Combining downloaded files...");
 
-function decodeValue(value) {
-  if (!value || typeof value !== "object") {
-    return value;
-  }
+      const zipBlob = new Blob(parts, {
+        type: "application/zip"
+      });
 
-  if (value.__type === "ArrayBuffer") {
-    return base64ToArrayBuffer(value.data);
-  }
-
-  if (value.__type === "TypedArray") {
-    const buffer = base64ToArrayBuffer(value.data);
-    const constructor = window[value.name];
-
-    if (typeof constructor !== "function") {
-      throw new Error(
-        "Unsupported typed array: " + value.name
+      log(
+        "Combined ZIP size: " +
+        (zipBlob.size / 1024 / 1024).toFixed(2) +
+        " MB"
       );
-    }
 
-    return new constructor(buffer);
-  }
+      setStatus("Opening game archive...");
+      setProgress(50, "Reading ZIP archive...");
 
-  if (value.__type === "Blob") {
-    return new Blob(
-      [base64ToArrayBuffer(value.data)],
-      { type: value.type }
-    );
-  }
+      // Give the browser a chance to display the updated status.
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 50);
+        });
+      });
 
-  if (value.__type === "Date") {
-    return new Date(value.data);
-  }
+      progressElement.classList.add("indeterminate");
 
-  if (Array.isArray(value)) {
-    return value.map(decodeValue);
-  }
+      const parseStarted = performance.now();
 
-  const output = {};
-
-  for (const key of Object.keys(value)) {
-    output[key] = decodeValue(value[key]);
-  }
-
-  return output;
-}
-
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  let binary = "";
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(
-      ...bytes.subarray(i, i + chunkSize)
-    );
-  }
-
-  return btoa(binary);
-}
-
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-
-  return bytes.buffer;
-}
-
-function requestResult(request) {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function exportDatabase(dbName) {
-  const db = await requestResult(indexedDB.open(dbName));
-
-  const result = {
-    name: db.name,
-    version: db.version,
-    stores: []
-  };
-
-  for (const storeName of Array.from(db.objectStoreNames)) {
-
-    const transaction = db.transaction(
-      storeName,
-      "readonly"
-    );
-
-    const store = transaction.objectStore(storeName);
-
-    const keys = await requestResult(store.getAllKeys());
-    const values = await requestResult(store.getAll());
-
-    result.stores.push({
-      name: storeName,
-      keyPath: store.keyPath,
-      autoIncrement: store.autoIncrement,
-      records: keys.map((key, index) => ({
-        key: encodeValue(key),
-        value: encodeValue(values[index])
-      }))
-    });
-  }
-
-  db.close();
-
-  return result;
-}
-
-async function saveGame() {
-  try {
-    if (!indexedDB.databases) {
-      throw new Error(
-        "This browser does not support listing IndexedDB databases."
+      log("Starting JSZip archive parsing...");
+      log(
+        "Archive size: " +
+        (zipBlob.size / 1024 / 1024).toFixed(2) +
+        " MB"
       );
-    }
 
-    const databases = await indexedDB.databases();
+      let zip;
 
-    const saveData = {
-      format: "silksong-save",
-      version: 1,
-      created: new Date().toISOString(),
-      databases: []
-    };
+      try {
+        zip = await JSZip.loadAsync(zipBlob);
 
-    for (const info of databases) {
-      if (!info.name) continue;
+      } catch (error) {
+        progressElement.classList.remove("indeterminate");
 
-      const name = info.name.toLowerCase();
+        log(
+          "ZIP parsing failed: " +
+          (error.message || error)
+        );
 
-      if (
-        !name.includes("unity") &&
-        !name.includes("em_fs") &&
-        !name.includes("idbfs")
+        throw error;
+      }
+
+      progressElement.classList.remove("indeterminate");
+
+      const parseSeconds =
+        ((performance.now() - parseStarted) / 1000).toFixed(1);
+
+      log(
+        "JSZip finished parsing the archive in " +
+        parseSeconds + " seconds."
+      );
+
+      const files = Object.values(zip.files).filter(file => {
+        return !file.dir;
+      });
+
+      if (!files.length) {
+        throw new Error(
+          "The ZIP archive contained no files."
+        );
+      }
+
+      log(
+        "Found " + files.length +
+        " files inside the archive."
+      );
+
+      const cache = await caches.open(CACHE_NAME);
+
+      let completed = 0;
+      const failures = [];
+
+      const batchSize = 8;
+
+      for (
+        let i = 0;
+        i < files.length;
+        i += batchSize
       ) {
-        continue;
-      }
+        const batch = files.slice(i, i + batchSize);
 
-      log("Saving database: " + info.name);
+        await Promise.all(batch.map(async file => {
+          try {
+            const blob = await file.async("blob");
 
-      saveData.databases.push(
-        await exportDatabase(info.name)
-      );
-    }
+            let path = file.name.replace(/^\/+/, "");
 
-    if (!saveData.databases.length) {
-      throw new Error(
-        "No Unity save databases were found yet. Play the game first, then save."
-      );
-    }
+            // Handle common ZIP directory prefixes.
+            path = path.replace(
+              /^StreamingAssets\/aa\/WebGL\//i,
+              ""
+            );
 
-    const blob = new Blob(
-      [JSON.stringify(saveData)],
-      { type: "application/json" }
-    );
+            path = path.replace(/^WebGL\//i, "");
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+            const key = assetCacheKey(path);
 
-    link.href = url;
-    link.download = "Silksong-Game-Save.silksong-save";
-    link.click();
+            await cache.put(
+              key,
+              new Response(blob)
+            );
 
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
+          } catch (error) {
+            failures.push(
+              file.name + ": " +
+              (error.message || error)
+            );
 
-    log("Save file exported successfully.");
-
-  } catch (error) {
-
-    alert("Save failed:\n" + error.message);
-    log("SAVE ERROR: " + error.message);
-  }
-}
-
-async function importDatabase(data) {
-  const existing = await requestResult(
-    indexedDB.open(data.name)
-  );
-
-  let version = existing.version;
-
-  const missingStores = data.stores.filter(
-    store => !existing.objectStoreNames.contains(store.name)
-  );
-
-  existing.close();
-
-  if (missingStores.length) {
-
-    version++;
-
-    await new Promise((resolve, reject) => {
-
-      const request = indexedDB.open(data.name, version);
-
-      request.onupgradeneeded = () => {
-        const db = request.result;
-
-        for (const store of missingStores) {
-          if (!db.objectStoreNames.contains(store.name)) {
-            db.createObjectStore(store.name, {
-              keyPath: store.keyPath || undefined,
-              autoIncrement: !!store.autoIncrement
-            });
+            log(
+              "Extraction/cache failure: " +
+              file.name + " - " +
+              (error.message || error)
+            );
           }
-        }
-      };
 
-      request.onsuccess = () => {
-        request.result.close();
-        resolve();
-      };
+          completed++;
 
-      request.onerror = () => reject(request.error);
-    });
-  }
+          const percent =
+            50 + (completed / files.length) * 45;
 
-  const db = await requestResult(indexedDB.open(data.name));
+          setProgress(
+            percent,
+            "Extracting assets: " +
+            completed + "/" + files.length
+          );
 
-  for (const storeData of data.stores) {
-
-    if (!db.objectStoreNames.contains(storeData.name)) {
-      continue;
-    }
-
-    await new Promise((resolve, reject) => {
-
-      const transaction = db.transaction(
-        storeData.name,
-        "readwrite"
-      );
-
-      const store = transaction.objectStore(storeData.name);
-
-      store.clear();
-
-      for (const record of storeData.records) {
-        const key = decodeValue(record.key);
-        const value = decodeValue(record.value);
-
-        if (store.keyPath !== null) {
-          store.put(value);
-        } else {
-          store.put(value, key);
-        }
+          if (
+            completed % 40 === 0 ||
+            completed === files.length
+          ) {
+            log(
+              "Cached " + completed +
+              "/" + files.length + " files."
+            );
+          }
+        }));
       }
 
-      transaction.oncomplete = resolve;
-      transaction.onerror = () => reject(transaction.error);
-      transaction.onabort = () => reject(transaction.error);
-    });
-  }
+      if (failures.length) {
+        throw new Error(
+          failures.length +
+          " asset(s) failed to extract or cache.\n" +
+          failures.slice(0, 10).join("\n")
+        );
+      }
 
-  db.close();
-}
-
-async function loadGameFile(file) {
-  try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-
-    if (data.format !== "silksong-save") {
-      throw new Error(
-        "This is not a valid Silksong save file."
+      await cache.put(
+        CACHE_MARKER,
+        new Response("complete")
       );
+
+      log("All extracted assets were cached.");
+      setProgress(95, "Game assets cached successfully.");
     }
 
-    if (!Array.isArray(data.databases)) {
-      throw new Error(
-        "The save file contains no database data."
+    /* =========================================================
+       CACHE CHECK
+    ========================================================= */
+
+    async function cacheIsComplete() {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+
+        return !!(await cache.match(CACHE_MARKER));
+
+      } catch (error) {
+        log("Cache check failed: " + error.message);
+        return false;
+      }
+    }
+
+    /* =========================================================
+       INTERCEPT UNITY ASSET REQUESTS
+    ========================================================= */
+
+    const originalFetch = window.fetch.bind(window);
+
+    window.fetch = async function(resource, options) {
+      let requestUrl;
+
+      try {
+        requestUrl = typeof resource === "string"
+          ? resource
+          : resource.url;
+
+        const parsed = new URL(
+          requestUrl,
+          document.baseURI
+        );
+
+        const marker = "/StreamingAssets/aa/WebGL/";
+
+        const markerIndex =
+          parsed.pathname.indexOf(marker);
+
+        if (markerIndex !== -1) {
+          const relativePath =
+            parsed.pathname.substring(
+              markerIndex + marker.length
+            );
+
+          const cache = await caches.open(CACHE_NAME);
+          const key = assetCacheKey(relativePath);
+
+          const cached = await cache.match(key);
+
+          if (cached) {
+            return cached;
+          }
+
+          log(
+            "Asset not in cache; trying network: " +
+            relativePath
+          );
+        }
+
+      } catch (error) {
+        log(
+          "Cache lookup warning: " +
+          error.message
+        );
+      }
+
+      return originalFetch(resource, options);
+    };
+
+    /* =========================================================
+       UNITY BANNER
+    ========================================================= */
+
+    function unityShowBanner(message, type) {
+      const div = document.createElement("div");
+
+      div.textContent = message;
+      div.style.padding = "10px";
+      div.style.marginBottom = "5px";
+
+      if (type === "error") {
+        div.style.background = "#a00000";
+
+      } else {
+        div.style.background = "#8a6900";
+
+        setTimeout(() => {
+          div.remove();
+        }, 5000);
+      }
+
+      document.getElementById("unity-warning")
+        .appendChild(div);
+    }
+
+    /* =========================================================
+       START UNITY
+    ========================================================= */
+
+    async function startUnity() {
+      setStatus("Starting Unity...");
+      setProgress(96, "Loading game engine...");
+
+      unityLoadingBar.style.display = "block";
+
+      const config = {
+        dataUrl: "Build/w-pt.data.unityweb",
+        frameworkUrl: "Build/w-pt.framework.js.unityweb",
+        codeUrl: "Build/w-pt.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+
+        companyName: "EDUrocks Group, Truffled, GN-Math",
+        productName: "Hollow Knight SilkSong",
+        productVersion: "1.0",
+
+        showBanner: unityShowBanner
+      };
+
+      const script = document.createElement("script");
+
+      script.src = BASE_URL + "Build/w-pt.loader.js";
+
+      script.onload = async () => {
+        try {
+          log("Unity loader downloaded.");
+
+          if (typeof createUnityInstance !== "function") {
+            throw new Error(
+              "Unity loader loaded, but createUnityInstance is unavailable."
+            );
+          }
+
+          const instance = await createUnityInstance(
+            canvas,
+            config,
+            progress => {
+              unityProgress.style.width =
+                (progress * 100) + "%";
+            }
+          );
+
+          window.unityInstance = instance;
+
+          log("Unity started successfully.");
+
+          loadingScreen.style.display = "none";
+          unityLoadingBar.style.display = "none";
+
+        } catch (error) {
+          showFatalError(error);
+
+          errorOverlay.style.display = "block";
+          errorOverlay.textContent =
+            "UNITY STARTUP ERROR\n\n" +
+            (error.stack || error.message || String(error));
+        }
+      };
+
+      script.onerror = () => {
+        const error = new Error(
+          "Could not load Unity loader: " + script.src
+        );
+
+        showFatalError(error);
+
+        errorOverlay.style.display = "block";
+        errorOverlay.textContent =
+          "UNITY LOADER ERROR\n\n" + error.message;
+      };
+
+      document.body.appendChild(script);
+    }
+
+    /* =========================================================
+       SAVE SYSTEM
+    ========================================================= */
+
+    function encodeValue(value) {
+      if (value instanceof ArrayBuffer) {
+        return {
+          __type: "ArrayBuffer",
+          data: arrayBufferToBase64(value)
+        };
+      }
+
+      if (ArrayBuffer.isView(value)) {
+        return {
+          __type: "TypedArray",
+          name: value.constructor.name,
+          data: arrayBufferToBase64(
+            value.buffer.slice(
+              value.byteOffset,
+              value.byteOffset + value.byteLength
+            )
+          )
+        };
+      }
+
+      if (value instanceof Blob) {
+        return {
+          __type: "Blob",
+          type: value.type,
+          data: arrayBufferToBase64(value)
+        };
+      }
+
+      if (value instanceof Date) {
+        return {
+          __type: "Date",
+          data: value.toISOString()
+        };
+      }
+
+      if (Array.isArray(value)) {
+        return value.map(encodeValue);
+      }
+
+      if (value && typeof value === "object") {
+        const output = {};
+
+        for (const key of Object.keys(value)) {
+          output[key] = encodeValue(value[key]);
+        }
+
+        return output;
+      }
+
+      return value;
+    }
+
+    function decodeValue(value) {
+      if (!value || typeof value !== "object") {
+        return value;
+      }
+
+      if (value.__type === "ArrayBuffer") {
+        return base64ToArrayBuffer(value.data);
+      }
+
+      if (value.__type === "TypedArray") {
+        const buffer = base64ToArrayBuffer(value.data);
+        const constructor = window[value.name];
+
+        if (typeof constructor !== "function") {
+          throw new Error(
+            "Unsupported typed array: " + value.name
+          );
+        }
+
+        return new constructor(buffer);
+      }
+
+      if (value.__type === "Blob") {
+        return new Blob(
+          [base64ToArrayBuffer(value.data)],
+          { type: value.type }
+        );
+      }
+
+      if (value.__type === "Date") {
+        return new Date(value.data);
+      }
+
+      if (Array.isArray(value)) {
+        return value.map(decodeValue);
+      }
+
+      const output = {};
+
+      for (const key of Object.keys(value)) {
+        output[key] = decodeValue(value[key]);
+      }
+
+      return output;
+    }
+
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      const chunkSize = 0x8000;
+      let binary = "";
+
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(
+          ...bytes.subarray(i, i + chunkSize)
+        );
+      }
+
+      return btoa(binary);
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      return bytes.buffer;
+    }
+
+    function requestResult(request) {
+      return new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function exportDatabase(dbName) {
+      const db = await requestResult(indexedDB.open(dbName));
+
+      const result = {
+        name: db.name,
+        version: db.version,
+        stores: []
+      };
+
+      for (const storeName of Array.from(db.objectStoreNames)) {
+        const transaction = db.transaction(
+          storeName,
+          "readonly"
+        );
+
+        const store = transaction.objectStore(storeName);
+
+        const keys = await requestResult(store.getAllKeys());
+        const values = await requestResult(store.getAll());
+
+        result.stores.push({
+          name: storeName,
+          keyPath: store.keyPath,
+          autoIncrement: store.autoIncrement,
+
+          records: keys.map((key, index) => ({
+            key: encodeValue(key),
+            value: encodeValue(values[index])
+          }))
+        });
+      }
+
+      db.close();
+
+      return result;
+    }
+
+    async function saveGame() {
+      try {
+        if (!indexedDB.databases) {
+          throw new Error(
+            "This browser does not support listing IndexedDB databases."
+          );
+        }
+
+        const databases = await indexedDB.databases();
+
+        const saveData = {
+          format: "silksong-save",
+          version: 1,
+          created: new Date().toISOString(),
+          databases: []
+        };
+
+        for (const info of databases) {
+          if (!info.name) continue;
+
+          const name = info.name.toLowerCase();
+
+          if (
+            !name.includes("unity") &&
+            !name.includes("em_fs") &&
+            !name.includes("idbfs")
+          ) {
+            continue;
+          }
+
+          log("Saving database: " + info.name);
+
+          saveData.databases.push(
+            await exportDatabase(info.name)
+          );
+        }
+
+        if (!saveData.databases.length) {
+          throw new Error(
+            "No Unity save databases were found yet. " +
+            "Play the game first, then save."
+          );
+        }
+
+        const blob = new Blob(
+          [JSON.stringify(saveData)],
+          { type: "application/json" }
+        );
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = "Silksong-Game-Save.silksong-save";
+        link.click();
+
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+
+        log("Save file exported successfully.");
+
+      } catch (error) {
+        alert("Save failed:\n" + error.message);
+        log("SAVE ERROR: " + error.message);
+      }
+    }
+
+    async function importDatabase(data) {
+      const existing = await requestResult(
+        indexedDB.open(data.name)
       );
+
+      let version = existing.version;
+
+      const missingStores = data.stores.filter(
+        store => !existing.objectStoreNames.contains(store.name)
+      );
+
+      existing.close();
+
+      if (missingStores.length) {
+        version++;
+
+        await new Promise((resolve, reject) => {
+          const request = indexedDB.open(data.name, version);
+
+          request.onupgradeneeded = () => {
+            const db = request.result;
+
+            for (const store of missingStores) {
+              if (!db.objectStoreNames.contains(store.name)) {
+                db.createObjectStore(store.name, {
+                  keyPath: store.keyPath || undefined,
+                  autoIncrement: !!store.autoIncrement
+                });
+              }
+            }
+          };
+
+          request.onsuccess = () => {
+            request.result.close();
+            resolve();
+          };
+
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      const db = await requestResult(indexedDB.open(data.name));
+
+      for (const storeData of data.stores) {
+        if (!db.objectStoreNames.contains(storeData.name)) {
+          continue;
+        }
+
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction(
+            storeData.name,
+            "readwrite"
+          );
+
+          const store = transaction.objectStore(storeData.name);
+
+          store.clear();
+
+          for (const record of storeData.records) {
+            const key = decodeValue(record.key);
+            const value = decodeValue(record.value);
+
+            if (store.keyPath !== null) {
+              store.put(value);
+            } else {
+              store.put(value, key);
+            }
+          }
+
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error);
+          transaction.onabort = () => reject(transaction.error);
+        });
+      }
+
+      db.close();
     }
 
-    for (const database of data.databases) {
-      log("Restoring database: " + database.name);
-      await importDatabase(database);
+    async function loadGameFile(file) {
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        if (data.format !== "silksong-save") {
+          throw new Error(
+            "This is not a valid Silksong save file."
+          );
+        }
+
+        if (!Array.isArray(data.databases)) {
+          throw new Error(
+            "The save file contains no database data."
+          );
+        }
+
+        for (const database of data.databases) {
+          log("Restoring database: " + database.name);
+          await importDatabase(database);
+        }
+
+        alert(
+          "Save imported. The page will reload to apply the restored progress."
+        );
+
+        location.reload();
+
+      } catch (error) {
+        alert("Load failed:\n" + error.message);
+        log("LOAD ERROR: " + error.message);
+      }
     }
 
-    alert(
-      "Save imported. The page will reload to apply the restored progress."
+    document.getElementById("save-button").addEventListener(
+      "click",
+      saveGame
     );
 
-    location.reload();
+    document.getElementById("load-button").addEventListener(
+      "click",
+      () => document.getElementById("save-file").click()
+    );
 
-  } catch (error) {
+    document.getElementById("save-file").addEventListener(
+      "change",
+      event => {
+        const file = event.target.files[0];
 
-    alert("Load failed:\n" + error.message);
-    log("LOAD ERROR: " + error.message);
-  }
-}
+        if (file) {
+          loadGameFile(file);
+        }
 
-document.getElementById("save-button").addEventListener(
-  "click",
-  saveGame
-);
-
-document.getElementById("load-button").addEventListener(
-  "click",
-  () => document.getElementById("save-file").click()
-);
-
-document.getElementById("save-file").addEventListener(
-  "change",
-  event => {
-    const file = event.target.files[0];
-
-    if (file) {
-      loadGameFile(file);
-    }
-
-    event.target.value = "";
-  }
-);
-
-/* =========================================================
-   FULLSCREEN
-========================================================= */
-
-document.getElementById("fullscreen-button").addEventListener(
-  "click",
-  async () => {
-    try {
-      const target = document.getElementById("game");
-
-      if (!document.fullscreenElement) {
-        await target.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
+        event.target.value = "";
       }
+    );
 
-    } catch (error) {
+    /* =========================================================
+       FULLSCREEN
+    ========================================================= */
 
-      log("Fullscreen error: " + error.message);
-    }
-  }
-);
+    document.getElementById("fullscreen-button").addEventListener(
+      "click",
+      async () => {
+        try {
+          const target = document.getElementById("game");
 
-/* =========================================================
-   MAIN
-========================================================= */
+          if (!document.fullscreenElement) {
+            await target.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
 
-async function main() {
-  try {
-    if (!window.JSZip) {
-      throw new Error("JSZip failed to load.");
-    }
-
-    if (!("caches" in window)) {
-      throw new Error(
-        "Cache Storage is unavailable in this browser or HTML runner."
-      );
-    }
-
-    setStatus("Checking saved game files...");
-    log("Checking asset cache...");
-
-    const cached = await cacheIsComplete();
-
-    if (cached) {
-      log("Complete asset cache found.");
-
-      setStatus("Using previously downloaded game files.");
-      setProgress(95, "Assets already cached.");
-
-    } else {
-
-      log("No complete cache found. Starting parallel ZIP download.");
-
-      const oldCacheNames = await caches.keys();
-
-      for (const name of oldCacheNames) {
-        if (
-          name.startsWith("hksilksongcache-") &&
-          name !== CACHE_NAME
-        ) {
-          await caches.delete(name);
+        } catch (error) {
+          log("Fullscreen error: " + error.message);
         }
       }
+    );
 
-      const parts = await downloadAllParts();
+    /* =========================================================
+       MAIN
+    ========================================================= */
 
-      await extractAndCache(parts);
+    async function main() {
+      try {
+        if (!window.JSZip) {
+          throw new Error("JSZip failed to load.");
+        }
+
+        if (!("caches" in window)) {
+          throw new Error(
+            "Cache Storage is unavailable in this browser or HTML runner."
+          );
+        }
+
+        setStatus("Checking saved game files...");
+        log("Checking asset cache...");
+
+        const cached = await cacheIsComplete();
+
+        if (cached) {
+          log("Complete asset cache found.");
+
+          setStatus("Using previously downloaded game files.");
+          setProgress(95, "Assets already cached.");
+
+        } else {
+          log("No complete cache found. Starting ZIP download.");
+
+          const oldCacheNames = await caches.keys();
+
+          for (const name of oldCacheNames) {
+            if (
+              name.startsWith("hksilksongcache-") &&
+              name !== CACHE_NAME
+            ) {
+              log("Removing old cache: " + name);
+              await caches.delete(name);
+            }
+          }
+
+          const parts = await downloadAllParts();
+
+          await extractAndCache(parts);
+        }
+
+        await startUnity();
+
+      } catch (error) {
+        showFatalError(error);
+      }
     }
 
-    await startUnity();
+    main();
 
-  } catch (error) {
-
-    showFatalError(error);
-  }
-}
-
-main();
-
-})();
-</script>
+  })();
+  </script>
 </body>
 </html>
