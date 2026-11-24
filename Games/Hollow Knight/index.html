@@ -33,6 +33,7 @@ body{display:flex;align-items:center;justify-content:center}
 #fullscreenButton:hover,.saveButton:hover{background:#333}
 .saveButton{background:#171717;border:1px solid #333;color:white;padding:7px 12px;cursor:pointer;font-size:12px}
 #saveStatus{color:#aaa;font-size:11px;margin-left:8px}
+#resolutionScale{background:#171717;border:1px solid #333;color:white;padding:7px 8px;font-size:12px;max-width:125px}
 @media(max-width:600px){#unity-canvas{width:100vw;height:auto;max-height:calc(100vh - 38px)}}
 </style>
 </head>
@@ -61,6 +62,14 @@ body{display:flex;align-items:center;justify-content:center}
     <div id="unity-footer">
         <span>Hollow Knight <span id="saveStatus" aria-live="polite"></span></span>
         <div style="display:flex;gap:7px;align-items:center">
+            <select id="resolutionScale" class="saveButton" aria-label="Graphics resolution" title="Graphics resolution">
+                <option value="1">Graphics: 1.00x</option>
+                <option value="0.85">Graphics: 0.85x</option>
+                <option value="0.70">Graphics: 0.70x</option>
+                <option value="0.60">Graphics: 0.60x</option>
+                <option value="0.50">Graphics: 0.50x</option>
+                <option value="0.45">Graphics: 0.45x</option>
+            </select>
             <button class="saveButton" id="saveButton" type="button">SAVE FILE</button>
             <button class="saveButton" id="loadButton" type="button">LOAD FILE</button>
             <button id="fullscreenButton">FULLSCREEN</button>
@@ -774,6 +783,20 @@ async function loadUnityLoader() {
 const SAVE_FORMAT = "hollow-knight-browser-save-v1";
 const saveStatus = $("saveStatus");
 const saveFileInput = $("saveFileInput");
+const resolutionScale = $("resolutionScale");
+const HK_SCALE_KEY = "hollowKnightGraphicsScale";
+
+try {
+    const savedScale = localStorage.getItem(HK_SCALE_KEY);
+    if (savedScale && Array.from(resolutionScale.options).some(option => option.value === savedScale)) {
+        resolutionScale.value = savedScale;
+    }
+} catch (_) {}
+
+resolutionScale.addEventListener("change", () => {
+    try { localStorage.setItem(HK_SCALE_KEY, resolutionScale.value); } catch (_) {}
+    setSaveStatus("Graphics: " + Number(resolutionScale.value).toFixed(2) + "x — reload to apply");
+});
 
 function setSaveStatus(message) {
     if (saveStatus) saveStatus.textContent = message;
@@ -958,26 +981,22 @@ async function flushUnityStorage() {
 
     if (module && module.FS &&
         typeof module.FS.syncfs === "function") {
-        await new Promise(resolve => {
+        await new Promise((resolve, reject) => {
             let finished = false;
-
-            const done = () => {
+            const finish = error => {
                 if (finished) return;
                 finished = true;
-                resolve();
+                clearTimeout(timer);
+                if (error) reject(error); else resolve();
             };
-
+            const timer = setTimeout(() => finish(new Error("Timed out while syncing game save storage.")), 10000);
             try {
-                module.FS.syncfs(false, done);
-            } catch (_) {
-                done();
+                module.FS.syncfs(false, error => finish(error || null));
+            } catch (error) {
+                finish(error);
             }
-
-            setTimeout(done, 1800);
         });
     }
-
-    await new Promise(resolve => setTimeout(resolve, 350));
 }
 
 async function readGameDatabases() {
@@ -1008,6 +1027,7 @@ async function readGameDatabases() {
 
         for (const storeName of Array.from(db.objectStoreNames)) {
             const tx = db.transaction(storeName, "readonly");
+            const done = transactionDone(tx);
             const store = tx.objectStore(storeName);
 
             const keys = await requestToPromise(store.getAllKeys());
@@ -1029,7 +1049,7 @@ async function readGameDatabases() {
                 records
             });
 
-            await transactionDone(tx);
+            await done;
         }
 
         databases.push({
@@ -1110,62 +1130,68 @@ async function exportSaveFile() {
 }
 
 async function writeDatabaseSnapshot(snapshot) {
-    const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open(snapshot.name);
+    if (!snapshot || typeof snapshot.name !== "string" ||
+        !Array.isArray(snapshot.stores)) {
+        throw new Error("The save contains an invalid database snapshot.");
+    }
 
+    let db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open(snapshot.name);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
-
-        request.onupgradeneeded = () => {
-            const fresh = request.result;
-
-            for (const storeInfo of snapshot.stores) {
-                const options = {
-                    autoIncrement: !!storeInfo.autoIncrement
-                };
-
-                if (storeInfo.keyPath !== null) {
-                    options.keyPath = storeInfo.keyPath;
-                }
-
-                fresh.createObjectStore(storeInfo.name, options);
-            }
-        };
     });
 
-    const known = new Set(Array.from(db.objectStoreNames));
+    const missing = snapshot.stores.filter(store =>
+        !db.objectStoreNames.contains(store.name)
+    );
 
-    for (const storeInfo of snapshot.stores) {
-        if (!known.has(storeInfo.name)) {
-            db.close();
-            throw new Error(
-                "Saved storage layout does not match this game version."
-            );
-        }
+    if (missing.length) {
+        const nextVersion = db.version + 1;
+        db.close();
+        db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open(snapshot.name, nextVersion);
+            request.onupgradeneeded = () => {
+                const upgradeDb = request.result;
+                for (const storeInfo of missing) {
+                    if (upgradeDb.objectStoreNames.contains(storeInfo.name)) continue;
+                    const options = { autoIncrement: !!storeInfo.autoIncrement };
+                    if (storeInfo.keyPath !== null) options.keyPath = storeInfo.keyPath;
+                    upgradeDb.createObjectStore(storeInfo.name, options);
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+            request.onblocked = () => reject(new Error("Database upgrade is blocked by another tab."));
+        });
     }
 
-    for (const storeInfo of snapshot.stores) {
-        const tx = db.transaction(storeInfo.name, "readwrite");
-        const store = tx.objectStore(storeInfo.name);
-
-        store.clear();
-
-        for (const record of storeInfo.records) {
-            const value = decodeSaveValue(record.value);
-
-            if (store.keyPath === null) {
-                store.put(value, decodeSaveValue(record.key));
-            } else {
-                store.put(value);
+    try {
+        for (const storeInfo of snapshot.stores) {
+            if (!Array.isArray(storeInfo.records) ||
+                !db.objectStoreNames.contains(storeInfo.name)) {
+                throw new Error("The saved storage layout is incomplete.");
             }
+
+            const tx = db.transaction(storeInfo.name, "readwrite");
+            const done = transactionDone(tx);
+            const store = tx.objectStore(storeInfo.name);
+            store.clear();
+
+            for (const record of storeInfo.records) {
+                const value = decodeSaveValue(record.value);
+                if (store.keyPath === null) {
+                    store.put(value, decodeSaveValue(record.key));
+                } else {
+                    store.put(value);
+                }
+            }
+
+            await done;
         }
-
-        await transactionDone(tx);
+    } finally {
+        db.close();
     }
-
-    db.close();
 }
-
 async function importSaveFile(file) {
     if (!file) return;
 
@@ -1184,24 +1210,19 @@ async function importSaveFile(file) {
             );
         }
 
-        if (
-            window.unityInstance &&
-            !confirm(
-                "Restore this save and restart the game? Your current browser save data will be replaced."
-            )
-        ) {
+        if (!confirm(
+            "Restore this save and restart the game? Your current browser save data will be replaced."
+        )) {
             setSaveStatus("Restore cancelled");
             return;
         }
 
-        if (
-            window.unityInstance &&
-            typeof window.unityInstance.Quit === "function"
-        ) {
-            try {
-                await window.unityInstance.Quit();
-            } catch (_) {}
+        await flushUnityStorage();
 
+        if (window.unityInstance && typeof window.unityInstance.Quit === "function") {
+            try { await window.unityInstance.Quit(); } catch (error) {
+                console.warn("Unity shutdown warning before restore:", error);
+            }
             window.unityInstance = null;
         }
 
@@ -1323,10 +1344,7 @@ async function startGame() {
                 failIfMajorPerformanceCaveat: false
             },
 
-            devicePixelRatio: Math.min(
-                window.devicePixelRatio || 1,
-                1.5
-            ),
+            devicePixelRatio: Number(resolutionScale.value) * Math.min(window.devicePixelRatio || 1, 1.5),
 
             matchWebGLToCanvasSize: true
         };
