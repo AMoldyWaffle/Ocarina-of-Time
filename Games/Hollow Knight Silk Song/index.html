@@ -1768,8 +1768,35 @@
     return result;
   }
 
+  async function flushUnityStorage() {
+    const instance = window.unityInstance;
+    const module = instance && (instance.Module || instance.module) || window.Module;
+
+    if (module && module.FS && typeof module.FS.syncfs === "function") {
+      await new Promise((resolve, reject) => {
+        let finished = false;
+        const finish = error => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          if (error) reject(error); else resolve();
+        };
+        const timer = setTimeout(
+          () => finish(new Error("Timed out syncing Silksong save storage.")),
+          10000
+        );
+        try {
+          module.FS.syncfs(false, error => finish(error || null));
+        } catch (error) {
+          finish(error);
+        }
+      });
+    }
+  }
+
   async function saveGame() {
     try {
+      await flushUnityStorage();
       if (!indexedDB.databases) {
         throw new Error(
           "This browser does not support listing IndexedDB databases."
@@ -1945,6 +1972,16 @@
       if (!confirm("Import this Silksong save? Existing browser save data in the included databases will be replaced.")) {
         log("Save import cancelled.");
         return;
+      }
+
+      await flushUnityStorage();
+      if (window.unityInstance && typeof window.unityInstance.Quit === "function") {
+        try {
+          await window.unityInstance.Quit();
+        } catch (error) {
+          log("Unity shutdown warning before restore: " + error.message, "warning");
+        }
+        window.unityInstance = null;
       }
 
       for (const database of data.databases) {
