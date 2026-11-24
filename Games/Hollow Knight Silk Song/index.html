@@ -243,6 +243,7 @@
     ];
 
     let BUILD_BASE_URL = BASE_URL;
+    let diagnosticsActive = true;
 
     /* ELEMENTS */
 
@@ -262,8 +263,11 @@
         "[" + new Date().toLocaleTimeString() + "] " + message;
 
       console.log(line);
-      diagnostics.textContent += line + "\n";
-      diagnostics.scrollTop = diagnostics.scrollHeight;
+
+      if (diagnosticsActive) {
+        diagnostics.textContent += line + "\n";
+        diagnostics.scrollTop = diagnostics.scrollHeight;
+      }
     }
 
     window.__silkLog = log;
@@ -832,7 +836,6 @@
           document.baseURI
         );
 
-        // Serve the Unity framework from its verified cache.
         if (
           parsed.pathname.endsWith(
             "/Build/w-pt.framework.js.unityweb"
@@ -847,7 +850,6 @@
           }
         }
 
-        // Serve the Unity WASM and data files from cache.
         if (
           parsed.pathname.endsWith("/Build/w-pt.wasm.unityweb") ||
           parsed.pathname.endsWith("/Build/w-pt.data.unityweb")
@@ -865,7 +867,6 @@
           }
         }
 
-        // Serve extracted StreamingAssets from cache.
         const marker = "/StreamingAssets/aa/WebGL/";
         const markerIndex = parsed.pathname.indexOf(marker);
 
@@ -1068,20 +1069,23 @@
           );
         }
 
-        const buffer = await response.arrayBuffer();
-
-        if (!buffer.byteLength) {
+        if (!response.body) {
           throw new Error(
-            "Downloaded file is empty: " + path
+            "The browser returned an empty response stream for " + path
           );
         }
 
+        const size = response.headers.get("content-length");
+
         log(
-          "Downloaded " + path + ": " +
-          (buffer.byteLength / 1048576).toFixed(2) +
-          " MB"
+          "Download response received: " +
+          (size
+            ? (Number(size) / 1048576).toFixed(2) + " MB"
+            : "size not provided by server")
         );
 
+        // Cache the response stream directly.
+        // This avoids creating another full-size ArrayBuffer in memory.
         const headers = new Headers(response.headers);
 
         headers.delete("content-encoding");
@@ -1089,7 +1093,7 @@
         headers.delete("transfer-encoding");
         headers.delete("content-range");
 
-        const cachedResponse = new Response(buffer, {
+        const cachedResponse = new Response(response.body, {
           status: 200,
           statusText: "OK",
           headers
@@ -1117,13 +1121,53 @@
         return i = e.parsedBody,
         s = b[t],
         s && s.indexOf(".unityweb") !== -1
-          ? Promise.resolve().then(function() {
-              try {
-                window.__silkLog(
-                  "Decompressing Unity file: " + s
-                );
+          ? Promise.resolve().then(async function() {
+              window.__silkLog(
+                "Decompressing Unity file: " + s
+              );
 
-                var result = window.fflate.gunzipSync(i);
+              var inputBlob = new Blob([i]);
+              i = null;
+
+              try {
+                var result;
+
+                if ("DecompressionStream" in window) {
+                  window.__silkLog(
+                    "Using native streaming GZIP decompression."
+                  );
+
+                  var decompressionStream =
+                    new DecompressionStream("gzip");
+
+                  var decompressedStream =
+                    inputBlob.stream().pipeThrough(
+                      decompressionStream
+                    );
+
+                  var outputBuffer =
+                    await new Response(
+                      decompressedStream
+                    ).arrayBuffer();
+
+                  result = new Uint8Array(outputBuffer);
+
+                } else {
+                  window.__silkLog(
+                    "Native decompression unavailable; using fflate fallback."
+                  );
+
+                  var compressedBuffer =
+                    await inputBlob.arrayBuffer();
+
+                  result = window.fflate.gunzipSync(
+                    new Uint8Array(compressedBuffer)
+                  );
+
+                  compressedBuffer = null;
+                }
+
+                inputBlob = null;
 
                 window.__silkLog(
                   "Decompressed successfully: " +
@@ -1131,6 +1175,7 @@
                 );
 
                 return result;
+
               } catch (error) {
                 window.__silkLog(
                   "DECOMPRESSION FAILED: " + error.message
@@ -1147,7 +1192,7 @@
         throw new Error("Unity loader patch failed.");
       }
 
-      log("Unity .unityweb Worker bypass enabled.");
+      log("Unity native streaming decompression patch enabled.");
 
       return patched;
     }
@@ -1184,7 +1229,6 @@
 
       await selectBuildMirror();
 
-      // Download and cache the actual WASM and data files.
       await cacheUnityBuildFiles();
 
       const config = {
@@ -1202,6 +1246,17 @@
         companyName: "EDUrocks Group, Truffled, GN-Math",
         productName: "Hollow Knight SilkSong",
         productVersion: "1.0",
+
+        // Lower rendering resolution to reduce graphics memory.
+        devicePixelRatio: 1,
+        matchWebGLToCanvasSize: true,
+
+        // Avoid unnecessary WebGL framebuffer allocations.
+        webglContextAttributes: {
+          powerPreference: "low-power",
+          antialias: false,
+          preserveDrawingBuffer: false
+        },
 
         showBanner: unityShowBanner
       };
@@ -1273,6 +1328,10 @@
           window.unityInstance = instance;
 
           log("Unity started successfully.");
+
+          // Remove accumulated diagnostic text after startup.
+          diagnostics.textContent = "";
+          diagnosticsActive = false;
 
           loadingScreen.style.display = "none";
           unityLoadingBar.style.display = "none";
