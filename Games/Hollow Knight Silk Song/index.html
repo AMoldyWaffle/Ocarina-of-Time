@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 <base href="https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/">
 <meta charset="UTF-8">
@@ -228,14 +227,15 @@ button:hover {
 const BASE_URL =
   "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/";
 
-const CACHE_NAME = "hksilksongcache-v7";
+const CACHE_NAME = "hksilksongcache-v8";
 const CACHE_ORIGIN = "https://silksong-cache.invalid/";
 const CACHE_MARKER = CACHE_ORIGIN + "__CACHE_COMPLETE__";
 
 const TOTAL_PARTS = 100;
 
-// Six ZIP parts can download at the same time.
-const WORKER_COUNT = 6;
+// Three workers reduce CDN throttling while keeping downloads parallel.
+const WORKER_COUNT = 3;
+const MAX_PART_ATTEMPTS = 4;
 
 // Verified sizes from the repository.
 const EXPECTED_PART_BYTES = partNumber =>
@@ -244,7 +244,8 @@ const EXPECTED_PART_BYTES = partNumber =>
 const FALLBACK_BASES = [
   "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
   "https://fastly.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
-  "https://raw.githubusercontent.com/web-ports/hollow-knight-silksong/master/"
+  "https://raw.githubusercontent.com/web-ports/hollow-knight-silksong/master/",
+  "https://raw.githack.com/web-ports/hollow-knight-silksong/master/"
 ];
 
 /* =========================================================
@@ -317,11 +318,8 @@ function assetCacheKey(path) {
    PARALLEL MIRROR DOWNLOAD SYSTEM
 ========================================================= */
 
-async function fetchWithTimeout(
-  url,
-  timeoutMs = 120000,
-  controller = new AbortController()
-) {
+async function fetchWithTimeout(url, timeoutMs = 120000) {
+  const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -331,11 +329,7 @@ async function fetchWithTimeout(
       signal: controller.signal
     });
 
-    return {
-      response,
-      controller,
-      timer
-    };
+    return { response, controller, timer };
 
   } catch (error) {
     clearTimeout(timer);
@@ -343,185 +337,109 @@ async function fetchWithTimeout(
   }
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function downloadPart(partNumber) {
   const expectedBytes = EXPECTED_PART_BYTES(partNumber);
   const failures = [];
 
-  log(
-    "Part " + partNumber +
-    ": checking mirrors in parallel..."
-  );
-
-  // Start all mirror requests together.
-  const controllers = FALLBACK_BASES.map(
-    () => new AbortController()
-  );
-
-  const attempts = FALLBACK_BASES.map(
-    async (base, sourceIndex) => {
-
-      const url =
-        base + "StreamingAssets/aa/WebGL.zip.part" + partNumber;
-
-      const result = await fetchWithTimeout(
-        url,
-        120000,
-        controllers[sourceIndex]
-      );
-
-      if (!result.response.ok) {
-        clearTimeout(result.timer);
-
-        throw new Error(
-          "Mirror " + (sourceIndex + 1) +
-          " returned HTTP " + result.response.status
-        );
-      }
-
-      return {
-        ...result,
-        url,
-        sourceIndex
-      };
-    }
-  );
-
-  let winner;
-
-  try {
-    // The first mirror to return a successful response wins.
-    winner = await Promise.any(attempts);
-
-  } catch (error) {
-
-    const messages = error.errors
-      ? error.errors.map(
-          item => item.message || String(item)
-        ).join("; ")
-      : String(error);
-
-    throw new Error(
-      "All mirrors failed for part " + partNumber +
-      ": " + messages
-    );
-  }
-
-  // Cancel the losing mirror requests.
-  controllers.forEach((controller, index) => {
-    if (index !== winner.sourceIndex) {
-      controller.abort();
-    }
-  });
-
-  try {
-    const blob = await winner.response.blob();
-
-    clearTimeout(winner.timer);
-
-    // Never accept a truncated or incomplete ZIP part.
-    if (blob.size !== expectedBytes) {
-      throw new Error(
-        "Incomplete download: expected " +
-        expectedBytes +
-        " bytes, received " +
-        blob.size
-      );
-    }
+  for (let attempt = 1; attempt <= MAX_PART_ATTEMPTS; attempt++) {
 
     log(
       "Part " + partNumber +
-      " complete from mirror " +
-      (winner.sourceIndex + 1) +
-      " (" +
-      (blob.size / 1024 / 1024).toFixed(2) +
-      " MB)"
+      ": attempt " + attempt + "/" + MAX_PART_ATTEMPTS
     );
 
-    return blob;
+    const startingMirror = (attempt - 1) % FALLBACK_BASES.length;
 
-  } catch (error) {
+    for (let offset = 0; offset < FALLBACK_BASES.length; offset++) {
 
-    clearTimeout(winner.timer);
+      const sourceIndex =
+        (startingMirror + offset) % FALLBACK_BASES.length;
 
-    failures.push(
-      "Mirror " + (winner.sourceIndex + 1) +
-      ": " + (error.message || error)
-    );
+      const url = partUrl(partNumber, sourceIndex);
+      let result = null;
 
-    log(
-      "Part " + partNumber +
-      " failed validation: " +
-      (error.message || error)
-    );
-  }
+      try {
+        log(
+          "Part " + partNumber +
+          ": trying mirror " + (sourceIndex + 1) +
+          " (" + new URL(url).hostname + ")"
+        );
 
-  // If the fastest mirror returned an incomplete file,
-  // retry the remaining mirrors individually.
-  for (
-    let sourceIndex = 0;
-    sourceIndex < FALLBACK_BASES.length;
-    sourceIndex++
-  ) {
+        result = await fetchWithTimeout(url);
 
-    if (sourceIndex === winner.sourceIndex) {
-      continue;
+        if (!result.response.ok) {
+          throw new Error("HTTP " + result.response.status);
+        }
+
+        const blob = await result.response.blob();
+
+        if (blob.size !== expectedBytes) {
+          throw new Error(
+            "Incomplete download: expected " +
+            expectedBytes +
+            " bytes, received " +
+            blob.size
+          );
+        }
+
+        log(
+          "Part " + partNumber +
+          " complete from mirror " +
+          (sourceIndex + 1) +
+          " (" +
+          (blob.size / 1024 / 1024).toFixed(2) +
+          " MB)"
+        );
+
+        return blob;
+
+      } catch (error) {
+
+        const message = error && error.message
+          ? error.message
+          : String(error);
+
+        failures.push(
+          "Attempt " + attempt +
+          ", mirror " + (sourceIndex + 1) +
+          ": " + message
+        );
+
+        log(
+          "Part " + partNumber +
+          " failed on mirror " +
+          (sourceIndex + 1) +
+          ": " + message
+        );
+
+      } finally {
+        if (result) {
+          clearTimeout(result.timer);
+        }
+      }
     }
 
-    const url =
-      FALLBACK_BASES[sourceIndex] +
-      "StreamingAssets/aa/WebGL.zip.part" +
-      partNumber;
+    if (attempt < MAX_PART_ATTEMPTS) {
 
-    try {
-      log(
-        "Retrying part " + partNumber +
-        " from mirror " + (sourceIndex + 1) + "..."
-      );
-
-      const result = await fetchWithTimeout(url);
-
-      if (!result.response.ok) {
-        throw new Error(
-          "HTTP " + result.response.status
-        );
-      }
-
-      const blob = await result.response.blob();
-
-      clearTimeout(result.timer);
-
-      if (blob.size !== expectedBytes) {
-        throw new Error(
-          "Expected " + expectedBytes +
-          " bytes, received " + blob.size
-        );
-      }
+      const delay = 2000 * Math.pow(2, attempt - 1);
 
       log(
-        "Part " + partNumber +
-        " recovered from mirror " +
-        (sourceIndex + 1)
+        "All mirrors failed for part " + partNumber +
+        ". Retrying in " + (delay / 1000) + " seconds..."
       );
 
-      return blob;
-
-    } catch (error) {
-
-      failures.push(
-        "Mirror " + (sourceIndex + 1) +
-        ": " + (error.message || error)
-      );
-
-      log(
-        "Retry failed for part " + partNumber +
-        ": " + (error.message || error)
-      );
+      await sleep(delay);
     }
   }
 
   throw new Error(
-    "Could not download complete ZIP part " +
-    partNumber + "\n" +
+    "Part " + partNumber +
+    " failed after " + MAX_PART_ATTEMPTS +
+    " attempts across all mirrors.\n" +
     failures.join("\n")
   );
 }
@@ -540,6 +458,7 @@ async function downloadAllParts() {
   const workers = [];
 
   async function worker() {
+
     while (true) {
 
       if (failed) return;
@@ -575,7 +494,7 @@ async function downloadAllParts() {
     }
   }
 
-  // Start six independent workers.
+  // Start the configured number of independent workers.
   for (let i = 0; i < WORKER_COUNT; i++) {
     workers.push(worker());
   }
@@ -1021,6 +940,7 @@ async function exportDatabase(dbName) {
   };
 
   for (const storeName of Array.from(db.objectStoreNames)) {
+
     const transaction = db.transaction(
       storeName,
       "readonly"
@@ -1127,9 +1047,11 @@ async function importDatabase(data) {
   existing.close();
 
   if (missingStores.length) {
+
     version++;
 
     await new Promise((resolve, reject) => {
+
       const request = indexedDB.open(data.name, version);
 
       request.onupgradeneeded = () => {
@@ -1157,11 +1079,13 @@ async function importDatabase(data) {
   const db = await requestResult(indexedDB.open(data.name));
 
   for (const storeData of data.stores) {
+
     if (!db.objectStoreNames.contains(storeData.name)) {
       continue;
     }
 
     await new Promise((resolve, reject) => {
+
       const transaction = db.transaction(
         storeData.name,
         "readwrite"
@@ -1241,7 +1165,9 @@ document.getElementById("save-file").addEventListener(
   event => {
     const file = event.target.files[0];
 
-    if (file) loadGameFile(file);
+    if (file) {
+      loadGameFile(file);
+    }
 
     event.target.value = "";
   }
@@ -1329,6 +1255,5 @@ main();
 
 })();
 </script>
-
 </body>
 </html>
