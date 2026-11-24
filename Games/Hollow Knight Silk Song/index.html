@@ -1079,45 +1079,37 @@
     ========================================================= */
 
     function patchUnityLoaderSource(source) {
-      const pattern =
-        /return i = e\.parsedBody,\s*s = b\[t\],\s*new Promise\(function\(e, t\) \{/;
+  const pattern =
+    /return i = e\.parsedBody,\s*s = b\[t\],\s*new Promise\(function\(e, t\) \{/;
 
-      if (!pattern.test(source)) {
-        throw new Error(
-          "Could not locate the expected Unity decompression " +
-          "section in w-pt.loader.js. The upstream loader may " +
-          "have changed."
-        );
-      }
+  if (!pattern.test(source)) {
+    throw new Error(
+      "Could not locate Unity's decompression function."
+    );
+  }
 
-      const replacement = `
-        return i = e.parsedBody,
-        s = b[t],
-        s && /framework\\\\.js\\\\.unityweb(?:[?#]|$)/.test(s)
-          ? Promise.resolve(
-              window.fflate.gunzipSync(i)
-            )
-          : new Promise(function(e, t) {
-      `;
+  const replacement = `
+    return i = e.parsedBody,
+    s = b[t],
+    s && s.indexOf("framework.js.unityweb") !== -1
+      ? Promise.resolve(
+          window.fflate.gunzipSync(i)
+        )
+      : new Promise(function(e, t) {
+  `;
 
-      const patched = source.replace(
-        pattern,
-        replacement
-      );
+  const patched = source.replace(pattern, replacement);
 
-      if (patched === source) {
-        throw new Error(
-          "Unity loader patch did not modify the source."
-        );
-      }
+  if (patched === source) {
+    throw new Error("Unity loader patch failed.");
+  }
 
-      log(
-        "Unity loader patched: framework decompression " +
-        "will use fflate instead of a Worker."
-      );
+  log(
+    "Unity framework Worker bypass enabled."
+  );
 
-      return patched;
-    }
+  return patched;
+}
 
     /* =========================================================
        UNITY BANNER
