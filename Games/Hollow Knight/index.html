@@ -1227,6 +1227,11 @@ async function importSaveFile(file) {
                 if (!store || typeof store.name !== "string" || !Array.isArray(store.records)) {
                     throw new Error("The save contains an invalid object store.");
                 }
+                // Decode the complete file before shutting down or changing the game.
+                for (const record of store.records) {
+                    decodeSaveValue(record.key);
+                    decodeSaveValue(record.value);
+                }
             }
         }
 
