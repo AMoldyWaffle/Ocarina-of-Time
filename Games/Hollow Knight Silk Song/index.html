@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+  <base href="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Hollow Knight: Silksong</title>
+  <link rel="shortcut icon" href="TemplateData/favicon.ico">
+  <link rel="stylesheet" href="TemplateData/style.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel: #151922;
+      --panel-border: #303846;
+      --text: #f1f4f8;
+      --muted: #aab4c2;
+      --accent: #4b91e2;
+      --track: #303846;
+    }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body { min-height: 100vh; }
+
+    #game-toolbar {
+      display: none;
+      position: fixed;
+      z-index: 20;
+      top: 10px;
+      right: 10px;
+      gap: 8px;
+      align-items: center;
+      padding: 7px;
+      background: rgba(12, 16, 23, .88);
+      border: 1px solid #465164;
+      border-radius: 9px;
+      backdrop-filter: blur(8px);
+    }
+
+    #game-toolbar button {
+      appearance: none;
+      border: 1px solid #52647c;
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: #fff;
+      background: #26364b;
+      font: 600 13px Arial, sans-serif;
+      cursor: pointer;
+    }
+
+    #game-toolbar button:hover { background: #355477; }
+    #save-status { color: #d4deea; font-size: 12px; max-width: 210px; }
+
+    #unity-container {
+      display: none;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      margin: 0;
+      background: #000;
+    }
+
+    #unity-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      object-fit: contain;
+      outline: none;
+    }
+
+    #unity-container:fullscreen {
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+    }
+
+    #unity-container:fullscreen #unity-canvas {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #download-screen {
+      position: relative;
+      z-index: 30;
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+    }
+
+    #download-screen {
+      width: min(760px, calc(100% - 32px));
+      margin: 28px auto;
+      padding: 22px;
+      box-sizing: border-box;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+    }
+
+    #download-title {
+      margin: 0 0 7px;
+      font-size: 25px;
+      font-weight: 700;
+    }
+
+    #download-subtitle {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    #loading-text {
+      margin: 0 0 12px;
+      font-size: 16px;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 12px;
+      overflow: hidden;
+      background: var(--track);
+      border-radius: 99px;
+    }
+
+    #download-progress,
+    #unity-progress-bar-full {
+      width: 0%;
+      height: 100%;
+      background: var(--accent);
+      transition: width 120ms linear;
+    }
+
+    #progress-details {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    #download-list {
+      display: grid;
+      gap: 6px;
+      max-height: 210px;
+      overflow: auto;
+      margin-top: 18px;
+      padding-right: 5px;
+    }
+
+    .download-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+      padding: 7px 9px;
+      background: #0e131b;
+      border: 1px solid #252e3a;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .download-item .state {
+      flex: 0 0 72px;
+      color: var(--muted);
+    }
+
+    .download-item.done .state {
+      color: #80c99a;
+    }
+
+    .download-item.failed .state {
+      color: #ff8585;
+    }
+
+    .download-item .filename {
+      overflow: hidden;
+      color: #dce4ee;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #unity-container {
+      display: none;
+      position: relative;
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    #unity-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #000;
+    }
+
+    #unity-loading-bar {
+      display: none;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(300px, 70%);
+      transform: translate(-50%, -50%);
+    }
+
+    #unity-logo {
+      height: 45px;
+      margin-bottom: 12px;
+      background: url("TemplateData/unity-logo-light.png") center / contain no-repeat;
+    }
+
+    #unity-progress-bar-empty {
+      height: 10px;
+      overflow: hidden;
+      background: #303846;
+      border-radius: 99px;
+    }
+
+    #unity-warning {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 5;
+    }
+
+    @media (max-width: 600px) {
+      #download-screen { margin: 12px auto; padding: 16px; }
+      #download-title { font-size: 21px; }
+    }
+  </style>
+</head>
+<body>
+  <section id="download-screen">
+    <h1 id="download-title">Hollow Knight: Silksong</h1>
+    <p id="download-subtitle">Preparing game files...</p>
+    <div id="loading-text">Preparing download list...</div>
+    <div class="progress-track">
+      <div id="download-progress"></div>
+    </div>
+    <div id="progress-details">
+      <span id="progress-count">0 / 0 files</span>
+      <span id="progress-size">0 MB</span>
+    </div>
+    <div id="download-list"></div>
+  </section>
+
+  <div id="unity-container">
+    <div id="game-toolbar">
+      <button id="save-game" type="button">Save</button>
+      <button id="load-game" type="button">Load</button>
+      <button id="fullscreen-game" type="button">Fullscreen</button>
+      <span id="save-status" aria-live="polite"></span>
+      <input id="save-file" type="file" accept=".silksong-save,.json,application/json" hidden>
+    </div>
+    <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
+    <div id="unity-loading-bar">
+      <div id="unity-logo"></div>
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
+      </div>
+    </div>
+    <div id="unity-warning"></div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  const BASE_URL = "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/";
+  const CACHE_NAME = "silksong-game-cache-v4";
+
+  // A fixed file manifest avoids needing a separate file-list service.
+  const GAME_FILES = [
+    "Build/w-pt.data.unityweb",
+    "Build/w-pt.framework.js.unityweb",
+    "Build/w-pt.loader.js",
+    "Build/w-pt.wasm.unityweb",
+    "StreamingAssets/VideoClip/Act_03_Intro.webm",
+    "StreamingAssets/VideoClip/Bellbeast_Travel_Children.webm",
+    "StreamingAssets/VideoClip/Bellbeast_Travel_Children_30.webm",
+    "StreamingAssets/VideoClip/Bellbeast_Travel_Normal.webm",
+    "StreamingAssets/VideoClip/Bellbeast_Travel_Normal_30.webm",
+    "StreamingAssets/VideoClip/Bellhart_Intro.webm",
+    "StreamingAssets/VideoClip/City_Reveal.webm",
+    "StreamingAssets/VideoClip/City_Reveal_Inner.webm",
+    "StreamingAssets/VideoClip/Diving_Bell.webm",
+    "StreamingAssets/VideoClip/Doctor_Cure.webm",
+    "StreamingAssets/VideoClip/Ending_A.webm",
+    "StreamingAssets/VideoClip/Ending_B.webm",
+    "StreamingAssets/VideoClip/Ending_C.webm",
+    "StreamingAssets/VideoClip/Ending_D.webm",
+    "StreamingAssets/VideoClip/Ending_E.webm",
+    "StreamingAssets/VideoClip/Farsight.webm",
+    "StreamingAssets/VideoClip/Intro_Cinematic.webm",
+    "StreamingAssets/VideoClip/Lace_Battle.webm",
+    "StreamingAssets/VideoClip/Last_Dive.webm",
+    "StreamingAssets/VideoClip/Mr_Mushroom.webm",
+    "StreamingAssets/VideoClip/Pinstress_Battle.webm",
+    "StreamingAssets/VideoClip/Plinney_Sharpen.webm",
+    "StreamingAssets/VideoClip/Plinney_Sharpen_Oil.webm",
+    "StreamingAssets/VideoClip/Red_Memory_Ritual.webm",
+    "StreamingAssets/VideoClip/Seamstress_Flash.webm",
+    "StreamingAssets/VideoClip/Slab_Cinematic.webm",
+    "StreamingAssets/aa/AddressablesLink/link.xml",
+    "StreamingAssets/aa/WebGL/cf1fd25e771d52098d1bacfb793670d7_monoscripts_e5a0065461e5d1414fb13593e185de7f.bundle",
+    "StreamingAssets/aa/WebGL/cf1fd25e771d52098d1bacfb793670d7_unitybuiltinassets_b84e85d9fc2442d06e9179763035171b.bundle",
+    "StreamingAssets/aa/WebGL/packed-achievementslist_assets_all_018bb38a0f240574e6794db52c4e69cf.bundle",
+    "StreamingAssets/aa/WebGL/packed-animationcontrollers_assets_all_764fc8e760640c604c784d0608f474ce.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-belltownhouseanim_assets_all_1e8d4e735b275f12537f0aa3ae7c9ff8.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-blueassistantanim_assets_all_6b12eb8ec39deb2fd046ff0c8ab7eb86.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-bonewormblueturretanim_assets_all_e91021d3acd1d84b884265c9511b8c90.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-bosses_assets_all_c2495e0f7436f32cf8619f7dd95eebf0.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-charmeffectanim_assets_all_8cec751ee2f48fa27ff95067b5a16e2a.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-clockworkdancersanim_assets_all_c3d6f32dc6421dfedbfd5d644d1dc36d.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-crowmandaggeranim_assets_all_7b8b15bb94a00baef4c9f2a818cabd80.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-enemies_assets_all_f1e88ecb663a959333361464ac120566.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-fleagamedodgeplat_assets_all_3e9e89f39031abc9057ddf528291c722.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-groundsplat_assets_all_871c2ebfceaacebc08332c9be5982cae.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetanim_assets_all_6b0f0713dc706f20e23db8a486109580.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetcloaklessanim_assets_all_32925dacc283b8ba5e22f97bdc82e91b.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetcrestweapondaggeranim_assets_all_c86d2b84a41244cd430f297e0edeac34.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetcrestweapondrilllanceanim_assets_all_ce374c9c319b8aed8d979d411c998c23.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetcrestweaponscytheanim_assets_all_1c2e302cc0922570db0388b650966467.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetcrestweaponshamananim_assets_all_0b8916e43f1ce0c969b7977eb67445dc.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetcrestweaponwarrioranim_assets_all_9dcca7ef1300eed8660dbfb17cfa3c69.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetcrestweaponwhipanim_assets_all_2f5ed2d4db04308152a3fb508ab6b901.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetneedolinwindy_assets_all_4890328483fe38bc938ff8368e7b64a0.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetsplashlarge_assets_all_ad60851cc29cffb07f9f7389c997855d.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-hornetstrungupanim_assets_all_c6e684363608e2c9a1e5bad1734435ca.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-items_assets_all_11dc74905356e7b5d6054d16bfb31942.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-join_ring_animator_assets_all_6dc1b31454a73c287f124bf397cbb98c.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-knight_assets_all_e4ccf12c4a655f31c6e4411517630bde.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-lantern_glow_019_assets_all_cee6af70e5e2b51e9f719ee4c9c88533.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-lastjudgeanim_assets_all_99103c9e5f318678880b8e3c36de4b45.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-lavahaze(1)_assets_all_f8726fb95e3781a387648029b1c00c94.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-npc_assets_all_a4fa06d517093202691ef61fdc5379bb.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-scenery_assets_all_37027abf72cf6b3f86c0e2427a945d68.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-slabcloaksceneanim_assets_all_c7ecc4fedd0e7666ab38f88e6f89a479.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-spells_assets_all_a41bb0a62c311a0bea85ade283e56684.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-splash_assets_all_89704674f10e8cbe293eb7b0030f53e8.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-strumstringanim_assets_all_5c781f6fceaca2b9f0d90c64f73555fe.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-swamptrapanim_assets_all_493d00d299d240e6cca17c82bcee3d66.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-ui_assets_all_82181c652fc1cb993360bef69e2c96c7.bundle",
+    "StreamingAssets/aa/WebGL/packed-animations-weaverwebshotsceneanim_assets_all_5f0d6609c413da1742b8a5399f4f0720.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-actors_assets_all_6beaf70705677fd216f86ff491a4332c.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-atmos_assets_all_b008c5fdb92b5563eaaf822ba425dd8d.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-atmoscues_assets_all_555a6d36d8c2af7076dbd02bf0a2eeda.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractor2d_assets_all_ab0eb4b898256e51ddbf55ce4b046977.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractor2dnoreverb_assets_all_28e5be14762a99c85fe808b6c0cea41c.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractor_assets_all_cbd77bc5837d3d267e38b5824330eeba.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorar_assets_all_08022b117e789d25b9b6c7e71fe86eb5.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractordistant_assets_all_e41821fabd970f815a2e79a13f9e1420.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractordistantexplosion_assets_all_ff46bcaf911c1cd806345a9ff52d8ef9.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractordistantv2_assets_all_29f59a5fde1a03c61d17b355726dbb9d.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractordistantv3_assets_all_4c6e86839cca8cea61601652e5d19596.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorinfiniterange_assets_all_ddf4622b7f42780a24712bbd2fe13e2e.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorlavaclose_assets_all_ccbee0a9fe2f03a5f7224b210dd4bc7f.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorlavafar_assets_all_e7279076601a8a9a3ad13a792b3d3115.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorlong_assets_all_e7d5f6cf4a65d963ca8cd1df2bde5d3a.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorloop_assets_all_637abfc4f6fd01d01f54d50ce20bc514.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorlowpass_assets_all_165da7260aa837a46be71c5d23fcae26.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractormusic_assets_all_3cc5bd2f2944d3795c55ec85d658fbd7.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractornoreverb_assets_all_bc36614aa67c1b5a7a5a368dec7fb252.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorrainspit_assets_all_0d9b3192b7e9902c050409856c4b6305.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorshortrange_assets_all_31aa20ef62a84be9e60a8d77666ac3b0.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorsimple_assets_all_19bb6629e1e7a600014b43482a96ce90.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayeractorveryshortrange_assets_all_d0a8df4243c5acac295040ddb7c5139b.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayergreyroot_assets_all_05d77bd6f3d5dd6b193a606439b6633d.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayerhangingchain_assets_all_9b55ae0603d9e8be92f5a74b73e3fcdc.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayerhud_assets_all_f009ad35d6b772431b9cffa60a341acb.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayermusic_assets_all_f8181c0a8708edce9dcefde292688552.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayernodestroy_assets_all_30aa403751d96c80e206583e8cd93929.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-audioplayerui_assets_all_a77672e5d1ab6ad9c2ca84c150818d4c.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-cinematics_assets_all_0e913cdd2d9e2cc715f27d82f5cc397a.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-damageeffects_assets_all_89b803f722d26942e09132759516d121.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-diegeticmusic_assets_all_416c70b5bbfc903ea065c4914a1f0d94.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-enviroeffects_assets_all_a3282cad5b72281f2a7d83ae3b47ccec.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-master_assets_all_09f9077c642bfe405e9f3096505b0ccd.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-music_assets_all_308ee15d13e8699c40d7ab90bf9ce85a.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-musiccues_assets_all_302263892480ccc1ce1f65412001bb96.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-musiceffects_assets_all_c2ca635076b93f663c25b16e9d8c5b38.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-musicgroups_assets_all_999135736e1d686ecd8f83c481ba2d41.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-musicoptions_assets_all_e65fa09b74b271b2beb4420ef4454106.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-needolinmixer_assets_all_a2a086ce954c56cc156dbdebb43c622a.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-soundoptions_assets_all_1d20f375d3982549a8c73bf124499400.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-ui_assets_all_28cd54f2b82e3a73d5c43ca6d6d78031.bundle",
+    "StreamingAssets/aa/WebGL/packed-audio-vibrationfiles_assets_all_b6d16adc2f46677d45046b5f3c6aff41.bundle",
+    "StreamingAssets/aa/WebGL/packed-blackthreadattacks_assets_all_01b37908bb160426595c07cb8691fcbf.bundle",
+    "StreamingAssets/aa/WebGL/packed-camerashake_assets_all_4669c278a541cd943b0807ba19bf6927.bundle",
+    "StreamingAssets/aa/WebGL/packed-collectables_assets_all_164721a10fdc5017656156364b4bfaf3.bundle",
+    "StreamingAssets/aa/WebGL/packed-costs_assets_all_ae4d5a3eaa4c986051b254268eeaed79.bundle",
+    "StreamingAssets/aa/WebGL/packed-damages_assets_all_4d687d8c252c8f823228d9f47bc048a8.bundle",
+    "StreamingAssets/aa/WebGL/packed-damagetags_assets_all_e55aed20e5c36224a74e3639fb81fcde.bundle",
+    "StreamingAssets/aa/WebGL/packed-enemyjournal_assets_all_d12b12dd1d6a97ee7f561113b3812aa7.bundle",
+    "StreamingAssets/aa/WebGL/packed-gameconfig_assets_all_cb4adc3ff1cf6c2def93131bc4b3f4a2.bundle",
+    "StreamingAssets/aa/WebGL/packed-gaussianblur_assets_all_4c6bd45a5503e497a5e40f49b48a385b.bundle",
+    "StreamingAssets/aa/WebGL/packed-globalsettings_assets_all_391f1dbed10d8c946949ad74723996f8.bundle",
+    "StreamingAssets/aa/WebGL/packed-guiblendmodes_assets_all_02cac031f97c407dfb7c4d1a8df14c75.bundle",
+    "StreamingAssets/aa/WebGL/packed-herobounceconfigs_assets_all_04923121177f6509b47f70f0127506bd.bundle",
+    "StreamingAssets/aa/WebGL/packed-herocontrollerconfigs_assets_all_66c446a22569b91da44a3f89c4a9acf7.bundle",
+    "StreamingAssets/aa/WebGL/packed-localisedtextcollections_assets_all_8e84fb91d95afb23ef795a91c0ee69f4.bundle",
+    "StreamingAssets/aa/WebGL/packed-materials_assets_all_92c637eda8baa06d25778cd38e39819a.bundle",
+    "StreamingAssets/aa/WebGL/packed-models_assets_all_342f75ced4209b4467b39192ad16851e.bundle",
+    "StreamingAssets/aa/WebGL/packed-pieces_assets_all_1266ff9ae9e61f5a30431fe007d76c01.bundle",
+    "StreamingAssets/aa/WebGL/packed-playmaker_assets_all_e0c7184f1121cb0c1fccdbbb615305d6.bundle",
+    "StreamingAssets/aa/WebGL/packed-profiles_assets_all_58793a2cabbdbfc5e03dc9cd96445894.bundle",
+    "StreamingAssets/aa/WebGL/packed-questsystem_assets_all_6264aee2ad1a82c13f9fc282d471b567.bundle",
+    "StreamingAssets/aa/WebGL/packed-referencesdata_assets_all_7ba105c61085585ed53607d8abe37708.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenedefaultsettings_assets_all_022c458fc9e51cfee03ee4f87fea7d9d.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-cinematic_ending_a_scenes_all_e685c723a16ab0a9c847849da059ce0d.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-cinematic_ending_b_scenes_all_69a36ef411962c57762f562ef4b01f5f.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-cinematic_ending_c_scenes_all_75734bf59eaedd8d086efb2642f8bcc7.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-cinematic_ending_d_scenes_all_040bfeace1995a15a50072b50b87f12b.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-cinematic_ending_e_scenes_all_fae995b13cff25eb152f41d0e2613c92.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-cinematic_mrmushroom_scenes_all_d56be6b9da3bc45db48c51ceaedf789f.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-cinematic_stag_travel_scenes_all_d41e437d3e34e4f46d419594a5f8f1f1.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-data_scenes_all_e99efa77f427e9bdc3354e8b2058a193.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-end_credits_scenes_all_7613af7c012a7522d0b1f67a1dc19186.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-end_game_completion_scenes_all_ba4cbe36f648b5d111e7626c5300e5a4.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-hornet_assets_all_833628945b32d14c5d8e5ee84b9878ae.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-menu_credits_scenes_all_75e1464ee8e357f6817b35a3a82b9fe7.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-menu_title_scenes_all_ca92c585bc287234740cb53ded3c68d5.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-opening_sequence_act3_scenes_all_7242fe69660fc7a7770d736ab03f1e20.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-opening_sequence_scenes_all_fa763d026862d5c112efe8708ed49c0e.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-pre_menu_intro_scenes_all_870225921eec03aca3b8fca2e29cbb91.bundle",
+    "StreamingAssets/aa/WebGL/packed-scenes-quit_to_menu_scenes_all_9cf00cf27c634bfe32bc828cf591e447.bundle",
+    "StreamingAssets/aa/WebGL/packed-shaders_assets_all_01f01a90d882dbd88b2fd800b3dac350.bundle",
+    "StreamingAssets/aa/WebGL/packed-shareddependencies_assets_all_1b4a40eae77237d094d06bd7daa8e0a8.bundle",
+    "StreamingAssets/aa/WebGL/packed-shopitems_assets_all_4057aaef13eb4a920df7ae6c7f76ba63.bundle",
+    "StreamingAssets/aa/WebGL/packed-spawnqueuegroups_assets_all_de52165f1dad9763628e98bd4c4a7cfd.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-anticring_assets_all_18a78b9f68eca3c989a850b1fece1cbb.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-bosses_assets_all_6758203e917186282398a265e2906eda.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-enemies_assets_all_e4dedf52217f86b08f1f8b186c85386d.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-gods_glory_assets_all_d3588e86f471f06ca251363b75f59153.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-grimm_assets_all_d7118c24f94f77b4a695a9618c46ad0f.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-hornet_npcs_assets_all_59fe4eed96b3685b2dc84ff0fae78b03.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-items_assets_all_012389af2fed7dc0eba725e4ac4e4e99.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-leveltiles_assets_all_ab784955dcb34a1519ef35998272dd3f.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-masks_assets_all_ee221219d3e5897142ba21b5be0ab368.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-npc_assets_all_f15beff042cc66278f7ee200606c031b.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-props_assets_all_669c1102651f13f73c4698419c921209.bundle",
+    "StreamingAssets/aa/WebGL/packed-sprites-system_assets_all_b289654ecc7bb948be8a67f932c7ce76.bundle",
+    "StreamingAssets/aa/WebGL/packed-standardassets_assets_all_4f4404738e3213293cd7da99c3371366.bundle",
+    "StreamingAssets/aa/WebGL/packed-textmeshpro_assets_all_474d7a6021b1ec0c9fdb2682bf1595d1.bundle",
+    "StreamingAssets/aa/WebGL/packed-textures_assets_all_c8a6ced170b93590a8bdb1068566d09d.bundle",
+    "StreamingAssets/aa/WebGL/packed-tilemapdata_assets_all_ed498d76f233cf7607e0dc3487cf1745.bundle",
+    "StreamingAssets/aa/WebGL/packed-timers_assets_all_83a4ec3d13d344c7b3213cf9f49c0a5f.bundle",
+    "StreamingAssets/aa/WebGL/packed-tools_assets_all_d5ccb183d114f6c253453d27ba0d56ca.bundle",
+    "StreamingAssets/aa/catalog.bin",
+    "StreamingAssets/aa/catalog.hash",
+    "StreamingAssets/aa/settings.json",
+    "TemplateData/favicon.ico",
+    "TemplateData/icons/unity-logo-dark.png",
+    "TemplateData/icons/unity-logo-light.png",
+    "TemplateData/progress-bar-empty-dark.png",
+    "TemplateData/progress-bar-empty-light.png",
+    "TemplateData/progress-bar-full-dark.png",
+    "TemplateData/progress-bar-full-light.png",
+    "TemplateData/style.css",
+    "TemplateData/unity-logo-dark.png",
+    "TemplateData/unity-logo-light.png",
+    "TemplateData/webmemd-icon.png"
+];
+
+  const loadingText = document.getElementById("loading-text");
+  const progressBar = document.getElementById("download-progress");
+  const progressCount = document.getElementById("progress-count");
+  const progressSize = document.getElementById("progress-size");
+  const downloadList = document.getElementById("download-list");
+  const downloadScreen = document.getElementById("download-screen");
+
+  const originalFetch = window.fetch.bind(window);
+
+  function formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "0 MB";
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+  }
+
+  function updateOverall(done, total, bytes) {
+    const percent = total ? (done / total) * 100 : 0;
+    progressBar.style.width = `${percent}%`;
+    progressCount.textContent = `${done} / ${total} files`;
+    progressSize.textContent = formatBytes(bytes);
+  }
+
+  function makeFileRow(path) {
+    const row = document.createElement("div");
+    row.className = "download-item";
+
+    const state = document.createElement("span");
+    state.className = "state";
+    state.textContent = "Waiting";
+
+    const name = document.createElement("span");
+    name.className = "filename";
+    name.textContent = path;
+
+    row.append(state, name);
+    downloadList.appendChild(row);
+
+    return {
+      start() {
+        state.textContent = "Downloading";
+        row.classList.remove("done", "failed");
+      },
+      done() {
+        state.textContent = "Complete";
+        row.classList.add("done");
+      },
+      retry(message) {
+        state.textContent = message;
+        row.classList.remove("done", "failed");
+      },
+      failed(message) {
+        state.textContent = "Failed";
+        row.classList.add("failed");
+        row.title = message || "Download failed";
+      }
+    };
+  }
+
+  // The repository stores the WebGL asset bundles inside a 100-part ZIP.
+  // The individual bundle URLs are not separate repository files.
+  const ZIP_PARTS = Array.from(
+    { length: 100 },
+    (_, index) => `StreamingAssets/aa/WebGL.zip.part${index + 1}`
+  );
+
+  async function getFileList() {
+    const supportFiles = GAME_FILES.filter(path =>
+      !path.startsWith("StreamingAssets/aa/WebGL/")
+    );
+
+    if (!supportFiles.includes("Build/w-pt.loader.js") ||
+        !supportFiles.includes("StreamingAssets/aa/catalog.bin") ||
+        ZIP_PARTS.length !== 100) {
+      throw new Error("The game file list is incomplete.");
+    }
+    return [...supportFiles, ...ZIP_PARTS];
+  }
+
+  function encodedPath(path) {
+    return path.split("/").map(encodeURIComponent).join("/");
+  }
+
+  function sourceCandidates(path) {
+    const file = encodedPath(path);
+    return [
+      BASE_URL + file,
+      "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/" + file,
+      "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Silk-Song@main/" + file,
+      "https://raw.githubusercontent.com/AMoldyWaffle/Silk-Song/main/" + file
+    ];
+  }
+
+  async function fetchWithFallback(path, row) {
+    const candidates = sourceCandidates(path);
+    const errors = [];
+
+    for (let i = 0; i < candidates.length; i++) {
+      if (i > 0) row.retry(`Retrying source ${i + 1}/${candidates.length}`);
+      try {
+        const response = await originalFetch(candidates[i], {
+          cache: "no-store",
+          credentials: "omit",
+          mode: "cors"
+        });
+        if (response.ok) return response;
+        errors.push(`${new URL(candidates[i]).hostname}: HTTP ${response.status}`);
+      } catch (error) {
+        errors.push(`${new URL(candidates[i]).hostname}: ${error.message}`);
+      }
+    }
+
+    throw new Error(`All download sources failed (${errors.join("; ")})`);
+  }
+
+  async function downloadOne(path, cache, row, progress) {
+    const url = BASE_URL + encodedPath(path);
+    const cacheKey = new Request(url);
+
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      row.done();
+      progress.complete(0);
+      return;
+    }
+
+    row.start();
+
+    const response = await fetchWithFallback(path, row);
+    const reader = response.body && response.body.getReader
+      ? response.body.getReader()
+      : null;
+
+    let blob;
+    if (reader) {
+      const chunks = [];
+      let fileBytes = 0;
+
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+        chunks.push(result.value);
+        fileBytes += result.value.byteLength;
+        progress.add(fileBytes - (progress.lastFileBytes || 0));
+        progress.lastFileBytes = fileBytes;
+      }
+
+      progress.lastFileBytes = 0;
+      blob = new Blob(chunks, {
+        type: response.headers.get("content-type") || "application/octet-stream"
+      });
+    } else {
+      blob = await response.blob();
+      progress.add(blob.size);
+    }
+
+    await cache.put(cacheKey, new Response(blob, {
+      headers: {
+        "Content-Type": blob.type || "application/octet-stream"
+      }
+    }));
+
+    row.done();
+    progress.complete(0);
+  }
+
+  async function loadJSZip() {
+    if (window.JSZip) return window.JSZip;
+
+    const sources = [
+      "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+      "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
+    ];
+
+    for (const src of sources) {
+      try {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Could not load ZIP extractor: " + src));
+          document.head.appendChild(script);
+        });
+        if (window.JSZip) return window.JSZip;
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+    throw new Error("Could not load the ZIP extractor. Check whether the script host is blocked.");
+  }
+
+  async function extractWebGLArchive() {
+    const cache = await caches.open(CACHE_NAME);
+    const partPaths = ZIP_PARTS;
+    const partBlobs = [];
+
+    loadingText.textContent = "Preparing the game archive...";
+    for (let i = 0; i < partPaths.length; i++) {
+      const url = BASE_URL + encodedPath(partPaths[i]);
+      const response = await cache.match(new Request(url));
+      if (!response) {
+        throw new Error("Missing archive part " + (i + 1) + " of " + partPaths.length +
+          ". Clear the incomplete cache and reload.");
+      }
+      partBlobs.push(await response.blob());
+      if ((i + 1) % 10 === 0 || i + 1 === partPaths.length) {
+        loadingText.textContent = `Preparing archive... (${i + 1}/${partPaths.length} parts)`;
+      }
+    }
+
+    loadingText.textContent = "Loading ZIP extractor...";
+    const JSZip = await loadJSZip();
+
+    loadingText.textContent = "Extracting game assets...";
+    const archiveBlob = new Blob(partBlobs, { type: "application/zip" });
+    const zip = await JSZip.loadAsync(archiveBlob);
+    const files = Object.values(zip.files).filter(file => !file.dir);
+    if (!files.length) throw new Error("The downloaded archive contains no game files.");
+
+    let processed = 0;
+    const batchSize = 8;
+
+    for (let i = 0; i < files.length; i += batchSize) {
+      const batch = files.slice(i, i + batchSize);
+      await Promise.all(batch.map(async file => {
+        const blob = await file.async("blob");
+        const cleanName = file.name.replace(/^\.\//, "");
+        const basename = cleanName.split("/").pop();
+        const response = new Response(blob, {
+          headers: { "Content-Type": blob.type || "application/octet-stream" }
+        });
+
+        // Store the archive path and basename. Unity requests full URLs, while
+        // some builds request only the final bundle filename.
+        await cache.put(new Request(BASE_URL + cleanName), response.clone());
+        await cache.put(new Request(BASE_URL + basename), response);
+        processed++;
+      }));
+      loadingText.textContent = `Extracting game assets... (${processed}/${files.length})`;
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
+    loadingText.textContent = `Extracted ${files.length} game assets.`;
+  }
+
+  async function downloadFiles(files) {
+    const cache = await caches.open(CACHE_NAME);
+    const rows = new Map();
+    files.forEach(path => rows.set(path, makeFileRow(path)));
+
+    let completed = 0;
+    let downloadedBytes = 0;
+    let active = 0;
+    let nextIndex = 0;
+    let failed = [];
+
+    updateOverall(0, files.length, 0);
+
+    function progressFor(path) {
+      let fileBytes = 0;
+      return {
+        add(amount) {
+          fileBytes += amount;
+          downloadedBytes += amount;
+          progressSize.textContent = formatBytes(downloadedBytes);
+        },
+        complete() {
+          completed++;
+          updateOverall(completed, files.length, downloadedBytes);
+        },
+        get lastFileBytes() { return fileBytes; },
+        set lastFileBytes(value) { fileBytes = value; }
+      };
+    }
+
+    loadingText.textContent = `Downloading ${files.length} game files in parallel...`;
+
+    const workerCount = Math.min(8, files.length);
+    async function worker() {
+      while (true) {
+        const index = nextIndex++;
+        if (index >= files.length) return;
+
+        const path = files[index];
+        active++;
+        loadingText.textContent =
+          `Downloading ${path} (${active} active downloads)`;
+
+        try {
+          await downloadOne(path, cache, rows.get(path), progressFor(path));
+        } catch (error) {
+          console.error("Download failed:", path, error);
+          rows.get(path).failed(error.message);
+          failed.push({ path, error });
+        } finally {
+          active--;
+        }
+      }
+    }
+
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+    if (failed.length) {
+      throw new Error(
+        `${failed.length} file(s) failed to download. First failure: ${failed[0].path} — ${failed[0].error.message}`
+      );
+    }
+
+    loadingText.textContent = "Downloads complete. Extracting game archive...";
+    await extractWebGLArchive();
+
+    await cache.put("SILKSONG_CACHE_COMPLETE", new Response("ok"));
+    loadingText.textContent = "All game files downloaded and extracted. Starting Unity...";
+  }
+
+  // Unity's requests are served from Cache Storage after the initial download.
+  window.fetch = async function(resource, options) {
+    const url = typeof resource === "string" ? resource : resource.url;
+    const resolved = new URL(url, document.baseURI);
+
+    if (resolved.origin === new URL(BASE_URL).origin) {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(new Request(resolved.href));
+        if (cached) return cached;
+
+        const basename = resolved.pathname.split("/").pop();
+        const rawName = await cache.match(new Request(BASE_URL + basename));
+        if (rawName) return rawName;
+        const encodedName = await cache.match(new Request(BASE_URL + encodeURIComponent(basename)));
+        if (encodedName) return encodedName;
+      } catch (error) {
+        console.warn("Cache lookup failed; using network:", error);
+      }
+    }
+
+    return originalFetch(resource, options);
+  };
+
+  // Export/import Unity's IndexedDB-backed persistent data as a portable file.
+  // Unity WebGL commonly stores IDBFS data in databases named EM_FS_* or idbfs.
+  const SAVE_FORMAT = "silksong-browser-save";
+  const SAVE_VERSION = 1;
+  const saveStatus = document.getElementById("save-status");
+  const saveInput = document.getElementById("save-file");
+  const toolbar = document.getElementById("game-toolbar");
+
+  function isGameDatabase(name) {
+    return /unity|em_fs_|idbfs/i.test(name || "");
+  }
+
+  function bytesToBase64(bytes) {
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  function base64ToBytes(value) {
+    const binary = atob(value);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  async function packValue(value) {
+    if (value instanceof ArrayBuffer) return { __type: "ArrayBuffer", data: bytesToBase64(new Uint8Array(value)) };
+    if (ArrayBuffer.isView(value)) {
+      return { __type: "TypedArray", name: value.constructor.name, data: bytesToBase64(new Uint8Array(value.buffer, value.byteOffset, value.byteLength)) };
+    }
+    if (value instanceof Blob) return { __type: "Blob", mime: value.type, data: bytesToBase64(new Uint8Array(await value.arrayBuffer())) };
+    if (value instanceof Date) return { __type: "Date", data: value.toISOString() };
+    if (Array.isArray(value)) return Promise.all(value.map(packValue));
+    if (value && typeof value === "object") {
+      const out = {};
+      for (const [key, item] of Object.entries(value)) out[key] = await packValue(item);
+      return out;
+    }
+    return value;
+  }
+
+  function unpackValue(value) {
+    if (Array.isArray(value)) return value.map(unpackValue);
+    if (value && typeof value === "object") {
+      if (value.__type === "ArrayBuffer") return base64ToBytes(value.data).buffer;
+      if (value.__type === "TypedArray") {
+        const bytes = base64ToBytes(value.data);
+        const constructors = { Uint8Array, Uint8ClampedArray, Int8Array, Uint16Array, Int16Array, Uint32Array, Int32Array, Float32Array, Float64Array, BigInt64Array, BigUint64Array, DataView };
+        const Ctor = constructors[value.name];
+        if (!Ctor) throw new Error("Unsupported saved data type: " + value.name);
+        const copy = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+        return value.name === "DataView" ? new DataView(copy) : new Ctor(copy);
+      }
+      if (value.__type === "Blob") return new Blob([base64ToBytes(value.data)], { type: value.mime || "" });
+      if (value.__type === "Date") return new Date(value.data);
+      const out = {};
+      for (const [key, item] of Object.entries(value)) out[key] = unpackValue(item);
+      return out;
+    }
+    return value;
+  }
+
+  function requestResult(request) {
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("IndexedDB request failed"));
+    });
+  }
+
+  function openDatabase(name) {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(name);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("Could not open " + name));
+      request.onblocked = () => reject(new Error("Database is busy: " + name));
+    });
+  }
+
+  async function readStore(db, storeName) {
+    const tx = db.transaction(storeName, "readonly");
+    const store = tx.objectStore(storeName);
+    const [keys, values] = await Promise.all([
+      requestResult(store.getAllKeys()),
+      requestResult(store.getAll())
+    ]);
+    const rows = [];
+    for (let i = 0; i < values.length; i++) {
+      rows.push({ key: await packValue(keys[i]), value: await packValue(values[i]) });
+    }
+    return rows;
+  }
+
+  async function exportGameSave() {
+    if (!indexedDB.databases) throw new Error("This browser does not support IndexedDB backup.");
+    saveStatus.textContent = "Preparing save...";
+    // Give the game a moment to finish any recent save-point writes.
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    const listed = (await indexedDB.databases()).filter(info => info.name && isGameDatabase(info.name));
+    if (!listed.length) throw new Error("No Unity save database was found yet. Reach an in-game save point, then try again.");
+
+    const databases = [];
+    for (const info of listed) {
+      saveStatus.textContent = "Reading " + info.name + "...";
+      const db = await openDatabase(info.name);
+      const stores = [];
+      for (const storeName of Array.from(db.objectStoreNames)) {
+        const tx = db.transaction(storeName, "readonly");
+        const store = tx.objectStore(storeName);
+        const indexes = Array.from(store.indexNames).map(indexName => {
+          const index = store.index(indexName);
+          return { name: index.name, keyPath: index.keyPath, unique: index.unique, multiEntry: index.multiEntry };
+        });
+        const schema = {
+          name: store.name,
+          keyPath: store.keyPath,
+          autoIncrement: store.autoIncrement,
+          indexes,
+          rows: await readStore(db, storeName)
+        };
+        stores.push(schema);
+      }
+      databases.push({ name: db.name, version: db.version, stores });
+      db.close();
+    }
+
+    const save = {
+      format: SAVE_FORMAT,
+      version: SAVE_VERSION,
+      game: "Hollow Knight: Silksong",
+      createdAt: new Date().toISOString(),
+      databases
+    };
+    const blob = new Blob([JSON.stringify(save)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "silksong-save-" + new Date().toISOString().replace(/[:.]/g, "-") + ".silksong-save";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    saveStatus.textContent = "Save file downloaded.";
+  }
+
+  function createDatabaseFromSave(definition) {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(definition.name, definition.version || 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        for (const storeDef of definition.stores) {
+          if (db.objectStoreNames.contains(storeDef.name)) continue;
+          const store = db.createObjectStore(storeDef.name, {
+            keyPath: storeDef.keyPath,
+            autoIncrement: storeDef.autoIncrement
+          });
+          for (const index of storeDef.indexes || []) {
+            store.createIndex(index.name, index.keyPath, { unique: index.unique, multiEntry: index.multiEntry });
+          }
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("Could not create save database"));
+      request.onblocked = () => reject(new Error("Close other game tabs before loading a save."));
+    });
+  }
+
+  async function importGameSave(file) {
+    if (!file) return;
+    saveStatus.textContent = "Reading save file...";
+    const save = JSON.parse(await file.text());
+    if (!save || save.format !== SAVE_FORMAT || save.version !== SAVE_VERSION || !Array.isArray(save.databases)) {
+      throw new Error("That file is not a supported Silksong save.");
+    }
+    for (const definition of save.databases) {
+      if (!isGameDatabase(definition.name)) throw new Error("The save contains an unexpected database.");
+      saveStatus.textContent = "Restoring " + definition.name + "...";
+      const db = await createDatabaseFromSave(definition);
+      const missing = definition.stores.filter(store => !db.objectStoreNames.contains(store.name));
+      if (missing.length) {
+        db.close();
+        throw new Error("Save database layout does not match this game version. Load the same game build used to create the save.");
+      }
+      for (const storeDef of definition.stores) {
+        const tx = db.transaction(storeDef.name, "readwrite");
+        const store = tx.objectStore(storeDef.name);
+        store.clear();
+        for (const row of storeDef.rows) {
+          const value = unpackValue(row.value);
+          if (store.keyPath === null) store.put(value, unpackValue(row.key));
+          else store.put(value);
+        }
+        await new Promise((resolve, reject) => {
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error || new Error("Could not write restored save data"));
+          tx.onabort = () => reject(tx.error || new Error("Save restore was cancelled"));
+        });
+      }
+      db.close();
+    }
+    saveStatus.textContent = "Save restored. Reloading game...";
+    setTimeout(() => location.reload(), 700);
+  }
+
+  document.getElementById("save-game").addEventListener("click", () => {
+    exportGameSave().catch(error => {
+      console.error("Save export failed:", error);
+      saveStatus.textContent = "Save failed: " + error.message;
+    });
+  });
+
+  document.getElementById("load-game").addEventListener("click", () => saveInput.click());
+  saveInput.addEventListener("change", () => {
+    const file = saveInput.files && saveInput.files[0];
+    importGameSave(file).catch(error => {
+      console.error("Save import failed:", error);
+      saveStatus.textContent = "Load failed: " + error.message;
+    }).finally(() => { saveInput.value = ""; });
+  });
+
+  document.getElementById("fullscreen-game").addEventListener("click", async () => {
+    try {
+      if (!document.fullscreenElement) await document.getElementById("unity-container").requestFullscreen();
+      else await document.exitFullscreen();
+    } catch (error) {
+      saveStatus.textContent = "Fullscreen unavailable: " + error.message;
+    }
+  });
+
+  document.addEventListener("fullscreenchange", () => {
+    document.getElementById("fullscreen-game").textContent = document.fullscreenElement ? "Exit fullscreen" : "Fullscreen";
+  });
+
+  function startUnity() {
+    const canvas = document.getElementById("unity-canvas");
+    const loadingBar = document.getElementById("unity-loading-bar");
+    const unityProgress = document.getElementById("unity-progress-bar-full");
+    const warningBanner = document.getElementById("unity-warning");
+    const unityContainer = document.getElementById("unity-container");
+
+    function unityShowBanner(message, type) {
+      const div = document.createElement("div");
+      div.textContent = message;
+      div.style.cssText = "padding:10px;margin:4px 0;";
+      if (type === "error") {
+        div.style.background = "#a51d2d";
+      } else if (type === "warning") {
+        div.style.background = "#8a6818";
+      }
+      warningBanner.appendChild(div);
+      if (type !== "error") {
+        setTimeout(() => div.remove(), 5000);
+      }
+    }
+
+    const config = {
+      dataUrl: "Build/w-pt.data.unityweb",
+      frameworkUrl: "Build/w-pt.framework.js.unityweb",
+      codeUrl: "Build/w-pt.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "EDUrocks Group, Truffled, GN-Math",
+      productName: "Hollow Knight SilkSong",
+      productVersion: "1.0",
+      showBanner: unityShowBanner
+    };
+
+    unityContainer.style.display = "block";
+    loadingBar.style.display = "block";
+
+    const script = document.createElement("script");
+    script.src = BASE_URL + "Build/w-pt.loader.js";
+
+    script.onload = () => {
+      if (typeof createUnityInstance !== "function") {
+        loadingText.textContent = "ERROR: Unity loader did not initialize.";
+        return;
+      }
+
+      createUnityInstance(canvas, config, progress => {
+        unityProgress.style.width = `${progress * 100}%`;
+        loadingText.textContent = `Starting Unity... ${Math.round(progress * 100)}%`;
+      }).then(() => {
+        downloadScreen.remove();
+        loadingBar.remove();
+        toolbar.style.display = "flex";
+      }).catch(error => {
+        console.error(error);
+        loadingText.textContent = `UNITY ERROR: ${error.message || error}`;
+      });
+    };
+
+    script.onerror = () => {
+      // If the primary CDN is unavailable, load the small Unity bootstrap from
+      // the alternate static-file host. Game assets are still served from cache.
+      script.onerror = () => {
+        loadingText.textContent = "ERROR: Could not load the Unity loader from either source.";
+      };
+      script.src = "https://raw.githubusercontent.com/AMoldyWaffle/Silk-Song/main/Build/w-pt.loader.js";
+      document.body.appendChild(script);
+    };
+
+    document.body.appendChild(script);
+  }
+
+  (async () => {
+    try {
+      loadingText.textContent = "Checking saved game files...";
+      const cache = await caches.open(CACHE_NAME);
+      const complete = await cache.match("SILKSONG_CACHE_COMPLETE");
+
+      if (!complete) {
+        const files = await getFileList();
+        await downloadFiles(files);
+      } else {
+        loadingText.textContent = "Game files already downloaded. Starting Unity...";
+      }
+
+      startUnity();
+    } catch (error) {
+      console.error(error);
+      loadingText.textContent = `ERROR: ${error.message || error}`;
+    }
+  })();
+})();
+</script>
+</body>
+</html>
