@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,8 +24,6 @@
     #game {
       position: fixed;
       inset: 0;
-      width: 100%;
-      height: 100%;
       display: flex;
       flex-direction: column;
     }
@@ -112,23 +109,6 @@
       transition: width 0.15s linear;
     }
 
-    /* Animated indicator while the ZIP archive is being parsed. */
-    #progress-inner.indeterminate {
-      width: 35% !important;
-      transition: none;
-      animation: archive-loading 1.4s ease-in-out infinite;
-    }
-
-    @keyframes archive-loading {
-      0% {
-        transform: translateX(-110%);
-      }
-
-      100% {
-        transform: translateX(310%);
-      }
-    }
-
     #progress-detail {
       margin-top: 8px;
       color: #9ca9bd;
@@ -186,7 +166,7 @@
       position: absolute;
       inset: 0;
       z-index: 50;
-      background: rgba(0, 0, 0, 0.92);
+      background: rgba(0,0,0,.92);
       padding: 30px;
       overflow: auto;
       white-space: pre-wrap;
@@ -202,8 +182,7 @@
       <button id="save-button">Save</button>
       <button id="load-button">Load</button>
       <button id="fullscreen-button">Fullscreen</button>
-      <input id="save-file" type="file"
-             accept=".silksong-save,.json" hidden>
+      <input id="save-file" type="file" accept=".silksong-save,.json" hidden>
     </div>
 
     <div id="unity-container">
@@ -234,7 +213,8 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <!-- Streaming ZIP extractor -->
+  <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
 
   <script>
   (() => {
@@ -247,17 +227,17 @@
     const BASE_URL =
       "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/";
 
-    const CACHE_NAME = "hksilksongcache-v8";
+    // New cache version for the streaming extraction system.
+    const CACHE_NAME = "hksilksongcache-v9";
+
     const CACHE_ORIGIN = "https://silksong-cache.invalid/";
     const CACHE_MARKER = CACHE_ORIGIN + "__CACHE_COMPLETE__";
 
     const TOTAL_PARTS = 100;
 
-    // Keep concurrency moderate to reduce CDN errors.
+    // Only three parts are downloaded simultaneously.
+    // This limits how much downloaded data sits in memory.
     const WORKER_COUNT = 3;
-
-    // Retry all mirrors this many times if a part fails.
-    const MAX_PART_ATTEMPTS = 4;
 
     const EXPECTED_PART_BYTES = partNumber =>
       partNumber === 100 ? 17340100 : 20866662;
@@ -314,12 +294,12 @@
         : String(error);
 
       log("FATAL ERROR: " + message);
+
       setStatus("DOWNLOAD OR STARTUP FAILED");
       progressDetail.textContent = "See diagnostics below.";
-    }
 
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
+      errorOverlay.style.display = "block";
+      errorOverlay.textContent = message;
     }
 
     /* =========================================================
@@ -332,27 +312,26 @@
     }
 
     function assetCacheKey(path) {
-      let clean = String(path);
-
-      clean = clean.replace(/^\/+/, "");
+      let clean = path.replace(/^\/+/, "");
 
       clean = clean.replace(
-        /^StreamingAssets\/aa\/WebGL\//i,
+        /^StreamingAssets\/aa\/WebGL\//,
         ""
       );
 
-      clean = clean.replace(/^WebGL\//i, "");
+      clean = clean.replace(/^WebGL\//, "");
 
       return CACHE_ORIGIN + encodeURI(clean);
     }
 
     /* =========================================================
-       FETCH WITH TIMEOUT
+       DOWNLOAD A SINGLE PART
+
+       Mirrors are checked in parallel. The first successful
+       response wins, and the downloaded size is verified.
     ========================================================= */
 
-    async function fetchWithTimeout(url, timeoutMs = 120000) {
-      const controller = new AbortController();
-
+    async function fetchWithTimeout(url, timeoutMs, controller) {
       const timer = setTimeout(
         () => controller.abort(),
         timeoutMs
@@ -367,7 +346,6 @@
 
         return {
           response,
-          controller,
           timer
         };
 
@@ -377,131 +355,309 @@
       }
     }
 
-    /* =========================================================
-       DOWNLOAD ONE ZIP PART
-    ========================================================= */
-
     async function downloadPart(partNumber) {
       const expectedBytes = EXPECTED_PART_BYTES(partNumber);
-      const failures = [];
 
-      for (
-        let round = 1;
-        round <= MAX_PART_ATTEMPTS;
-        round++
-      ) {
-        log(
-          "Part " + partNumber +
-          ": download attempt " + round +
-          "/" + MAX_PART_ATTEMPTS
-        );
+      log("Part " + partNumber + ": checking mirrors...");
 
-        for (
-          let sourceIndex = 0;
-          sourceIndex < FALLBACK_BASES.length;
-          sourceIndex++
-        ) {
+      const controllers = FALLBACK_BASES.map(
+        () => new AbortController()
+      );
+
+      const attempts = FALLBACK_BASES.map(
+        async (base, sourceIndex) => {
           const url = partUrl(partNumber, sourceIndex);
 
-          let result = null;
+          const result = await fetchWithTimeout(
+            url,
+            120000,
+            controllers[sourceIndex]
+          );
+
+          if (!result.response.ok) {
+            clearTimeout(result.timer);
+
+            throw new Error(
+              "Mirror " + (sourceIndex + 1) +
+              " returned HTTP " + result.response.status
+            );
+          }
+
+          return {
+            ...result,
+            sourceIndex,
+            url
+          };
+        }
+      );
+
+      let winner;
+
+      try {
+        winner = await Promise.any(attempts);
+
+      } catch (error) {
+        const messages = error.errors
+          ? error.errors.map(
+              item => item.message || String(item)
+            ).join("; ")
+          : String(error);
+
+        throw new Error(
+          "All mirrors failed for part " +
+          partNumber + ": " + messages
+        );
+      }
+
+      // Stop the losing mirror requests.
+      controllers.forEach((controller, index) => {
+        if (index !== winner.sourceIndex) {
+          controller.abort();
+        }
+      });
+
+      try {
+        const blob = await winner.response.blob();
+
+        clearTimeout(winner.timer);
+
+        if (blob.size !== expectedBytes) {
+          throw new Error(
+            "Expected " + expectedBytes +
+            " bytes, received " + blob.size
+          );
+        }
+
+        log(
+          "Part " + partNumber +
+          " downloaded from mirror " +
+          (winner.sourceIndex + 1) +
+          " (" + (blob.size / 1048576).toFixed(2) + " MB)"
+        );
+
+        return blob;
+
+      } catch (error) {
+        clearTimeout(winner.timer);
+
+        log(
+          "Part " + partNumber +
+          " failed validation: " + error.message
+        );
+
+        // Retry other mirrors if the fastest response was incomplete.
+        for (let i = 0; i < FALLBACK_BASES.length; i++) {
+          if (i === winner.sourceIndex) continue;
 
           try {
             log(
-              "Part " + partNumber +
-              ": trying mirror " + (sourceIndex + 1) +
-              " (" + new URL(url).hostname + ")"
+              "Retrying part " + partNumber +
+              " from mirror " + (i + 1)
             );
 
-            result = await fetchWithTimeout(url);
+            const controller = new AbortController();
+
+            const result = await fetchWithTimeout(
+              partUrl(partNumber, i),
+              120000,
+              controller
+            );
 
             if (!result.response.ok) {
-              throw new Error(
-                "HTTP " + result.response.status
-              );
+              clearTimeout(result.timer);
+              throw new Error("HTTP " + result.response.status);
             }
 
             const blob = await result.response.blob();
 
+            clearTimeout(result.timer);
+
             if (blob.size !== expectedBytes) {
               throw new Error(
-                "Incomplete download: expected " +
-                expectedBytes +
-                " bytes, received " +
-                blob.size
+                "Expected " + expectedBytes +
+                " bytes, received " + blob.size
               );
             }
 
             log(
               "Part " + partNumber +
-              " complete from mirror " +
-              (sourceIndex + 1) +
-              " (" +
-              (blob.size / 1024 / 1024).toFixed(2) +
-              " MB)"
+              " recovered from mirror " + (i + 1)
             );
 
             return blob;
 
-          } catch (error) {
-            const message = error.message || String(error);
-
-            failures.push(
-              "Attempt " + round +
-              ", mirror " + (sourceIndex + 1) +
-              ": " + message
-            );
-
+          } catch (retryError) {
             log(
-              "Part " + partNumber +
-              " mirror " + (sourceIndex + 1) +
-              " failed: " + message
+              "Retry failed for part " + partNumber +
+              ": " + retryError.message
             );
-
-          } finally {
-            if (result) {
-              clearTimeout(result.timer);
-            }
           }
         }
 
-        if (round < MAX_PART_ATTEMPTS) {
-          const delay = 2000 * Math.pow(2, round - 1);
-
-          log(
-            "Part " + partNumber +
-            ": all mirrors failed; retrying in " +
-            (delay / 1000) + " seconds."
-          );
-
-          await sleep(delay);
-        }
+        throw new Error(
+          "Could not download a complete copy of part " +
+          partNumber
+        );
       }
-
-      throw new Error(
-        "Could not download complete ZIP part " +
-        partNumber + ".\n" +
-        failures.join("\n")
-      );
     }
 
     /* =========================================================
-       DOWNLOAD ALL PARTS WITH LIMITED CONCURRENCY
+       STREAMING ZIP EXTRACTION
+
+       The ZIP parts are pieces of ONE archive.
+       They must be passed to fflate in their original order.
+
+       No giant combined ZIP Blob is created.
+       No JSZip.loadAsync() step is used.
     ========================================================= */
 
-    async function downloadAllParts() {
-      const parts = new Array(TOTAL_PARTS);
+    async function streamDownloadAndExtract() {
+      setStatus("Preparing streaming extractor...");
+      setProgress(1, "Initializing ZIP stream...");
 
-      let nextPart = 1;
-      let completed = 0;
-      let failed = false;
+      if (!window.fflate || !window.fflate.Unzip) {
+        throw new Error(
+          "fflate failed to load. Check the connection to jsDelivr."
+        );
+      }
 
-      const workers = [];
+      const cache = await caches.open(CACHE_NAME);
 
-      async function worker() {
+      let extractedFiles = 0;
+      let extractedBytes = 0;
+      let streamError = null;
+
+      const pendingWrites = [];
+
+      const unzip = new fflate.Unzip(file => {
+        if (file.name.endsWith("/")) {
+          return;
+        }
+
+        const fileChunks = [];
+        const originalName = file.name;
+
+        log("Archive entry found: " + originalName);
+
+        file.ondata = (error, data, final) => {
+          if (error) {
+            streamError = error;
+
+            log(
+              "Extraction error in " + originalName +
+              ": " + error.message
+            );
+
+            return;
+          }
+
+          if (data && data.length) {
+            fileChunks.push(data);
+            extractedBytes += data.length;
+          }
+
+          if (final) {
+            try {
+              let path = originalName.replace(/^\/+/, "");
+
+              // Keep the same path normalization used by the old cache.
+              path = path.replace(
+                /^StreamingAssets\/aa\/WebGL\//,
+                ""
+              );
+
+              path = path.replace(/^WebGL\//, "");
+
+              const key = assetCacheKey(path);
+
+              const blob = new Blob(fileChunks);
+
+              const writePromise = cache.put(
+                key,
+                new Response(blob)
+              ).then(() => {
+                extractedFiles++;
+
+                if (
+                  extractedFiles % 10 === 0 ||
+                  extractedFiles === 1
+                ) {
+                  log(
+                    "Cached " + extractedFiles +
+                    " files (" +
+                    (extractedBytes / 1048576).toFixed(1) +
+                    " MB extracted)"
+                  );
+                }
+
+              }).catch(error => {
+                streamError = error;
+
+                log(
+                  "Cache write failed for " +
+                  originalName + ": " + error.message
+                );
+
+                throw error;
+              });
+
+              pendingWrites.push(writePromise);
+
+            } catch (error) {
+              streamError = error;
+              log("Could not cache " + originalName + ": " + error.message);
+            }
+          }
+        };
+
+        file.start();
+      });
+
+      // Support normal ZIP files and Deflate-compressed entries.
+      unzip.register(fflate.AsyncUnzipInflate);
+
+      /*
+        Download workers place completed parts into this map.
+        The extractor consumes them strictly in order.
+      */
+
+      const readyParts = new Map();
+
+      let nextPartToDownload = 1;
+      let completedDownloads = 0;
+      let workerError = null;
+      let wakeConsumer = null;
+
+      function notifyConsumer() {
+        if (wakeConsumer) {
+          const wake = wakeConsumer;
+          wakeConsumer = null;
+          wake();
+        }
+      }
+
+      async function waitForPart(partNumber) {
+        while (!readyParts.has(partNumber)) {
+          if (workerError) {
+            throw workerError;
+          }
+
+          await new Promise(resolve => {
+            wakeConsumer = resolve;
+          });
+        }
+
+        const part = readyParts.get(partNumber);
+        readyParts.delete(partNumber);
+
+        return part;
+      }
+
+      async function downloadWorker() {
         while (true) {
-          if (failed) return;
+          if (workerError) return;
 
-          const partNumber = nextPart++;
+          const partNumber = nextPartToDownload++;
 
           if (partNumber > TOTAL_PARTS) {
             return;
@@ -509,216 +665,126 @@
 
           try {
             setStatus(
-              "Downloading game files... " +
-              completed + "/" + TOTAL_PARTS
+              "Downloading and extracting game files..."
             );
 
             const blob = await downloadPart(partNumber);
 
-            parts[partNumber - 1] = blob;
-            completed++;
+            readyParts.set(partNumber, blob);
+            completedDownloads++;
+
+            notifyConsumer();
 
             setProgress(
-              (completed / TOTAL_PARTS) * 45,
-              "ZIP parts downloaded: " +
-              completed + "/" + TOTAL_PARTS
+              (completedDownloads / TOTAL_PARTS) * 35,
+              "Downloaded parts: " +
+              completedDownloads + "/" + TOTAL_PARTS
             );
 
           } catch (error) {
-            failed = true;
+            workerError = error;
+            notifyConsumer();
             throw error;
           }
         }
       }
 
-      log(
-        "Starting " + WORKER_COUNT +
-        " download workers."
-      );
+      async function consumeParts() {
+        let bytesFed = 0;
+        let totalBytes = 0;
 
-      for (let i = 0; i < WORKER_COUNT; i++) {
-        workers.push(worker());
-      }
-
-      await Promise.all(workers);
-
-      if (parts.some(part => !part)) {
-        throw new Error(
-          "One or more ZIP parts are missing."
-        );
-      }
-
-      log("All " + TOTAL_PARTS + " ZIP parts downloaded.");
-
-      return parts;
-    }
-
-    /* =========================================================
-       EXTRACT ZIP AND CACHE ASSETS
-    ========================================================= */
-
-    async function extractAndCache(parts) {
-      setStatus("Combining ZIP parts...");
-      setProgress(48, "Combining downloaded files...");
-
-      const zipBlob = new Blob(parts, {
-        type: "application/zip"
-      });
-
-      log(
-        "Combined ZIP size: " +
-        (zipBlob.size / 1024 / 1024).toFixed(2) +
-        " MB"
-      );
-
-      setStatus("Opening game archive...");
-      setProgress(50, "Reading ZIP archive...");
-
-      // Give the browser a chance to display the updated status.
-      await new Promise(resolve => {
-        requestAnimationFrame(() => {
-          setTimeout(resolve, 50);
-        });
-      });
-
-      progressElement.classList.add("indeterminate");
-
-      const parseStarted = performance.now();
-
-      log("Starting JSZip archive parsing...");
-      log(
-        "Archive size: " +
-        (zipBlob.size / 1024 / 1024).toFixed(2) +
-        " MB"
-      );
-
-      let zip;
-
-      try {
-        zip = await JSZip.loadAsync(zipBlob);
-
-      } catch (error) {
-        progressElement.classList.remove("indeterminate");
-
-        log(
-          "ZIP parsing failed: " +
-          (error.message || error)
-        );
-
-        throw error;
-      }
-
-      progressElement.classList.remove("indeterminate");
-
-      const parseSeconds =
-        ((performance.now() - parseStarted) / 1000).toFixed(1);
-
-      log(
-        "JSZip finished parsing the archive in " +
-        parseSeconds + " seconds."
-      );
-
-      const files = Object.values(zip.files).filter(file => {
-        return !file.dir;
-      });
-
-      if (!files.length) {
-        throw new Error(
-          "The ZIP archive contained no files."
-        );
-      }
-
-      log(
-        "Found " + files.length +
-        " files inside the archive."
-      );
-
-      const cache = await caches.open(CACHE_NAME);
-
-      let completed = 0;
-      const failures = [];
-
-      const batchSize = 8;
-
-      for (
-        let i = 0;
-        i < files.length;
-        i += batchSize
-      ) {
-        const batch = files.slice(i, i + batchSize);
-
-        await Promise.all(batch.map(async file => {
-          try {
-            const blob = await file.async("blob");
-
-            let path = file.name.replace(/^\/+/, "");
-
-            // Handle common ZIP directory prefixes.
-            path = path.replace(
-              /^StreamingAssets\/aa\/WebGL\//i,
-              ""
-            );
-
-            path = path.replace(/^WebGL\//i, "");
-
-            const key = assetCacheKey(path);
-
-            await cache.put(
-              key,
-              new Response(blob)
-            );
-
-          } catch (error) {
-            failures.push(
-              file.name + ": " +
-              (error.message || error)
-            );
-
-            log(
-              "Extraction/cache failure: " +
-              file.name + " - " +
-              (error.message || error)
-            );
+        for (let i = 1; i <= TOTAL_PARTS; i++) {
+          if (streamError) {
+            throw streamError;
           }
 
-          completed++;
+          const blob = await waitForPart(i);
 
-          const percent =
-            50 + (completed / files.length) * 45;
+          const buffer = await blob.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
 
-          setProgress(
-            percent,
-            "Extracting assets: " +
-            completed + "/" + files.length
+          totalBytes += bytes.byteLength;
+          bytesFed += bytes.byteLength;
+
+          log(
+            "Feeding part " + i + "/" + TOTAL_PARTS +
+            " into ZIP extractor..."
           );
 
-          if (
-            completed % 40 === 0 ||
-            completed === files.length
-          ) {
-            log(
-              "Cached " + completed +
-              "/" + files.length + " files."
-            );
-          }
-        }));
-      }
+          // The final argument marks the end of the archive.
+          unzip.push(bytes, i === TOTAL_PARTS);
 
-      if (failures.length) {
-        throw new Error(
-          failures.length +
-          " asset(s) failed to extract or cache.\n" +
-          failures.slice(0, 10).join("\n")
+          const feedProgress =
+            (bytesFed / (100 * 20866662)) * 45;
+
+          setProgress(
+            35 + feedProgress,
+            "Streaming archive: part " +
+            i + "/" + TOTAL_PARTS +
+            " | " +
+            (bytesFed / 1048576).toFixed(1) +
+            " MB processed"
+          );
+
+          if (streamError) {
+            throw streamError;
+          }
+        }
+
+        log(
+          "All ZIP parts fed to extractor (" +
+          (totalBytes / 1048576).toFixed(1) +
+          " MB)."
         );
       }
 
+      const workers = [];
+
+      for (let i = 0; i < WORKER_COUNT; i++) {
+        workers.push(downloadWorker());
+      }
+
+      // Downloads and extraction now run concurrently.
+      const workerPromise = Promise.all(workers);
+      const consumerPromise = consumeParts();
+
+      await Promise.all([
+        workerPromise,
+        consumerPromise
+      ]);
+
+      // Wait for asynchronous decompression and Cache Storage writes.
+      setStatus("Finishing extracted files...");
+      setProgress(90, "Finishing cache writes...");
+
+      await Promise.all(pendingWrites);
+
+      if (streamError) {
+        throw streamError;
+      }
+
+      if (extractedFiles === 0) {
+        throw new Error(
+          "The streaming extractor did not find any files. " +
+          "The archive may use an unsupported ZIP feature."
+        );
+      }
+
+      log(
+        "Streaming extraction complete. " +
+        extractedFiles + " files cached."
+      );
+
+      // Only mark the cache complete after every write succeeds.
       await cache.put(
         CACHE_MARKER,
         new Response("complete")
       );
 
-      log("All extracted assets were cached.");
-      setProgress(95, "Game assets cached successfully.");
+      setProgress(
+        95,
+        "Cached " + extractedFiles + " extracted files."
+      );
     }
 
     /* =========================================================
@@ -728,7 +794,6 @@
     async function cacheIsComplete() {
       try {
         const cache = await caches.open(CACHE_NAME);
-
         return !!(await cache.match(CACHE_MARKER));
 
       } catch (error) {
@@ -744,10 +809,8 @@
     const originalFetch = window.fetch.bind(window);
 
     window.fetch = async function(resource, options) {
-      let requestUrl;
-
       try {
-        requestUrl = typeof resource === "string"
+        const requestUrl = typeof resource === "string"
           ? resource
           : resource.url;
 
@@ -757,15 +820,12 @@
         );
 
         const marker = "/StreamingAssets/aa/WebGL/";
-
-        const markerIndex =
-          parsed.pathname.indexOf(marker);
+        const markerIndex = parsed.pathname.indexOf(marker);
 
         if (markerIndex !== -1) {
-          const relativePath =
-            parsed.pathname.substring(
-              markerIndex + marker.length
-            );
+          const relativePath = parsed.pathname.substring(
+            markerIndex + marker.length
+          );
 
           const cache = await caches.open(CACHE_NAME);
           const key = assetCacheKey(relativePath);
@@ -783,10 +843,7 @@
         }
 
       } catch (error) {
-        log(
-          "Cache lookup warning: " +
-          error.message
-        );
+        log("Cache lookup warning: " + error.message);
       }
 
       return originalFetch(resource, options);
@@ -805,7 +862,6 @@
 
       if (type === "error") {
         div.style.background = "#a00000";
-
       } else {
         div.style.background = "#8a6900";
 
@@ -814,8 +870,7 @@
         }, 5000);
       }
 
-      document.getElementById("unity-warning")
-        .appendChild(div);
+      document.getElementById("unity-warning").appendChild(div);
     }
 
     /* =========================================================
@@ -849,12 +904,6 @@
         try {
           log("Unity loader downloaded.");
 
-          if (typeof createUnityInstance !== "function") {
-            throw new Error(
-              "Unity loader loaded, but createUnityInstance is unavailable."
-            );
-          }
-
           const instance = await createUnityInstance(
             canvas,
             config,
@@ -873,24 +922,15 @@
 
         } catch (error) {
           showFatalError(error);
-
-          errorOverlay.style.display = "block";
-          errorOverlay.textContent =
-            "UNITY STARTUP ERROR\n\n" +
-            (error.stack || error.message || String(error));
         }
       };
 
       script.onerror = () => {
-        const error = new Error(
-          "Could not load Unity loader: " + script.src
+        showFatalError(
+          new Error(
+            "Could not load Unity loader: " + script.src
+          )
         );
-
-        showFatalError(error);
-
-        errorOverlay.style.display = "block";
-        errorOverlay.textContent =
-          "UNITY LOADER ERROR\n\n" + error.message;
       };
 
       document.body.appendChild(script);
@@ -1055,7 +1095,6 @@
           name: storeName,
           keyPath: store.keyPath,
           autoIncrement: store.autoIncrement,
-
           records: keys.map((key, index) => ({
             key: encodeValue(key),
             value: encodeValue(values[index])
@@ -1297,8 +1336,8 @@
 
     async function main() {
       try {
-        if (!window.JSZip) {
-          throw new Error("JSZip failed to load.");
+        if (!window.fflate) {
+          throw new Error("fflate failed to load.");
         }
 
         if (!("caches" in window)) {
@@ -1319,8 +1358,9 @@
           setProgress(95, "Assets already cached.");
 
         } else {
-          log("No complete cache found. Starting ZIP download.");
+          log("No complete cache found. Starting streaming download.");
 
+          // Remove older versions of this launcher's cache.
           const oldCacheNames = await caches.keys();
 
           for (const name of oldCacheNames) {
@@ -1328,14 +1368,11 @@
               name.startsWith("hksilksongcache-") &&
               name !== CACHE_NAME
             ) {
-              log("Removing old cache: " + name);
               await caches.delete(name);
             }
           }
 
-          const parts = await downloadAllParts();
-
-          await extractAndCache(parts);
+          await streamDownloadAndExtract();
         }
 
         await startUnity();
