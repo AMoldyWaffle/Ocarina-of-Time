@@ -210,8 +210,57 @@
     // Saves (IndexedDB; the worker posts changed files)
     const SAVEDB = 'yuki-saves:angrybirds-offline';
     const saveDb = () => new Promise((res, rej) => { const q = indexedDB.open(SAVEDB, 1); q.onupgradeneeded = () => q.result.createObjectStore('f'); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
-    const loadSaves = async () => { try { const db = await saveDb(); return await new Promise((res) => { const out = []; const r = db.transaction('f').objectStore('f').openCursor(); r.onsuccess = () => { const c = r.result; if (c) { out.push({ path: c.key, data: c.value }); c.continue(); } else res(out); }; r.onerror = () => res([]); }); } catch (e) { return []; } };
-    const storeSaves = async (files) => { try { const db = await saveDb(); const tx = db.transaction('f', 'readwrite'); for (const f of files) tx.objectStore('f').put(f.data, f.path); } catch (e) {} };
+    const loadSaves = async () => {
+        let db;
+        try {
+            db = await saveDb();
+            return await new Promise((resolve, reject) => {
+                const output = [];
+                const transaction = db.transaction('f', 'readonly');
+                const request = transaction.objectStore('f').openCursor();
+                request.onsuccess = () => {
+                    const cursor = request.result;
+                    if (cursor) {
+                        output.push({ path: cursor.key, data: cursor.value });
+                        cursor.continue();
+                    } else {
+                        resolve(output);
+                    }
+                };
+                request.onerror = () => reject(request.error || new Error('Could not read saved game files.'));
+                transaction.onerror = () => reject(transaction.error || new Error('Save database read failed.'));
+                transaction.onabort = () => reject(transaction.error || new Error('Save database read was cancelled.'));
+            });
+        } catch (error) {
+            addLog('[save] Could not load saved files: ' + error.message, true);
+            return [];
+        } finally {
+            if (db) db.close();
+        }
+    };
+    const storeSaves = async (files) => {
+        if (!Array.isArray(files) || !files.length) return;
+        let db;
+        try {
+            db = await saveDb();
+            await new Promise((resolve, reject) => {
+                const transaction = db.transaction('f', 'readwrite');
+                const store = transaction.objectStore('f');
+                for (const file of files) {
+                    if (file && typeof file.path === 'string') {
+                        store.put(file.data, file.path);
+                    }
+                }
+                transaction.oncomplete = resolve;
+                transaction.onerror = () => reject(transaction.error || new Error('Save database write failed.'));
+                transaction.onabort = () => reject(transaction.error || new Error('Save database write was cancelled.'));
+            });
+        } catch (error) {
+            addLog('[save] Could not persist game files: ' + error.message, true);
+        } finally {
+            if (db) db.close();
+        }
+    };
 
     if (dev) setInterval(() => addLog('[main] frames=' + window.yuki_frames + ' status=' + window.yuki_status + ' idle=' + Math.round(performance.now() - lastAlive) + 'ms', false), 5000);
     let lastAlive = performance.now(), hungShown = false;
