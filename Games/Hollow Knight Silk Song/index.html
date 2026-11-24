@@ -196,7 +196,7 @@
 
       <div id="loading-screen">
         <div id="loading-title">HOLLOW KNIGHT: SILKSONG</div>
-        <div id="status">Preparing downloader...</div>
+        <div id="status">Preparing game...</div>
 
         <div id="progress-outer">
           <div id="progress-inner"></div>
@@ -216,24 +216,8 @@
 
     /* CONFIGURATION */
 
-    const BASE_URL =
-      "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/";
-
     const CACHE_NAME = "hksilksongcache-v9";
     const CACHE_ORIGIN = "https://silksong-cache.invalid/";
-    const CACHE_MARKER = CACHE_ORIGIN + "__CACHE_COMPLETE__";
-
-    const TOTAL_PARTS = 100;
-    const WORKER_COUNT = 6;
-    const PREFETCH_WINDOW = 8;
-    const ZIP_FEED_CHUNK_SIZE = 4 * 1024 * 1024;
-
-    const EXPECTED_PART_BYTES = partNumber =>
-      partNumber === 100 ? 17340100 : 20866662;
-
-    const TOTAL_ARCHIVE_BYTES =
-      EXPECTED_PART_BYTES(1) * 99 +
-      EXPECTED_PART_BYTES(100);
 
     const FALLBACK_BASES = [
       "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
@@ -242,7 +226,7 @@
       "https://raw.githack.com/web-ports/hollow-knight-silksong/master/"
     ];
 
-    let BUILD_BASE_URL = BASE_URL;
+    let BUILD_BASE_URL = FALLBACK_BASES[0];
     let diagnosticsActive = true;
 
     /* ELEMENTS */
@@ -289,23 +273,14 @@
         : String(error);
 
       log("FATAL ERROR: " + message);
-      setStatus("DOWNLOAD OR STARTUP FAILED");
+      setStatus("STARTUP FAILED");
       progressDetail.textContent = "See diagnostics below.";
 
       errorOverlay.style.display = "block";
       errorOverlay.textContent = message;
     }
 
-    function yieldToBrowser() {
-      return new Promise(resolve => setTimeout(resolve, 0));
-    }
-
     /* URL HELPERS */
-
-    function partUrl(partNumber, sourceIndex) {
-      return FALLBACK_BASES[sourceIndex] +
-        "StreamingAssets/aa/WebGL.zip.part" + partNumber;
-    }
 
     function assetCacheKey(path) {
       let clean = path.replace(/^\/+/, "");
@@ -320,575 +295,148 @@
       return CACHE_ORIGIN + encodeURI(clean);
     }
 
-    /* NETWORK HELPERS */
+    function getStreamingAssetPath(pathname) {
+      const marker = "/StreamingAssets/aa/WebGL/";
+      const index = pathname.indexOf(marker);
+
+      if (index === -1) return null;
+
+      return pathname.substring(index + marker.length);
+    }
+
+    /* ORIGINAL FETCH */
 
     const originalFetch = window.fetch.bind(window);
 
-    async function fetchWithTimeout(url, timeoutMs, controller) {
-      const timer = setTimeout(
-        () => controller.abort(),
-        timeoutMs
-      );
-
-      try {
-        const response = await originalFetch(url, {
-          method: "GET",
-          cache: "no-store",
-          signal: controller.signal
-        });
-
-        return { response, timer };
-
-      } catch (error) {
-        clearTimeout(timer);
-        throw error;
-      }
-    }
-
-    /* ZIP PART DOWNLOAD */
-
-    async function downloadPart(partNumber) {
-      const expectedBytes = EXPECTED_PART_BYTES(partNumber);
-
-      const controllers = FALLBACK_BASES.map(
-        () => new AbortController()
-      );
-
-      const timers = new Array(FALLBACK_BASES.length).fill(null);
-
-      log("Part " + partNumber + ": checking mirrors...");
-
-      const attempts = FALLBACK_BASES.map(
-        async (base, sourceIndex) => {
-          const result = await fetchWithTimeout(
-            partUrl(partNumber, sourceIndex),
-            120000,
-            controllers[sourceIndex]
-          );
-
-          timers[sourceIndex] = result.timer;
-
-          if (!result.response.ok) {
-            clearTimeout(result.timer);
-
-            throw new Error(
-              "Mirror " + (sourceIndex + 1) +
-              " returned HTTP " + result.response.status
-            );
-          }
-
-          return {
-            ...result,
-            sourceIndex
-          };
-        }
-      );
-
-      let winner;
-
-      try {
-        winner = await Promise.any(attempts);
-
-      } catch (error) {
-        const messages = error.errors
-          ? error.errors.map(
-              item => item.message || String(item)
-            ).join("; ")
-          : String(error);
-
-        throw new Error(
-          "All mirrors failed for part " +
-          partNumber + ": " + messages
-        );
-
-      } finally {
-        if (winner) {
-          controllers.forEach((controller, index) => {
-            if (index !== winner.sourceIndex) {
-              controller.abort();
-            }
-          });
-        }
-
-        timers.forEach(timer => {
-          if (timer) clearTimeout(timer);
-        });
-      }
-
-      try {
-        const blob = await winner.response.blob();
-
-        if (blob.size !== expectedBytes) {
-          throw new Error(
-            "Expected " + expectedBytes +
-            " bytes, received " + blob.size
-          );
-        }
-
-        log(
-          "Part " + partNumber +
-          " downloaded from mirror " +
-          (winner.sourceIndex + 1) +
-          " (" + (blob.size / 1048576).toFixed(2) + " MB)"
-        );
-
-        return blob;
-
-      } catch (error) {
-        log(
-          "Part " + partNumber +
-          " failed validation: " + error.message
-        );
-
-        for (let i = 0; i < FALLBACK_BASES.length; i++) {
-          if (i === winner.sourceIndex) continue;
-
-          try {
-            log(
-              "Retrying part " + partNumber +
-              " from mirror " + (i + 1)
-            );
-
-            const controller = new AbortController();
-
-            const result = await fetchWithTimeout(
-              partUrl(partNumber, i),
-              120000,
-              controller
-            );
-
-            if (!result.response.ok) {
-              clearTimeout(result.timer);
-              throw new Error("HTTP " + result.response.status);
-            }
-
-            const blob = await result.response.blob();
-            clearTimeout(result.timer);
-
-            if (blob.size !== expectedBytes) {
-              throw new Error(
-                "Expected " + expectedBytes +
-                " bytes, received " + blob.size
-              );
-            }
-
-            log(
-              "Part " + partNumber +
-              " recovered from mirror " + (i + 1)
-            );
-
-            return blob;
-
-          } catch (retryError) {
-            log(
-              "Retry failed for part " + partNumber +
-              ": " + retryError.message
-            );
-          }
-        }
-
-        throw new Error(
-          "Could not download a complete copy of part " +
-          partNumber
-        );
-      }
-    }
-
-    /* STREAMING ZIP EXTRACTION */
-
-    async function streamDownloadAndExtract() {
-      setStatus("Preparing streaming extractor...");
-      setProgress(1, "Initializing ZIP stream...");
-
-      if (!window.fflate || !window.fflate.Unzip) {
-        throw new Error(
-          "fflate failed to load. Check the connection to jsDelivr."
-        );
-      }
-
-      const cache = await caches.open(CACHE_NAME);
-
-      let extractedFiles = 0;
-      let extractedBytes = 0;
-      let streamError = null;
-
-      const pendingWrites = [];
-
-      const unzip = new fflate.Unzip(file => {
-        if (file.name.endsWith("/")) return;
-
-        const fileChunks = [];
-        const originalName = file.name;
-
-        log("Archive entry found: " + originalName);
-
-        file.ondata = (error, data, final) => {
-          if (error) {
-            streamError = error;
-            log(
-              "Extraction error in " + originalName +
-              ": " + error.message
-            );
-            return;
-          }
-
-          if (data && data.length) {
-            fileChunks.push(data);
-            extractedBytes += data.length;
-          }
-
-          if (final) {
-            try {
-              let path = originalName.replace(/^\/+/, "");
-
-              path = path.replace(
-                /^StreamingAssets\/aa\/WebGL\//,
-                ""
-              );
-
-              path = path.replace(/^WebGL\//, "");
-
-              const key = assetCacheKey(path);
-              const blob = new Blob(fileChunks);
-
-              const writePromise = cache.put(
-                key,
-                new Response(blob)
-              ).then(() => {
-                extractedFiles++;
-
-                if (
-                  extractedFiles % 10 === 0 ||
-                  extractedFiles === 1
-                ) {
-                  log(
-                    "Cached " + extractedFiles +
-                    " files (" +
-                    (extractedBytes / 1048576).toFixed(1) +
-                    " MB extracted)"
-                  );
-                }
-
-              }).catch(error => {
-                streamError = error;
-
-                log(
-                  "Cache write failed for " +
-                  originalName + ": " + error.message
-                );
-
-                throw error;
-              });
-
-              pendingWrites.push(writePromise);
-
-            } catch (error) {
-              streamError = error;
-
-              log(
-                "Could not cache " +
-                originalName + ": " + error.message
-              );
-            }
-          }
-        };
-
-        file.start();
-      });
-
-      unzip.register(fflate.UnzipInflate);
-
-      const readyParts = new Map();
-
-      let nextPartToDownload = 1;
-      let nextPartToConsume = 1;
-
-      let completedDownloads = 0;
-      let downloadedBytes = 0;
-      let workerError = null;
-
-      const consumerWaiters = [];
-      const capacityWaiters = [];
-
-      function notifyConsumer() {
-        while (consumerWaiters.length) {
-          consumerWaiters.shift()();
-        }
-      }
-
-      function notifyCapacity() {
-        while (capacityWaiters.length) {
-          capacityWaiters.shift()();
-        }
-      }
-
-      async function waitForCapacity() {
-        while (
-          nextPartToDownload >=
-          nextPartToConsume + PREFETCH_WINDOW
-        ) {
-          if (workerError) throw workerError;
-
-          await new Promise(resolve => {
-            capacityWaiters.push(resolve);
-          });
-        }
-      }
-
-      async function waitForPart(partNumber) {
-        while (!readyParts.has(partNumber)) {
-          if (workerError) throw workerError;
-
-          await new Promise(resolve => {
-            consumerWaiters.push(resolve);
-          });
-        }
-
-        const part = readyParts.get(partNumber);
-        readyParts.delete(partNumber);
-
-        nextPartToConsume++;
-        notifyCapacity();
-
-        return part;
-      }
-
-      async function downloadWorker() {
-        while (true) {
-          if (workerError) return;
-
-          await waitForCapacity();
-
-          if (workerError) return;
-
-          const partNumber = nextPartToDownload++;
-
-          if (partNumber > TOTAL_PARTS) return;
-
-          try {
-            setStatus(
-              "Downloading and extracting game files..."
-            );
-
-            const blob = await downloadPart(partNumber);
-
-            if (workerError) return;
-
-            readyParts.set(partNumber, blob);
-
-            completedDownloads++;
-            downloadedBytes += blob.size;
-
-            setProgress(
-              (downloadedBytes / TOTAL_ARCHIVE_BYTES) * 35,
-              "Downloaded parts: " +
-              completedDownloads + "/" + TOTAL_PARTS +
-              " | " +
-              (downloadedBytes / 1048576).toFixed(1) +
-              " MB"
-            );
-
-            notifyConsumer();
-
-          } catch (error) {
-            workerError = error;
-            notifyConsumer();
-            notifyCapacity();
-            throw error;
-          }
-        }
-      }
-
-      async function consumeParts() {
-        let bytesFed = 0;
-
-        for (let i = 1; i <= TOTAL_PARTS; i++) {
-          if (streamError) throw streamError;
-
-          const blob = await waitForPart(i);
-          const buffer = await blob.arrayBuffer();
-          const bytes = new Uint8Array(buffer);
-
-          log(
-            "Feeding part " + i + "/" + TOTAL_PARTS +
-            " into ZIP extractor..."
-          );
-
-          for (
-            let offset = 0;
-            offset < bytes.length;
-            offset += ZIP_FEED_CHUNK_SIZE
-          ) {
-            const end = Math.min(
-              offset + ZIP_FEED_CHUNK_SIZE,
-              bytes.length
-            );
-
-            const chunk = bytes.subarray(offset, end);
-
-            const isFinalChunk =
-              i === TOTAL_PARTS &&
-              end === bytes.length;
-
-            unzip.push(chunk, isFinalChunk);
-
-            bytesFed += chunk.length;
-
-            setProgress(
-              35 + (bytesFed / TOTAL_ARCHIVE_BYTES) * 45,
-              "Extracting archive: part " +
-              i + "/" + TOTAL_PARTS +
-              " | " +
-              (bytesFed / 1048576).toFixed(1) +
-              " / " +
-              (TOTAL_ARCHIVE_BYTES / 1048576).toFixed(1) +
-              " MB processed"
-            );
-
-            if (streamError) throw streamError;
-
-            await yieldToBrowser();
-          }
-        }
-
-        log(
-          "All ZIP parts fed to extractor (" +
-          (bytesFed / 1048576).toFixed(1) +
-          " MB)."
-        );
-      }
-
-      const workers = [];
-
-      for (let i = 0; i < WORKER_COUNT; i++) {
-        workers.push(downloadWorker());
-      }
-
-      const workerPromise = Promise.all(workers);
-      const consumerPromise = consumeParts();
-
-      try {
-        await Promise.all([
-          workerPromise,
-          consumerPromise
-        ]);
-
-      } catch (error) {
-        workerError = error;
-        notifyConsumer();
-        notifyCapacity();
-        throw error;
-      }
-
-      setStatus("Finishing extracted files...");
-      setProgress(90, "Finishing cache writes...");
-
-      await Promise.all(pendingWrites);
-
-      if (streamError) throw streamError;
-
-      if (extractedFiles === 0) {
-        throw new Error(
-          "The streaming extractor did not find any files. " +
-          "The archive may use an unsupported ZIP feature."
-        );
-      }
-
-      log(
-        "Streaming extraction complete. " +
-        extractedFiles + " files cached."
-      );
-
-      await cache.put(
-        CACHE_MARKER,
-        new Response("complete")
-      );
-
-      setProgress(
-        95,
-        "Cached " + extractedFiles + " extracted files."
-      );
-    }
-
-    /* CACHE CHECK */
-
-    async function cacheIsComplete() {
-      try {
-        const cache = await caches.open(CACHE_NAME);
-        return !!(await cache.match(CACHE_MARKER));
-
-      } catch (error) {
-        log("Cache check failed: " + error.message);
-        return false;
-      }
-    }
-
-    /* FETCH INTERCEPTION */
+    /*
+      ON-DEMAND ASSET CACHE
+
+      Unity requests an AssetBundle:
+        1. Look for it in Cache Storage.
+        2. If found, return the cached response.
+        3. If missing, fetch it from the network.
+        4. Cache a successful response for future launches.
+
+      This replaces the old 100-part ZIP download.
+    */
 
     window.fetch = async function(resource, options) {
+      let parsed;
+
       try {
-        const requestUrl = typeof resource === "string"
-          ? resource
-          : resource.url;
+        const requestUrl =
+          typeof resource === "string"
+            ? resource
+            : resource.url;
 
-        const parsed = new URL(
-          requestUrl,
-          document.baseURI
-        );
+        parsed = new URL(requestUrl, document.baseURI);
 
-        if (
-          parsed.pathname.endsWith(
-            "/Build/w-pt.framework.js.unityweb"
-          )
-        ) {
+      } catch (error) {
+        log("Could not parse request URL: " + error.message);
+        return originalFetch(resource, options);
+      }
+
+      /* FRAMEWORK CACHE */
+
+      if (
+        parsed.pathname.endsWith(
+          "/Build/w-pt.framework.js.unityweb"
+        )
+      ) {
+        try {
           const cache = await caches.open(CACHE_NAME);
-          const cachedFramework = await cache.match(parsed.href);
+          const cached = await cache.match(parsed.href);
 
-          if (cachedFramework) {
-            log("Serving prechecked Unity framework from cache.");
-            return cachedFramework;
+          if (cached) {
+            log("Using cached Unity framework.");
+            return cached;
           }
+        } catch (error) {
+          log("Framework cache lookup failed: " + error.message);
         }
+      }
 
-        if (
-          parsed.pathname.endsWith("/Build/w-pt.wasm.unityweb") ||
-          parsed.pathname.endsWith("/Build/w-pt.data.unityweb")
-        ) {
+      /* UNITY BUILD FILE CACHE */
+
+      if (
+        parsed.pathname.endsWith("/Build/w-pt.wasm.unityweb") ||
+        parsed.pathname.endsWith("/Build/w-pt.data.unityweb")
+      ) {
+        try {
           const cache = await caches.open(CACHE_NAME);
-          const cachedBuildFile = await cache.match(parsed.href);
+          const cached = await cache.match(parsed.href);
 
-          if (cachedBuildFile) {
+          if (cached) {
             log(
-              "Serving Unity build file from cache: " +
+              "Using cached Unity build file: " +
               parsed.pathname.split("/").pop()
             );
 
-            return cachedBuildFile;
+            return cached;
           }
+        } catch (error) {
+          log("Build cache lookup failed: " + error.message);
         }
+      }
 
-        const marker = "/StreamingAssets/aa/WebGL/";
-        const markerIndex = parsed.pathname.indexOf(marker);
+      /* STREAMING ASSET / ASSETBUNDLE CACHE */
 
-        if (markerIndex !== -1) {
-          const relativePath = parsed.pathname.substring(
-            markerIndex + marker.length
-          );
+      const relativePath =
+        getStreamingAssetPath(parsed.pathname);
 
+      if (relativePath !== null) {
+        const cacheKey = assetCacheKey(relativePath);
+
+        try {
           const cache = await caches.open(CACHE_NAME);
-          const key = assetCacheKey(relativePath);
-          const cached = await cache.match(key);
+          const cached = await cache.match(cacheKey);
 
-          if (cached) return cached;
+          if (cached) {
+            log("Asset cache hit: " + relativePath);
+            return cached;
+          }
 
+          log("Asset cache miss: " + relativePath);
+
+          const response = await originalFetch(resource, options);
+
+          if (!response.ok || response.type === "opaque") {
+            log(
+              "Asset download not cached: " +
+              relativePath + " (HTTP " + response.status + ")"
+            );
+
+            return response;
+          }
+
+          /*
+            Store a clone so Unity can still read the original response.
+            Awaiting the write avoids losing the cache operation when
+            the browser is busy loading the game.
+          */
+
+          try {
+            await cache.put(cacheKey, response.clone());
+
+            log("Asset cached successfully: " + relativePath);
+
+          } catch (cacheError) {
+            log(
+              "Could not cache asset " +
+              relativePath + ": " + cacheError.message
+            );
+          }
+
+          return response;
+
+        } catch (error) {
           log(
-            "Asset not in cache; trying network: " +
-            relativePath
+            "Asset request/cache error for " +
+            relativePath + ": " + error.message
           );
-        }
 
-      } catch (error) {
-        log("Cache lookup warning: " + error.message);
+          throw error;
+        }
       }
 
       return originalFetch(resource, options);
@@ -905,7 +453,7 @@
       const failures = [];
 
       setStatus("Diagnosing Unity framework...");
-      setProgress(95, "Inspecting framework responses...");
+      setProgress(5, "Inspecting framework responses...");
 
       function bytesToHex(bytes, count = 32) {
         return Array.from(bytes.slice(0, count))
@@ -936,9 +484,6 @@
 
           log("CONTENT-LENGTH: " +
             (response.headers.get("content-length") || "missing"));
-
-          log("ACCEPT-RANGES: " +
-            (response.headers.get("accept-ranges") || "missing"));
 
           if (!response.ok) {
             throw new Error("HTTP " + response.status);
@@ -1084,8 +629,6 @@
             : "size not provided by server")
         );
 
-        // Cache the response stream directly.
-        // This avoids creating another full-size ArrayBuffer in memory.
         const headers = new Headers(response.headers);
 
         headers.delete("content-encoding");
@@ -1223,7 +766,7 @@
 
     async function startUnity() {
       setStatus("Checking Unity framework...");
-      setProgress(96, "Validating game engine files...");
+      setProgress(5, "Validating game engine files...");
 
       unityLoadingBar.style.display = "block";
 
@@ -1247,11 +790,9 @@
         productName: "Hollow Knight SilkSong",
         productVersion: "1.0",
 
-        // Lower rendering resolution to reduce graphics memory.
         devicePixelRatio: 1,
         matchWebGLToCanvasSize: true,
 
-        // Avoid unnecessary WebGL framebuffer allocations.
         webglContextAttributes: {
           powerPreference: "low-power",
           antialias: false,
@@ -1329,7 +870,6 @@
 
           log("Unity started successfully.");
 
-          // Remove accumulated diagnostic text after startup.
           diagnostics.textContent = "";
           diagnosticsActive = false;
 
@@ -1756,35 +1296,15 @@
           );
         }
 
-        setStatus("Checking saved game files...");
-        log("Checking asset cache...");
+        setStatus("Preparing on-demand game loading...");
+        setProgress(2, "Skipping full archive download...");
 
-        const cached = await cacheIsComplete();
-
-        if (cached) {
-          log("Complete asset cache found.");
-
-          setStatus("Using previously downloaded game files.");
-          setProgress(95, "Assets already cached.");
-
-        } else {
-          log(
-            "No complete cache found. Starting parallel ZIP download."
-          );
-
-          const oldCacheNames = await caches.keys();
-
-          for (const name of oldCacheNames) {
-            if (
-              name.startsWith("hksilksongcache-") &&
-              name !== CACHE_NAME
-            ) {
-              await caches.delete(name);
-            }
-          }
-
-          await streamDownloadAndExtract();
-        }
+        log("On-demand asset loading enabled.");
+        log("The 100-part ZIP download has been disabled.");
+        log("AssetBundles will download only when Unity requests them.");
+        log("Downloaded AssetBundles will be cached individually.");
+        log("Previously cached files will be reused.");
+        log("Existing cache preserved: " + CACHE_NAME);
 
         await startUnity();
 
