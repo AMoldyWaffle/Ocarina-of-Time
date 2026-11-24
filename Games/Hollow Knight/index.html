@@ -66,7 +66,7 @@ body{display:flex;align-items:center;justify-content:center}
                 <option value="1">Graphics: 1.00x</option>
                 <option value="0.85">Graphics: 0.85x</option>
                 <option value="0.70">Graphics: 0.70x</option>
-                <option value="0.60">Graphics: 0.60x</option>
+                <option value="0.60" selected>Graphics: 0.60x</option>
                 <option value="0.50">Graphics: 0.50x</option>
                 <option value="0.45">Graphics: 0.45x</option>
             </select>
@@ -1203,11 +1203,25 @@ async function importSaveFile(file) {
         if (
             !snapshot ||
             snapshot.format !== SAVE_FORMAT ||
-            !Array.isArray(snapshot.databases)
+            !Array.isArray(snapshot.databases) ||
+            !snapshot.localStorage ||
+            typeof snapshot.localStorage !== "object" ||
+            Array.isArray(snapshot.localStorage)
         ) {
             throw new Error(
                 "That file is not a compatible Hollow Knight save."
             );
+        }
+
+        for (const db of snapshot.databases) {
+            if (!db || typeof db.name !== "string" || !Array.isArray(db.stores)) {
+                throw new Error("The save contains an invalid database entry.");
+            }
+            for (const store of db.stores) {
+                if (!store || typeof store.name !== "string" || !Array.isArray(store.records)) {
+                    throw new Error("The save contains an invalid object store.");
+                }
+            }
         }
 
         if (!confirm(
