@@ -1172,17 +1172,23 @@ async function writeDatabaseSnapshot(snapshot) {
                 throw new Error("The saved storage layout is incomplete.");
             }
 
+            // Decode every record before clearing the live store. If a save
+            // file is corrupt, the existing store remains untouched.
+            const preparedRecords = storeInfo.records.map(record => ({
+                key: decodeSaveValue(record.key),
+                value: decodeSaveValue(record.value)
+            }));
+
             const tx = db.transaction(storeInfo.name, "readwrite");
             const done = transactionDone(tx);
             const store = tx.objectStore(storeInfo.name);
             store.clear();
 
-            for (const record of storeInfo.records) {
-                const value = decodeSaveValue(record.value);
+            for (const record of preparedRecords) {
                 if (store.keyPath === null) {
-                    store.put(value, decodeSaveValue(record.key));
+                    store.put(record.value, record.key);
                 } else {
-                    store.put(value);
+                    store.put(record.value);
                 }
             }
 
