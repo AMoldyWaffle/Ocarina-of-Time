@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,9 +8,7 @@
   <title>Hollow Knight: Silksong</title>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     html, body {
       margin: 0;
@@ -48,9 +47,7 @@
       cursor: pointer;
     }
 
-    button:hover {
-      background: #46536b;
-    }
+    button:hover { background: #46536b; }
 
     #unity-container {
       position: relative;
@@ -177,16 +174,15 @@
 
 <body>
   <div id="game">
-
     <div id="toolbar">
       <button id="save-button">Save</button>
       <button id="load-button">Load</button>
       <button id="fullscreen-button">Fullscreen</button>
-      <input id="save-file" type="file" accept=".silksong-save,.json" hidden>
+      <input id="save-file" type="file"
+        accept=".silksong-save,.json" hidden>
     </div>
 
     <div id="unity-container">
-
       <canvas id="unity-canvas" tabindex="-1"></canvas>
 
       <div id="unity-loading-bar">
@@ -209,7 +205,6 @@
         <div id="progress-detail">Waiting...</div>
         <div id="diagnostics"></div>
       </div>
-
     </div>
   </div>
 
@@ -226,28 +221,20 @@
     const BASE_URL =
       "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/";
 
-    // Keep v9 so an existing complete asset cache is reused.
     const CACHE_NAME = "hksilksongcache-v9";
-
     const CACHE_ORIGIN = "https://silksong-cache.invalid/";
     const CACHE_MARKER = CACHE_ORIGIN + "__CACHE_COMPLETE__";
 
     const TOTAL_PARTS = 100;
-
-    // More workers improve download throughput.
     const WORKER_COUNT = 6;
-
-    // Never allow too many downloaded parts to accumulate in RAM.
     const PREFETCH_WINDOW = 8;
-
-    // Split ZIP data into smaller chunks so the page can update.
     const ZIP_FEED_CHUNK_SIZE = 4 * 1024 * 1024;
 
     const EXPECTED_PART_BYTES = partNumber =>
       partNumber === 100 ? 17340100 : 20866662;
 
     const TOTAL_ARCHIVE_BYTES =
-      (EXPECTED_PART_BYTES(1) * 99) +
+      EXPECTED_PART_BYTES(1) * 99 +
       EXPECTED_PART_BYTES(100);
 
     const FALLBACK_BASES = [
@@ -257,12 +244,10 @@
       "https://raw.githack.com/web-ports/hollow-knight-silksong/master/"
     ];
 
-    // This is selected after checking which mirror can serve
-    // the Unity framework file correctly.
     let BUILD_BASE_URL = BASE_URL;
 
     /* =========================================================
-       ELEMENTS
+       ELEMENTS AND LOGGING
     ========================================================= */
 
     const statusElement = document.getElementById("status");
@@ -274,7 +259,6 @@
     const canvas = document.getElementById("unity-canvas");
     const unityLoadingBar = document.getElementById("unity-loading-bar");
     const unityProgress = document.getElementById("unity-progress-inner");
-
     const errorOverlay = document.getElementById("error-overlay");
 
     function log(message) {
@@ -282,7 +266,6 @@
         "[" + new Date().toLocaleTimeString() + "] " + message;
 
       console.log(line);
-
       diagnostics.textContent += line + "\n";
       diagnostics.scrollTop = diagnostics.scrollHeight;
     }
@@ -295,9 +278,7 @@
       progressElement.style.width =
         Math.max(0, Math.min(100, percent)) + "%";
 
-      if (detail) {
-        progressDetail.textContent = detail;
-      }
+      if (detail) progressDetail.textContent = detail;
     }
 
     function showFatalError(error) {
@@ -306,7 +287,6 @@
         : String(error);
 
       log("FATAL ERROR: " + message);
-
       setStatus("DOWNLOAD OR STARTUP FAILED");
       progressDetail.textContent = "See diagnostics below.";
 
@@ -341,10 +321,7 @@
     }
 
     /* =========================================================
-       DOWNLOAD A SINGLE PART
-
-       The mirrors are raced. The first successful response wins.
-       The actual downloaded size is checked before accepting it.
+       DOWNLOAD A SINGLE ZIP PART
     ========================================================= */
 
     async function fetchWithTimeout(url, timeoutMs, controller) {
@@ -360,10 +337,7 @@
           signal: controller.signal
         });
 
-        return {
-          response,
-          timer
-        };
+        return { response, timer };
 
       } catch (error) {
         clearTimeout(timer);
@@ -384,10 +358,8 @@
 
       const attempts = FALLBACK_BASES.map(
         async (base, sourceIndex) => {
-          const url = partUrl(partNumber, sourceIndex);
-
           const result = await fetchWithTimeout(
-            url,
+            partUrl(partNumber, sourceIndex),
             120000,
             controllers[sourceIndex]
           );
@@ -405,8 +377,7 @@
 
           return {
             ...result,
-            sourceIndex,
-            url
+            sourceIndex
           };
         }
       );
@@ -429,8 +400,6 @@
         );
 
       } finally {
-        // Any requests still waiting on headers are no longer needed
-        // once a winner has been selected or all attempts have failed.
         if (winner) {
           controllers.forEach((controller, index) => {
             if (index !== winner.sourceIndex) {
@@ -469,8 +438,6 @@
           " failed validation: " + error.message
         );
 
-        // Retry other mirrors one at a time if the fastest
-        // response was incomplete or invalid.
         for (let i = 0; i < FALLBACK_BASES.length; i++) {
           if (i === winner.sourceIndex) continue;
 
@@ -494,7 +461,6 @@
             }
 
             const blob = await result.response.blob();
-
             clearTimeout(result.timer);
 
             if (blob.size !== expectedBytes) {
@@ -549,9 +515,7 @@
       const pendingWrites = [];
 
       const unzip = new fflate.Unzip(file => {
-        if (file.name.endsWith("/")) {
-          return;
-        }
+        if (file.name.endsWith("/")) return;
 
         const fileChunks = [];
         const originalName = file.name;
@@ -561,12 +525,10 @@
         file.ondata = (error, data, final) => {
           if (error) {
             streamError = error;
-
             log(
               "Extraction error in " + originalName +
               ": " + error.message
             );
-
             return;
           }
 
@@ -634,14 +596,8 @@
         file.start();
       });
 
-      /*
-        IMPORTANT:
-        Use UnzipInflate, not AsyncUnzipInflate.
-
-        AsyncUnzipInflate creates a SharedWorker, which is blocked
-        by the HTML runner's cross-origin worker restrictions.
-      */
-
+      // Do not use AsyncUnzipInflate here.
+      // It creates a SharedWorker that the runner may block.
       unzip.register(fflate.UnzipInflate);
 
       const readyParts = new Map();
@@ -651,7 +607,6 @@
 
       let completedDownloads = 0;
       let downloadedBytes = 0;
-
       let workerError = null;
 
       const consumerWaiters = [];
@@ -674,9 +629,7 @@
           nextPartToDownload >=
           nextPartToConsume + PREFETCH_WINDOW
         ) {
-          if (workerError) {
-            throw workerError;
-          }
+          if (workerError) throw workerError;
 
           await new Promise(resolve => {
             capacityWaiters.push(resolve);
@@ -686,9 +639,7 @@
 
       async function waitForPart(partNumber) {
         while (!readyParts.has(partNumber)) {
-          if (workerError) {
-            throw workerError;
-          }
+          if (workerError) throw workerError;
 
           await new Promise(resolve => {
             consumerWaiters.push(resolve);
@@ -699,8 +650,6 @@
         readyParts.delete(partNumber);
 
         nextPartToConsume++;
-
-        // A slot has opened in the bounded download window.
         notifyCapacity();
 
         return part;
@@ -716,9 +665,7 @@
 
           const partNumber = nextPartToDownload++;
 
-          if (partNumber > TOTAL_PARTS) {
-            return;
-          }
+          if (partNumber > TOTAL_PARTS) return;
 
           try {
             setStatus(
@@ -758,12 +705,9 @@
         let bytesFed = 0;
 
         for (let i = 1; i <= TOTAL_PARTS; i++) {
-          if (streamError) {
-            throw streamError;
-          }
+          if (streamError) throw streamError;
 
           const blob = await waitForPart(i);
-
           const buffer = await blob.arrayBuffer();
           const bytes = new Uint8Array(buffer);
 
@@ -772,8 +716,6 @@
             " into ZIP extractor..."
           );
 
-          // Feed the ZIP in smaller pieces instead of pushing
-          // a full 20 MB part in one synchronous operation.
           for (
             let offset = 0;
             offset < bytes.length;
@@ -794,11 +736,8 @@
 
             bytesFed += chunk.length;
 
-            const feedProgress =
-              (bytesFed / TOTAL_ARCHIVE_BYTES) * 45;
-
             setProgress(
-              35 + feedProgress,
+              35 + (bytesFed / TOTAL_ARCHIVE_BYTES) * 45,
               "Extracting archive: part " +
               i + "/" + TOTAL_PARTS +
               " | " +
@@ -808,12 +747,8 @@
               " MB processed"
             );
 
-            if (streamError) {
-              throw streamError;
-            }
+            if (streamError) throw streamError;
 
-            // Let the browser repaint the progress bar and
-            // process other events between ZIP chunks.
             await yieldToBrowser();
           }
         }
@@ -852,9 +787,7 @@
 
       await Promise.all(pendingWrites);
 
-      if (streamError) {
-        throw streamError;
-      }
+      if (streamError) throw streamError;
 
       if (extractedFiles === 0) {
         throw new Error(
@@ -868,8 +801,6 @@
         extractedFiles + " files cached."
       );
 
-      // The marker is only written after every extraction
-      // and cache write has succeeded.
       await cache.put(
         CACHE_MARKER,
         new Response("complete")
@@ -913,7 +844,6 @@
           document.baseURI
         );
 
-        // Serve the prechecked framework file from Cache Storage.
         if (
           parsed.pathname.endsWith(
             "/Build/w-pt.framework.js.unityweb"
@@ -928,7 +858,6 @@
           }
         }
 
-        // Serve extracted StreamingAssets from the ZIP cache.
         const marker = "/StreamingAssets/aa/WebGL/";
         const markerIndex = parsed.pathname.indexOf(marker);
 
@@ -939,12 +868,9 @@
 
           const cache = await caches.open(CACHE_NAME);
           const key = assetCacheKey(relativePath);
-
           const cached = await cache.match(key);
 
-          if (cached) {
-            return cached;
-          }
+          if (cached) return cached;
 
           log(
             "Asset not in cache; trying network: " +
@@ -962,185 +888,236 @@
     /* =========================================================
        UNITY FRAMEWORK VALIDATION
 
-       The original launcher only cached StreamingAssets.
-       The Unity Build files were fetched directly from jsDelivr.
-
-       This checks the framework file against each mirror,
-       rejects HTTP errors and HTML error pages, and stores the
-       successful response for Unity to use.
-
-       The Content-Encoding header is removed from the cached
-       response because Fetch has already handled HTTP-level
-       content decoding. The .unityweb file itself remains intact.
+       Important:
+       - Verify the actual GZIP stream, not just its first bytes.
+       - Cache the original compressed bytes.
+       - Remove HTTP Content-Encoding from the cached response.
+       - Unity will receive the compressed bytes and our patched
+         loader will decompress this one file with fflate.
     ========================================================= */
 
     async function selectBuildMirror() {
-  const cache = await caches.open(CACHE_NAME);
+      const cache = await caches.open(CACHE_NAME);
 
-  const frameworkPath =
-    "Build/w-pt.framework.js.unityweb";
+      const frameworkPath =
+        "Build/w-pt.framework.js.unityweb";
 
-  const failures = [];
+      const failures = [];
 
-  setStatus("Diagnosing Unity framework...");
-  setProgress(95, "Inspecting framework responses...");
+      setStatus("Diagnosing Unity framework...");
+      setProgress(95, "Inspecting framework responses...");
 
-  function bytesToHex(bytes, count = 32) {
-    return Array.from(bytes.slice(0, count))
-      .map(byte => byte.toString(16).padStart(2, "0"))
-      .join(" ");
-  }
+      function bytesToHex(bytes, count = 32) {
+        return Array.from(bytes.slice(0, count))
+          .map(byte => byte.toString(16).padStart(2, "0"))
+          .join(" ");
+      }
 
-  function bytesToText(bytes, count = 100) {
-    return Array.from(bytes.slice(0, count))
-      .map(byte => {
-        if (byte >= 32 && byte <= 126) {
-          return String.fromCharCode(byte);
+      function bytesToText(bytes, count = 100) {
+        return Array.from(bytes.slice(0, count))
+          .map(byte => {
+            if (byte >= 32 && byte <= 126) {
+              return String.fromCharCode(byte);
+            }
+            return ".";
+          })
+          .join("");
+      }
+
+      for (let i = 0; i < FALLBACK_BASES.length; i++) {
+        const base = FALLBACK_BASES[i];
+        const url = base + frameworkPath;
+
+        try {
+          log("----------------------------------------");
+          log("Testing framework mirror " + (i + 1));
+          log(url);
+
+          const response = await originalFetch(url, {
+            method: "GET",
+            cache: "no-store"
+          });
+
+          log("HTTP STATUS: " + response.status);
+          log("CONTENT-TYPE: " +
+            (response.headers.get("content-type") || "missing"));
+
+          log("CONTENT-ENCODING: " +
+            (response.headers.get("content-encoding") || "missing"));
+
+          log("CONTENT-LENGTH: " +
+            (response.headers.get("content-length") || "missing"));
+
+          log("ACCEPT-RANGES: " +
+            (response.headers.get("accept-ranges") || "missing"));
+
+          if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+          }
+
+          const buffer = await response.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+
+          log("RECEIVED SIZE: " + buffer.byteLength + " bytes");
+          log("FIRST 32 BYTES: " + bytesToHex(bytes));
+
+          if (
+            bytes[0] !== 0x1f ||
+            bytes[1] !== 0x8b
+          ) {
+            throw new Error(
+              "The framework does not have a GZIP header."
+            );
+          }
+
+          // This is a real decompression test.
+          // A matching 1f 8b prefix alone is not enough.
+          let decompressed;
+
+          try {
+            decompressed = window.fflate.gunzipSync(bytes);
+          } catch (error) {
+            throw new Error(
+              "GZIP decompression test failed: " +
+              error.message
+            );
+          }
+
+          if (!decompressed || decompressed.length < 1024) {
+            throw new Error(
+              "Decompressed framework is empty or too small."
+            );
+          }
+
+          const decodedStart = new TextDecoder().decode(
+            decompressed.subarray(0, 160)
+          );
+
+          log(
+            "GZIP VALIDATION: SUCCESS (" +
+            decompressed.length + " decompressed bytes)"
+          );
+
+          log(
+            "DECOMPRESSED PREVIEW: " +
+            decodedStart.substring(0, 120).replace(/\n/g, " ")
+          );
+
+          if (
+            !decodedStart.includes("function") &&
+            !decodedStart.includes("var ") &&
+            !decodedStart.includes("Unity") &&
+            !decodedStart.includes("(()=>")
+          ) {
+            log(
+              "WARNING: Framework preview does not look like " +
+              "ordinary JavaScript. Continuing because Unity " +
+              "framework bundles can begin with other syntax."
+            );
+          }
+
+          /*
+            The downloaded body is already the original GZIP file.
+            Do not set Content-Encoding: gzip here. Unity needs to
+            receive these compressed bytes for its own processing.
+          */
+
+          const headers = new Headers(response.headers);
+
+          headers.delete("content-encoding");
+          headers.delete("content-length");
+          headers.delete("transfer-encoding");
+          headers.delete("content-range");
+
+          headers.set(
+            "content-type",
+            "application/octet-stream"
+          );
+
+          const cachedResponse = new Response(buffer, {
+            status: 200,
+            statusText: "OK",
+            headers
+          });
+
+          await cache.put(url, cachedResponse);
+
+          BUILD_BASE_URL = base;
+
+          log("FRAMEWORK RESPONSE SAVED.");
+          log("SELECTED MIRROR: " + (i + 1));
+
+          return BUILD_BASE_URL;
+
+        } catch (error) {
+          failures.push(
+            "Mirror " + (i + 1) + ": " + error.message
+          );
+
+          log("MIRROR FAILED: " + error.message);
         }
-
-        return ".";
-      })
-      .join("");
-  }
-
-  function identifyFormat(bytes) {
-    if (
-      bytes[0] === 0x1f &&
-      bytes[1] === 0x8b
-    ) {
-      return "GZIP";
-    }
-
-    if (
-      bytes[0] === 0x50 &&
-      bytes[1] === 0x4b
-    ) {
-      return "ZIP";
-    }
-
-    if (
-      bytes[0] === 0x42 &&
-      bytes[1] === 0x52 &&
-      bytes[2] === 0x4f &&
-      bytes[3] === 0x54
-    ) {
-      return "BROTLI SIGNATURE";
-    }
-
-    const text = bytesToText(bytes).trimStart().toLowerCase();
-
-    if (
-      text.startsWith("<!doctype html") ||
-      text.startsWith("<html") ||
-      text.startsWith("<head")
-    ) {
-      return "HTML ERROR PAGE";
-    }
-
-    if (
-      text.startsWith("function") ||
-      text.startsWith("var ") ||
-      text.startsWith("(function") ||
-      text.startsWith("(()=>")
-    ) {
-      return "JAVASCRIPT";
-    }
-
-    return "UNKNOWN / UNITY COMPRESSED DATA";
-  }
-
-  for (let i = 0; i < FALLBACK_BASES.length; i++) {
-    const base = FALLBACK_BASES[i];
-    const url = base + frameworkPath;
-
-    try {
-      log("----------------------------------------");
-      log("Testing framework mirror " + (i + 1));
-      log(url);
-
-      const response = await originalFetch(url, {
-        method: "GET",
-        cache: "no-store"
-      });
-
-      log("HTTP STATUS: " + response.status);
-      log("CONTENT-TYPE: " +
-        (response.headers.get("content-type") || "missing"));
-
-      log("CONTENT-ENCODING: " +
-        (response.headers.get("content-encoding") || "missing"));
-
-      log("CONTENT-LENGTH: " +
-        (response.headers.get("content-length") || "missing"));
-
-      log("ACCEPT-RANGES: " +
-        (response.headers.get("accept-ranges") || "missing"));
-
-      if (!response.ok) {
-        throw new Error("HTTP " + response.status);
       }
 
-      const buffer = await response.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
+      throw new Error(
+        "Every Unity framework mirror failed:\n" +
+        failures.join("\n")
+      );
+    }
 
-      const format = identifyFormat(bytes);
+    /* =========================================================
+       PATCH UNITY LOADER
 
-      log("RECEIVED SIZE: " + buffer.byteLength + " bytes");
-      log("RECEIVED SIZE: " +
-        (buffer.byteLength / 1048576).toFixed(2) + " MB");
+       The upstream loader creates a Blob-based Worker to
+       decompress .unityweb files.
 
-      log("DETECTED FORMAT: " + format);
-      log("FIRST 32 BYTES: " + bytesToHex(bytes));
-      log("FIRST 100 CHARACTERS: " + bytesToText(bytes));
+       The runner has restrictions around dynamically created
+       workers. The framework is only about 104 KB compressed,
+       so we decompress that specific file with fflate directly.
 
-      if (buffer.byteLength < 1024) {
-        throw new Error("Framework file is suspiciously small.");
+       The large WASM and data files still use Unity's original
+       decompression path.
+    ========================================================= */
+
+    function patchUnityLoaderSource(source) {
+      const pattern =
+        /return i = e\.parsedBody,\s*s = b\[t\],\s*new Promise\(function\(e, t\) \{/;
+
+      if (!pattern.test(source)) {
+        throw new Error(
+          "Could not locate the expected Unity decompression " +
+          "section in w-pt.loader.js. The upstream loader may " +
+          "have changed."
+        );
       }
 
-      if (format === "HTML ERROR PAGE") {
-        throw new Error("CDN returned HTML instead of the framework.");
-      }
+      const replacement = `
+        return i = e.parsedBody,
+        s = b[t],
+        s && /framework\\\\.js\\\\.unityweb(?:[?#]|$)/.test(s)
+          ? Promise.resolve(
+              window.fflate.gunzipSync(i)
+            )
+          : new Promise(function(e, t) {
+      `;
 
-      /*
-        Do not rewrite Content-Encoding or alter the file.
-        Keep the exact response body and headers so Unity can
-        receive the CDN response without an invented encoding.
-      */
-
-      const headers = new Headers(response.headers);
-
-      headers.delete("content-length");
-      headers.delete("transfer-encoding");
-
-      const cachedResponse = new Response(buffer, {
-        status: 200,
-        statusText: "OK",
-        headers
-      });
-
-      await cache.put(url, cachedResponse);
-
-      BUILD_BASE_URL = base;
-
-      log("FRAMEWORK RESPONSE SAVED.");
-      log("SELECTED MIRROR: " + (i + 1));
-
-      return BUILD_BASE_URL;
-
-    } catch (error) {
-      failures.push(
-        "Mirror " + (i + 1) + ": " + error.message
+      const patched = source.replace(
+        pattern,
+        replacement
       );
 
-      log("MIRROR FAILED: " + error.message);
-    }
-  }
+      if (patched === source) {
+        throw new Error(
+          "Unity loader patch did not modify the source."
+        );
+      }
 
-  throw new Error(
-    "Every Unity framework mirror failed:\n" +
-    failures.join("\n")
-  );
-}
+      log(
+        "Unity loader patched: framework decompression " +
+        "will use fflate instead of a Worker."
+      );
+
+      return patched;
+    }
 
     /* =========================================================
        UNITY BANNER
@@ -1176,7 +1153,6 @@
 
       unityLoadingBar.style.display = "block";
 
-      // Test the framework before asking Unity to parse it.
       await selectBuildMirror();
 
       const config = {
@@ -1198,15 +1174,48 @@
         showBanner: unityShowBanner
       };
 
+      const loaderUrl =
+        BUILD_BASE_URL + "Build/w-pt.loader.js";
+
+      log("Downloading Unity loader: " + loaderUrl);
+
+      const loaderResponse = await originalFetch(loaderUrl, {
+        method: "GET",
+        cache: "no-store"
+      });
+
+      if (!loaderResponse.ok) {
+        throw new Error(
+          "Could not download Unity loader. HTTP " +
+          loaderResponse.status
+        );
+      }
+
+      let loaderSource = await loaderResponse.text();
+
+      log(
+        "Unity loader downloaded (" +
+        loaderSource.length + " characters)."
+      );
+
+      loaderSource = patchUnityLoaderSource(loaderSource);
+
+      const loaderBlob = new Blob(
+        [loaderSource],
+        { type: "text/javascript" }
+      );
+
+      const loaderObjectUrl =
+        URL.createObjectURL(loaderBlob);
+
       const script = document.createElement("script");
-
-      script.src = BUILD_BASE_URL + "Build/w-pt.loader.js";
-
-      log("Loading Unity loader from: " + script.src);
+      script.src = loaderObjectUrl;
 
       script.onload = async () => {
+        URL.revokeObjectURL(loaderObjectUrl);
+
         try {
-          log("Unity loader downloaded.");
+          log("Patched Unity loader executed.");
 
           if (typeof createUnityInstance !== "function") {
             throw new Error(
@@ -1240,9 +1249,12 @@
       };
 
       script.onerror = () => {
+        URL.revokeObjectURL(loaderObjectUrl);
+
         showFatalError(
           new Error(
-            "Could not load Unity loader: " + script.src
+            "Could not execute patched Unity loader: " +
+            loaderUrl
           )
         );
       };
@@ -1417,7 +1429,6 @@
       }
 
       db.close();
-
       return result;
     }
 
@@ -1614,9 +1625,7 @@
       event => {
         const file = event.target.files[0];
 
-        if (file) {
-          loadGameFile(file);
-        }
+        if (file) loadGameFile(file);
 
         event.target.value = "";
       }
@@ -1672,9 +1681,10 @@
           setProgress(95, "Assets already cached.");
 
         } else {
-          log("No complete cache found. Starting parallel ZIP download.");
+          log(
+            "No complete cache found. Starting parallel ZIP download."
+          );
 
-          // Remove older launcher caches, but preserve the current v9 cache.
           const oldCacheNames = await caches.keys();
 
           for (const name of oldCacheNames) {
