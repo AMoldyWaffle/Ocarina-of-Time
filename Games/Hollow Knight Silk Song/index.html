@@ -614,7 +614,7 @@
       });
 
       // Support normal ZIP files and Deflate-compressed entries.
-      unzip.register(fflate.AsyncUnzipInflate);
+      unzip.register(fflate.UnzipInflate);
 
       /*
         Download workers place completed parts into this map.
