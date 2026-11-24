@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -156,8 +157,6 @@
       font-family: monospace;
     }
 
-    /* PERSISTENT DIAGNOSTICS */
-
     #diagnostics-panel {
       position: absolute;
       z-index: 70;
@@ -220,22 +219,12 @@
       display: none;
     }
 
-    .diagnostic-error {
-      color: #ff8888;
-    }
-
-    .diagnostic-success {
-      color: #8ee6a2;
-    }
-
-    .diagnostic-warning {
-      color: #ffd477;
-    }
+    .diagnostic-error { color: #ff8888; }
+    .diagnostic-success { color: #8ee6a2; }
+    .diagnostic-warning { color: #ffd477; }
 
     @media (max-width: 600px) {
-      #diagnostics-panel {
-        max-height: 38vh;
-      }
+      #diagnostics-panel { max-height: 38vh; }
 
       #diagnostics {
         max-height: calc(38vh - 45px);
@@ -255,683 +244,658 @@
 </head>
 
 <body>
-  <div id="game">
-    <div id="toolbar">
-      <button id="save-button">Save</button>
-      <button id="load-button">Load</button>
-      <button id="fullscreen-button">Fullscreen</button>
-      <button id="show-console-button">Show Console</button>
-
-      <input id="save-file" type="file"
-        accept=".silksong-save,.json" hidden>
-    </div>
-
-    <div id="unity-container">
-      <canvas id="unity-canvas" tabindex="-1"></canvas>
-
-      <div id="unity-loading-bar">
-        <div id="unity-progress-outer">
-          <div id="unity-progress-inner"></div>
-        </div>
-      </div>
-
-      <div id="unity-warning"></div>
-      <div id="error-overlay"></div>
-
-      <div id="loading-screen">
-        <div id="loading-title">HOLLOW KNIGHT: SILKSONG</div>
-        <div id="status">Preparing game...</div>
-
-        <div id="progress-outer">
-          <div id="progress-inner"></div>
-        </div>
-
-        <div id="progress-detail">Waiting...</div>
-      </div>
-
-      <div id="diagnostics-panel">
-        <div id="diagnostics-header">
-          <span>Silksong Diagnostics</span>
-
-          <div id="diagnostics-actions">
-            <button id="copy-logs-button">Copy</button>
-            <button id="clear-logs-button">Clear</button>
-            <button id="hide-console-button">Hide</button>
-          </div>
-        </div>
-
-        <div id="diagnostics"></div>
-      </div>
-    </div>
+<div id="game">
+  <div id="toolbar">
+    <button id="save-button">Save</button>
+    <button id="load-button">Load</button>
+    <button id="fullscreen-button">Fullscreen</button>
+    <button id="show-console-button">Show Console</button>
+    <input id="save-file" type="file" accept=".silksong-save,.json" hidden>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
+  <div id="unity-container">
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
 
-  <script>
-  (() => {
-    "use strict";
+    <div id="unity-loading-bar">
+      <div id="unity-progress-outer">
+        <div id="unity-progress-inner"></div>
+      </div>
+    </div>
 
-    /* CONFIGURATION */
+    <div id="unity-warning"></div>
+    <div id="error-overlay"></div>
 
-    const CACHE_NAME = "hksilksongcache-v9";
-    const CACHE_ORIGIN = "https://silksong-cache.invalid/";
-    const MAX_LOG_LINES = 500;
+    <div id="loading-screen">
+      <div id="loading-title">HOLLOW KNIGHT: SILKSONG</div>
+      <div id="status">Preparing game...</div>
+      <div id="progress-outer">
+        <div id="progress-inner"></div>
+      </div>
+      <div id="progress-detail">Waiting...</div>
+    </div>
 
-    const FALLBACK_BASES = [
-      "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
-      "https://fastly.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
-      "https://raw.githubusercontent.com/web-ports/hollow-knight-silksong/master/",
-      "https://raw.githack.com/web-ports/hollow-knight-silksong/master/"
-    ];
+    <div id="diagnostics-panel">
+      <div id="diagnostics-header">
+        <span>Silksong Diagnostics</span>
+        <div id="diagnostics-actions">
+          <button id="copy-logs-button">Copy</button>
+          <button id="clear-logs-button">Clear</button>
+          <button id="hide-console-button">Hide</button>
+        </div>
+      </div>
+      <div id="diagnostics"></div>
+    </div>
+  </div>
+</div>
 
-    let BUILD_BASE_URL = FALLBACK_BASES[0];
-    let logLines = [];
-    let unityStarted = false;
-    let streamingRequestCount = 0;
-    let streamingCacheHits = 0;
-    let streamingNetworkDownloads = 0;
-    let streamingFailures = 0;
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
 
-    /* ELEMENTS */
+<script>
+(() => {
+  "use strict";
 
-    const statusElement = document.getElementById("status");
-    const progressElement = document.getElementById("progress-inner");
-    const progressDetail = document.getElementById("progress-detail");
-    const diagnostics = document.getElementById("diagnostics");
-    const diagnosticsPanel = document.getElementById("diagnostics-panel");
+  /* CONFIGURATION */
 
-    const canvas = document.getElementById("unity-canvas");
-    const unityLoadingBar = document.getElementById("unity-loading-bar");
-    const unityProgress = document.getElementById("unity-progress-inner");
-    const errorOverlay = document.getElementById("error-overlay");
+  const CACHE_NAME = "hksilksongcache-v9";
+  const CACHE_ORIGIN = "https://silksong-cache.invalid/";
+  const MAX_LOG_LINES = 500;
 
-    const showConsoleButton =
-      document.getElementById("show-console-button");
+  const FALLBACK_BASES = [
+    "https://cdn.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
+    "https://fastly.jsdelivr.net/gh/web-ports/hollow-knight-silksong@master/",
+    "https://raw.githubusercontent.com/web-ports/hollow-knight-silksong/master/",
+    "https://raw.githack.com/web-ports/hollow-knight-silksong/master/"
+  ];
 
-    /* DIAGNOSTICS */
+  let BUILD_BASE_URL = FALLBACK_BASES[0];
+  let logLines = [];
+  let unityStarted = false;
+  let streamingRequestCount = 0;
+  let streamingCacheHits = 0;
+  let streamingNetworkDownloads = 0;
+  let streamingFailures = 0;
 
-    function log(message, type = "normal") {
-      const line =
-        "[" + new Date().toLocaleTimeString() + "] " + message;
+  /* ELEMENTS */
 
-      console.log(line);
+  const statusElement = document.getElementById("status");
+  const progressElement = document.getElementById("progress-inner");
+  const progressDetail = document.getElementById("progress-detail");
+  const diagnostics = document.getElementById("diagnostics");
+  const diagnosticsPanel = document.getElementById("diagnostics-panel");
+  const canvas = document.getElementById("unity-canvas");
+  const unityLoadingBar = document.getElementById("unity-loading-bar");
+  const unityProgress = document.getElementById("unity-progress-inner");
+  const errorOverlay = document.getElementById("error-overlay");
+  const showConsoleButton = document.getElementById("show-console-button");
+  const loadingScreen = document.getElementById("loading-screen");
 
-      logLines.push(line);
+  /* DIAGNOSTICS */
 
-      if (logLines.length > MAX_LOG_LINES) {
-        logLines.splice(0, logLines.length - MAX_LOG_LINES);
+  function log(message, type = "normal") {
+    const line = "[" + new Date().toLocaleTimeString() + "] " + message;
+
+    console.log(line);
+    logLines.push(line);
+
+    if (logLines.length > MAX_LOG_LINES) {
+      logLines.splice(0, logLines.length - MAX_LOG_LINES);
+    }
+
+    const element = document.createElement("div");
+    element.textContent = line;
+
+    if (type === "error") element.className = "diagnostic-error";
+    else if (type === "success") element.className = "diagnostic-success";
+    else if (type === "warning") element.className = "diagnostic-warning";
+
+    diagnostics.appendChild(element);
+
+    while (diagnostics.children.length > MAX_LOG_LINES) {
+      diagnostics.removeChild(diagnostics.firstChild);
+    }
+
+    diagnostics.scrollTop = diagnostics.scrollHeight;
+  }
+
+  window.__silkLog = log;
+
+  function setStatus(message) {
+    statusElement.textContent = message;
+  }
+
+  function setProgress(percent, detail) {
+    progressElement.style.width =
+      Math.max(0, Math.min(100, percent)) + "%";
+
+    if (detail) progressDetail.textContent = detail;
+  }
+
+  function showFatalError(error) {
+    const message = error && error.stack ? error.stack : String(error);
+
+    log("FATAL ERROR: " + message, "error");
+    setStatus("STARTUP FAILED");
+    progressDetail.textContent = "See diagnostics console.";
+
+    errorOverlay.style.display = "block";
+    errorOverlay.textContent = message;
+    diagnosticsPanel.style.display = "flex";
+  }
+
+  function hideConsole() {
+    diagnosticsPanel.style.display = "none";
+    showConsoleButton.style.display = "inline-block";
+  }
+
+  function showConsole() {
+    diagnosticsPanel.style.display = "flex";
+    showConsoleButton.style.display = "none";
+  }
+
+  document.getElementById("hide-console-button")
+    .addEventListener("click", hideConsole);
+
+  showConsoleButton.addEventListener("click", showConsole);
+
+  document.getElementById("clear-logs-button")
+    .addEventListener("click", () => {
+      logLines = [];
+      diagnostics.innerHTML = "";
+      log("Console cleared.");
+    });
+
+  document.getElementById("copy-logs-button")
+    .addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(logLines.join("\n"));
+        log("Diagnostics copied to clipboard.", "success");
+      } catch (error) {
+        log("Clipboard copy failed: " + error.message, "error");
+      }
+    });
+
+  /* GLOBAL ERROR HANDLERS */
+
+  window.addEventListener("error", event => {
+    const message =
+      event.message ||
+      (event.error && event.error.stack) ||
+      "Unknown JavaScript error";
+
+    log(
+      "JAVASCRIPT ERROR: " + message +
+      (event.filename ? " | " + event.filename : "") +
+      (event.lineno ? ":" + event.lineno : ""),
+      "error"
+    );
+  });
+
+  window.addEventListener("unhandledrejection", event => {
+    const reason = event.reason;
+
+    log(
+      "UNHANDLED PROMISE REJECTION: " +
+      (reason && reason.stack ? reason.stack : String(reason)),
+      "error"
+    );
+  });
+
+  canvas.addEventListener("webglcontextlost", event => {
+    event.preventDefault();
+    log("WEBGL CONTEXT LOST.", "error");
+    errorOverlay.style.display = "block";
+    errorOverlay.textContent = "WebGL context lost.";
+  });
+
+  canvas.addEventListener("webglcontextrestored", () => {
+    log("WebGL context restored.", "success");
+  });
+
+  /* WASM MEMORY INSPECTOR */
+
+  function readWasmU32(bytes, state) {
+    let result = 0;
+    let shift = 0;
+
+    while (state.offset < bytes.length) {
+      const byte = bytes[state.offset++];
+      result |= (byte & 0x7f) << shift;
+
+      if (!(byte & 0x80)) return result >>> 0;
+
+      shift += 7;
+      if (shift >= 35) throw new Error("Invalid WASM integer");
+    }
+
+    throw new Error("Unexpected end of WASM binary");
+  }
+
+  function readWasmU64(bytes, state) {
+    let result = 0n;
+    let shift = 0n;
+
+    while (state.offset < bytes.length) {
+      const byte = bytes[state.offset++];
+      result |= BigInt(byte & 0x7f) << shift;
+
+      if (!(byte & 0x80)) return result;
+
+      shift += 7n;
+      if (shift > 70n) throw new Error("Invalid WASM integer");
+    }
+
+    throw new Error("Unexpected end of WASM binary");
+  }
+
+  function readWasmLimits(bytes, state) {
+    const flags = readWasmU32(bytes, state);
+    const memory64 = !!(flags & 4);
+    const shared = !!(flags & 2);
+    const hasMaximum = !!(flags & 1);
+
+    const readValue = memory64
+      ? () => readWasmU64(bytes, state)
+      : () => readWasmU32(bytes, state);
+
+    const minimum = readValue();
+    const maximum = hasMaximum ? readValue() : null;
+
+    return { minimum, maximum, shared, memory64 };
+  }
+
+  function formatWasmPages(pages) {
+    const bytes = Number(pages) * 65536;
+    return (bytes / 1048576).toFixed(2) + " MB";
+  }
+
+  function inspectWasmMemory(bytes) {
+    try {
+      log("----------------------------------------");
+      log("INSPECTING WASM MEMORY REQUIREMENTS");
+
+      if (
+        bytes[0] !== 0x00 ||
+        bytes[1] !== 0x61 ||
+        bytes[2] !== 0x73 ||
+        bytes[3] !== 0x6d
+      ) {
+        log("Invalid WASM magic header.", "error");
+        return;
       }
 
-      const element = document.createElement("div");
-      element.textContent = line;
+      const state = { offset: 8 };
+      const importedMemories = [];
+      const definedMemories = [];
 
-      if (type === "error") {
-        element.className = "diagnostic-error";
-      } else if (type === "success") {
-        element.className = "diagnostic-success";
-      } else if (type === "warning") {
-        element.className = "diagnostic-warning";
-      }
+      while (state.offset < bytes.length) {
+        const sectionId = bytes[state.offset++];
+        const sectionSize = readWasmU32(bytes, state);
+        const sectionEnd = state.offset + sectionSize;
 
-      diagnostics.appendChild(element);
-
-      while (diagnostics.children.length > MAX_LOG_LINES) {
-        diagnostics.removeChild(diagnostics.firstChild);
-      }
-
-      diagnostics.scrollTop = diagnostics.scrollHeight;
-    }
-
-    window.__silkLog = log;
-
-    function setStatus(message) {
-      statusElement.textContent = message;
-    }
-
-    function setProgress(percent, detail) {
-      progressElement.style.width =
-        Math.max(0, Math.min(100, percent)) + "%";
-
-      if (detail) {
-        progressDetail.textContent = detail;
-      }
-    }
-
-    function showFatalError(error) {
-      const message = error && error.stack
-        ? error.stack
-        : String(error);
-
-      log("FATAL ERROR: " + message, "error");
-      setStatus("STARTUP FAILED");
-      progressDetail.textContent = "See diagnostics console.";
-
-      errorOverlay.style.display = "block";
-      errorOverlay.textContent = message;
-      diagnosticsPanel.style.display = "flex";
-    }
-
-    function hideConsole() {
-      diagnosticsPanel.style.display = "none";
-      showConsoleButton.style.display = "inline-block";
-    }
-
-    function showConsole() {
-      diagnosticsPanel.style.display = "flex";
-      showConsoleButton.style.display = "none";
-    }
-
-    document.getElementById("hide-console-button")
-      .addEventListener("click", hideConsole);
-
-    showConsoleButton.addEventListener("click", showConsole);
-
-    document.getElementById("clear-logs-button")
-      .addEventListener("click", () => {
-        logLines = [];
-        diagnostics.innerHTML = "";
-        log("Console cleared.");
-      });
-
-    document.getElementById("copy-logs-button")
-      .addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(logLines.join("\n"));
-          log("Diagnostics copied to clipboard.", "success");
-        } catch (error) {
-          log("Clipboard copy failed: " + error.message, "error");
+        if (sectionEnd > bytes.length) {
+          throw new Error("WASM section exceeds binary length");
         }
+
+        if (sectionId === 2) {
+          const count = readWasmU32(bytes, state);
+
+          for (let i = 0; i < count; i++) {
+            const moduleLength = readWasmU32(bytes, state);
+            state.offset += moduleLength;
+
+            const nameLength = readWasmU32(bytes, state);
+            state.offset += nameLength;
+
+            const kind = bytes[state.offset++];
+
+            if (kind === 0) {
+              readWasmU32(bytes, state);
+            } else if (kind === 1) {
+              state.offset++;
+              readWasmLimits(bytes, state);
+            } else if (kind === 2) {
+              importedMemories.push(readWasmLimits(bytes, state));
+            } else if (kind === 3) {
+              state.offset += 2;
+            } else if (kind === 4) {
+              state.offset++;
+              readWasmU32(bytes, state);
+            } else {
+              throw new Error("Unknown WASM import kind: " + kind);
+            }
+          }
+        }
+
+        if (sectionId === 5) {
+          const count = readWasmU32(bytes, state);
+
+          for (let i = 0; i < count; i++) {
+            definedMemories.push(readWasmLimits(bytes, state));
+          }
+        }
+
+        state.offset = sectionEnd;
+      }
+
+      function reportMemory(memory, index, imported) {
+        log(
+          (imported ? "IMPORTED" : "DEFINED") +
+          " MEMORY #" + (index + 1)
+        );
+
+        log("Initial memory: " + formatWasmPages(memory.minimum));
+
+        log(
+          "Maximum memory: " +
+          (memory.maximum === null
+            ? "Not specified"
+            : formatWasmPages(memory.maximum))
+        );
+
+        log("Memory type: " +
+          (memory.memory64 ? "Memory64" : "Memory32"));
+
+        log("Shared memory: " +
+          (memory.shared ? "Yes" : "No"));
+
+        log("Initial pages: " + memory.minimum.toString());
+
+        if (memory.maximum !== null) {
+          log("Maximum pages: " + memory.maximum.toString());
+        }
+      }
+
+      log("Imported memories: " + importedMemories.length);
+      log("Defined memories: " + definedMemories.length);
+
+      importedMemories.forEach((memory, index) => {
+        reportMemory(memory, index, true);
       });
 
-    /* GLOBAL ERROR HANDLERS */
+      definedMemories.forEach((memory, index) => {
+        reportMemory(memory, index, false);
+      });
 
-    window.addEventListener("error", event => {
-      const message =
-        event.message ||
-        (event.error && event.error.stack) ||
-        "Unknown JavaScript error";
+      if (
+        importedMemories.length === 0 &&
+        definedMemories.length === 0
+      ) {
+        log("No memory declarations found.", "warning");
+      }
 
-      log(
-        "JAVASCRIPT ERROR: " +
-        message +
-        (event.filename ? " | " + event.filename : "") +
-        (event.lineno ? ":" + event.lineno : ""),
-        "error"
-      );
-    });
+      log("WASM MEMORY INSPECTION COMPLETE.", "success");
+      log("----------------------------------------");
 
-    window.addEventListener("unhandledrejection", event => {
-      const reason = event.reason;
-
-      log(
-        "UNHANDLED PROMISE REJECTION: " +
-        (reason && reason.stack ? reason.stack : String(reason)),
-        "error"
-      );
-    });
-
-    window.addEventListener("unhandledrejection", event => {
-      // Keep the rejection visible in our console.
-      log("Promise rejection captured.", "warning");
-    });
-
-    canvas.addEventListener("webglcontextlost", event => {
-      event.preventDefault();
-
-      log(
-        "WEBGL CONTEXT LOST. The game may stop rendering.",
-        "error"
-      );
-
-      errorOverlay.style.display = "block";
-      errorOverlay.textContent =
-        "WebGL context lost.\n\nThe browser or graphics driver stopped the game's rendering context.";
-    });
-
-    canvas.addEventListener("webglcontextrestored", () => {
-      log("WebGL context restored.", "success");
-    });
-
-    /* URL HELPERS */
-
-    function assetCacheKey(path) {
-      let clean = path.replace(/^\/+/, "");
-
-      clean = clean.replace(
-        /^StreamingAssets\/aa\/WebGL\//,
-        ""
-      );
-
-      clean = clean.replace(/^WebGL\//, "");
-
-      return CACHE_ORIGIN + encodeURI(clean);
+    } catch (error) {
+      log("WASM INSPECTION FAILED: " + error.message, "error");
     }
+  }
 
-    function getStreamingAssetPath(pathname) {
-      const marker = "/StreamingAssets/aa/WebGL/";
-      const index = pathname.indexOf(marker);
+  /* WEBASSEMBLY INSTANTIATION MONITOR */
 
-      if (index === -1) return null;
+  if (window.WebAssembly) {
+    const originalInstantiate =
+      WebAssembly.instantiate.bind(WebAssembly);
 
-      return pathname.substring(index + marker.length);
-    }
+    const originalInstantiateStreaming =
+      WebAssembly.instantiateStreaming.bind(WebAssembly);
 
-    function isStreamingAsset(url) {
-      return url.includes("/StreamingAssets/aa/WebGL/");
-    }
-
-    /* ORIGINAL FETCH */
-
-    const originalFetch = window.fetch.bind(window);
-
-    /*
-      ON-DEMAND ASSET CACHE
-
-      Unity requests an AssetBundle:
-        1. Check Cache Storage.
-        2. Return cached file if found.
-        3. Otherwise download it.
-        4. Cache successful downloads.
-    */
-
-    window.fetch = async function(resource, options) {
-      let parsed;
+    WebAssembly.instantiate = async function(source, imports) {
+      log("WebAssembly.instantiate() called.");
 
       try {
-        const requestUrl =
-          typeof resource === "string"
-            ? resource
-            : resource.url;
-
-        parsed = new URL(requestUrl, document.baseURI);
-
+        const result = await originalInstantiate(source, imports);
+        log("WebAssembly instantiation succeeded.", "success");
+        return result;
       } catch (error) {
-        log("Could not parse fetch URL: " + error.message, "warning");
-        return originalFetch(resource, options);
+        log(
+          "WEBASSEMBLY INSTANTIATION FAILED: " +
+          (error.stack || error.message),
+          "error"
+        );
+        throw error;
       }
+    };
 
-      /* FRAMEWORK CACHE */
+    WebAssembly.instantiateStreaming = async function(source, imports) {
+      log("WebAssembly.instantiateStreaming() called.");
 
-      if (
-        parsed.pathname.endsWith(
-          "/Build/w-pt.framework.js.unityweb"
-        )
-      ) {
-        try {
-          const cache = await caches.open(CACHE_NAME);
-          const cached = await cache.match(parsed.href);
+      try {
+        const result =
+          await originalInstantiateStreaming(source, imports);
 
-          if (cached) {
-            log("Using cached Unity framework.");
-            return cached;
-          }
-        } catch (error) {
-          log("Framework cache lookup failed: " + error.message, "error");
-        }
+        log("WebAssembly streaming instantiation succeeded.", "success");
+        return result;
+      } catch (error) {
+        log(
+          "WEBASSEMBLY STREAMING INSTANTIATION FAILED: " +
+          (error.stack || error.message),
+          "error"
+        );
+        throw error;
       }
+    };
+  }
 
-      /* UNITY BUILD FILE CACHE */
+  /* URL HELPERS */
 
-      if (
-        parsed.pathname.endsWith("/Build/w-pt.wasm.unityweb") ||
-        parsed.pathname.endsWith("/Build/w-pt.data.unityweb")
-      ) {
-        try {
-          const cache = await caches.open(CACHE_NAME);
-          const cached = await cache.match(parsed.href);
+  function assetCacheKey(path) {
+    let clean = path.replace(/^\/+/, "");
+    clean = clean.replace(/^StreamingAssets\/aa\/WebGL\//, "");
+    clean = clean.replace(/^WebGL\//, "");
+    return CACHE_ORIGIN + encodeURI(clean);
+  }
 
-          if (cached) {
-            log(
-              "Using cached Unity build file: " +
-              parsed.pathname.split("/").pop()
-            );
+  function getStreamingAssetPath(pathname) {
+    const marker = "/StreamingAssets/aa/WebGL/";
+    const index = pathname.indexOf(marker);
+    if (index === -1) return null;
+    return pathname.substring(index + marker.length);
+  }
 
-            return cached;
-          }
-        } catch (error) {
-          log("Build cache lookup failed: " + error.message, "error");
-        }
-      }
+  function isStreamingAsset(url) {
+    return url.includes("/StreamingAssets/aa/WebGL/");
+  }
 
-      /* STREAMING ASSET CACHE */
+  /* ORIGINAL FETCH */
 
-      const relativePath =
-        getStreamingAssetPath(parsed.pathname);
+  const originalFetch = window.fetch.bind(window);
 
-      if (relativePath !== null) {
-        streamingRequestCount++;
+  window.fetch = async function(resource, options) {
+    let parsed;
 
-        const cacheKey = assetCacheKey(relativePath);
+    try {
+      const requestUrl =
+        typeof resource === "string" ? resource : resource.url;
 
-        log("ASSET REQUEST #" + streamingRequestCount + ": " + parsed.href);
+      parsed = new URL(requestUrl, document.baseURI);
 
-        try {
-          const cache = await caches.open(CACHE_NAME);
-          const cached = await cache.match(cacheKey);
-
-          if (cached) {
-            streamingCacheHits++;
-
-            log(
-              "ASSET CACHE HIT: " + relativePath,
-              "success"
-            );
-
-            return cached;
-          }
-
-          log("ASSET CACHE MISS: " + relativePath, "warning");
-
-          streamingNetworkDownloads++;
-
-          const response = await originalFetch(resource, options);
-
-          log(
-            "ASSET HTTP RESULT: " +
-            response.status +
-            " " +
-            response.statusText +
-            " | " +
-            relativePath,
-            response.ok ? "success" : "error"
-          );
-
-          log(
-            "ASSET CONTENT TYPE: " +
-            (response.headers.get("content-type") || "unknown")
-          );
-
-          const contentLength =
-            response.headers.get("content-length");
-
-          if (contentLength) {
-            log(
-              "ASSET SIZE: " +
-              (Number(contentLength) / 1048576).toFixed(2) +
-              " MB | " +
-              relativePath
-            );
-          }
-
-          if (!response.ok || response.type === "opaque") {
-            streamingFailures++;
-
-            log(
-              "ASSET NOT CACHED: " +
-              relativePath +
-              " | HTTP " +
-              response.status,
-              "error"
-            );
-
-            return response;
-          }
-
-          try {
-            await cache.put(cacheKey, response.clone());
-
-            log(
-              "ASSET CACHED: " + relativePath,
-              "success"
-            );
-
-          } catch (cacheError) {
-            log(
-              "ASSET CACHE WRITE FAILED: " +
-              relativePath +
-              " | " +
-              cacheError.message,
-              "error"
-            );
-          }
-
-          return response;
-
-        } catch (error) {
-          streamingFailures++;
-
-          log(
-            "ASSET REQUEST FAILED: " +
-            relativePath +
-            " | " +
-            error.message,
-            "error"
-          );
-
-          throw error;
-        }
-      }
-
+    } catch (error) {
+      log("Could not parse fetch URL: " + error.message, "warning");
       return originalFetch(resource, options);
-    };
-
-    /* XMLHTTPREQUEST MONITOR */
-
-    /*
-      Unity may use XMLHttpRequest instead of fetch.
-      This monitor does not change the request itself.
-    */
-
-    const originalXHROpen = XMLHttpRequest.prototype.open;
-    const originalXHRSend = XMLHttpRequest.prototype.send;
-
-    XMLHttpRequest.prototype.open = function(method, url) {
-      this.__silkMethod = method;
-      this.__silkUrl = String(url);
-
-      return originalXHROpen.apply(this, arguments);
-    };
-
-    XMLHttpRequest.prototype.send = function() {
-      const xhr = this;
-      const url = xhr.__silkUrl || "";
-
-      if (isStreamingAsset(url)) {
-        log("XHR ASSET REQUEST: " + url);
-
-        xhr.addEventListener("loadend", () => {
-          log(
-            "XHR ASSET RESULT: HTTP " +
-            xhr.status +
-            " | " +
-            url,
-            xhr.status >= 200 && xhr.status < 300
-              ? "success"
-              : "error"
-          );
-
-          if (xhr.status === 0 || xhr.status >= 400) {
-            log(
-              "XHR ASSET FAILURE: " + url,
-              "error"
-            );
-          }
-
-          try {
-            const type = xhr.getResponseHeader("content-type");
-
-            if (type) {
-              log("XHR CONTENT TYPE: " + type);
-            }
-          } catch (_) {}
-        });
-
-        xhr.addEventListener("error", () => {
-          log("XHR NETWORK ERROR: " + url, "error");
-        });
-
-        xhr.addEventListener("timeout", () => {
-          log("XHR TIMEOUT: " + url, "error");
-        });
-      }
-
-      return originalXHRSend.apply(this, arguments);
-    };
-
-    /* FRAMEWORK VALIDATION */
-
-    async function selectBuildMirror() {
-      const cache = await caches.open(CACHE_NAME);
-
-      const frameworkPath =
-        "Build/w-pt.framework.js.unityweb";
-
-      const failures = [];
-
-      setStatus("Diagnosing Unity framework...");
-      setProgress(5, "Inspecting framework responses...");
-
-      function bytesToHex(bytes, count = 32) {
-        return Array.from(bytes.slice(0, count))
-          .map(byte => byte.toString(16).padStart(2, "0"))
-          .join(" ");
-      }
-
-      for (let i = 0; i < FALLBACK_BASES.length; i++) {
-        const base = FALLBACK_BASES[i];
-        const url = base + frameworkPath;
-
-        try {
-          log("----------------------------------------");
-          log("Testing framework mirror " + (i + 1));
-          log(url);
-
-          const response = await originalFetch(url, {
-            method: "GET",
-            cache: "no-store"
-          });
-
-          log("HTTP STATUS: " + response.status);
-          log(
-            "CONTENT-TYPE: " +
-            (response.headers.get("content-type") || "missing")
-          );
-
-          log(
-            "CONTENT-ENCODING: " +
-            (response.headers.get("content-encoding") || "missing")
-          );
-
-          log(
-            "CONTENT-LENGTH: " +
-            (response.headers.get("content-length") || "missing")
-          );
-
-          if (!response.ok) {
-            throw new Error("HTTP " + response.status);
-          }
-
-          const buffer = await response.arrayBuffer();
-          const bytes = new Uint8Array(buffer);
-
-          log("RECEIVED SIZE: " + buffer.byteLength + " bytes");
-          log("FIRST 32 BYTES: " + bytesToHex(bytes));
-
-          if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) {
-            throw new Error(
-              "The framework does not have a GZIP header."
-            );
-          }
-
-          let decompressed;
-
-          try {
-            decompressed = window.fflate.gunzipSync(bytes);
-          } catch (error) {
-            throw new Error(
-              "GZIP decompression test failed: " +
-              error.message
-            );
-          }
-
-          if (!decompressed || decompressed.length < 1024) {
-            throw new Error(
-              "Decompressed framework is empty or too small."
-            );
-          }
-
-          const decodedStart = new TextDecoder().decode(
-            decompressed.subarray(0, 160)
-          );
-
-          log(
-            "GZIP VALIDATION: SUCCESS (" +
-            decompressed.length + " decompressed bytes)",
-            "success"
-          );
-
-          log(
-            "DECOMPRESSED PREVIEW: " +
-            decodedStart.substring(0, 120).replace(/\n/g, " ")
-          );
-
-          const headers = new Headers(response.headers);
-
-          headers.delete("content-encoding");
-          headers.delete("content-length");
-          headers.delete("transfer-encoding");
-          headers.delete("content-range");
-
-          headers.set(
-            "content-type",
-            "application/octet-stream"
-          );
-
-          const cachedResponse = new Response(buffer, {
-            status: 200,
-            statusText: "OK",
-            headers
-          });
-
-          await cache.put(url, cachedResponse);
-
-          BUILD_BASE_URL = base;
-
-          log("FRAMEWORK RESPONSE SAVED.", "success");
-          log("SELECTED MIRROR: " + (i + 1), "success");
-
-          return BUILD_BASE_URL;
-
-        } catch (error) {
-          failures.push(
-            "Mirror " + (i + 1) + ": " + error.message
-          );
-
-          log("MIRROR FAILED: " + error.message, "error");
-        }
-      }
-
-      throw new Error(
-        "Every Unity framework mirror failed:\n" +
-        failures.join("\n")
-      );
     }
 
-    /* CACHE UNITY BUILD FILES */
+    if (parsed.pathname.endsWith("/Build/w-pt.framework.js.unityweb")) {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(parsed.href);
 
-    async function cacheUnityBuildFiles() {
-      const cache = await caches.open(CACHE_NAME);
+        if (cached) {
+          log("Using cached Unity framework.");
+          return cached;
+        }
+      } catch (error) {
+        log("Framework cache lookup failed: " + error.message, "error");
+      }
+    }
 
-      const files = [
-        "Build/w-pt.wasm.unityweb",
-        "Build/w-pt.data.unityweb"
-      ];
+    if (
+      parsed.pathname.endsWith("/Build/w-pt.wasm.unityweb") ||
+      parsed.pathname.endsWith("/Build/w-pt.data.unityweb")
+    ) {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(parsed.href);
 
-      for (const path of files) {
-        const url = BUILD_BASE_URL + path;
+        if (cached) {
+          log(
+            "Using cached Unity build file: " +
+            parsed.pathname.split("/").pop()
+          );
+          return cached;
+        }
+      } catch (error) {
+        log("Build cache lookup failed: " + error.message, "error");
+      }
+    }
 
-        setStatus("Preparing Unity engine files...");
-        log("----------------------------------------");
-        log("Checking Unity build file: " + path);
+    const relativePath = getStreamingAssetPath(parsed.pathname);
 
-        const existing = await cache.match(url);
+    if (relativePath !== null) {
+      streamingRequestCount++;
+      const cacheKey = assetCacheKey(relativePath);
 
-        if (existing) {
-          log("Already cached: " + path, "success");
-          continue;
+      log("ASSET REQUEST #" + streamingRequestCount + ": " + parsed.href);
+
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(cacheKey);
+
+        if (cached) {
+          streamingCacheHits++;
+          log("ASSET CACHE HIT: " + relativePath, "success");
+          return cached;
         }
 
-        log("Downloading: " + url);
+        log("ASSET CACHE MISS: " + relativePath, "warning");
+        streamingNetworkDownloads++;
+
+        const response = await originalFetch(resource, options);
+
+        log(
+          "ASSET HTTP RESULT: " + response.status + " " +
+          response.statusText + " | " + relativePath,
+          response.ok ? "success" : "error"
+        );
+
+        log(
+          "ASSET CONTENT TYPE: " +
+          (response.headers.get("content-type") || "unknown")
+        );
+
+        const contentLength = response.headers.get("content-length");
+
+        if (contentLength) {
+          log(
+            "ASSET SIZE: " +
+            (Number(contentLength) / 1048576).toFixed(2) +
+            " MB | " + relativePath
+          );
+        }
+
+        if (!response.ok || response.type === "opaque") {
+          streamingFailures++;
+          log("ASSET NOT CACHED: " + relativePath, "error");
+          return response;
+        }
+
+        try {
+          await cache.put(cacheKey, response.clone());
+          log("ASSET CACHED: " + relativePath, "success");
+        } catch (cacheError) {
+          log(
+            "ASSET CACHE WRITE FAILED: " +
+            relativePath + " | " + cacheError.message,
+            "error"
+          );
+        }
+
+        return response;
+
+      } catch (error) {
+        streamingFailures++;
+        log(
+          "ASSET REQUEST FAILED: " +
+          relativePath + " | " + error.message,
+          "error"
+        );
+        throw error;
+      }
+    }
+
+    return originalFetch(resource, options);
+  };
+
+  /* XMLHTTPREQUEST MONITOR */
+
+  const originalXHROpen = XMLHttpRequest.prototype.open;
+  const originalXHRSend = XMLHttpRequest.prototype.send;
+
+  XMLHttpRequest.prototype.open = function(method, url) {
+    this.__silkMethod = method;
+    this.__silkUrl = String(url);
+    return originalXHROpen.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.send = function() {
+    const xhr = this;
+    const url = xhr.__silkUrl || "";
+
+    if (isStreamingAsset(url)) {
+      log("XHR ASSET REQUEST: " + url);
+
+      xhr.addEventListener("loadend", () => {
+        log(
+          "XHR ASSET RESULT: HTTP " + xhr.status + " | " + url,
+          xhr.status >= 200 && xhr.status < 300 ? "success" : "error"
+        );
+
+        if (xhr.status === 0 || xhr.status >= 400) {
+          log("XHR ASSET FAILURE: " + url, "error");
+        }
+
+        try {
+          const type = xhr.getResponseHeader("content-type");
+          if (type) log("XHR CONTENT TYPE: " + type);
+        } catch (_) {}
+      });
+
+      xhr.addEventListener("error", () => {
+        log("XHR NETWORK ERROR: " + url, "error");
+      });
+
+      xhr.addEventListener("timeout", () => {
+        log("XHR TIMEOUT: " + url, "error");
+      });
+    }
+
+    return originalXHRSend.apply(this, arguments);
+  };
+
+  /* FRAMEWORK VALIDATION */
+
+  async function selectBuildMirror() {
+    const cache = await caches.open(CACHE_NAME);
+    const frameworkPath = "Build/w-pt.framework.js.unityweb";
+    const failures = [];
+
+    setStatus("Diagnosing Unity framework...");
+    setProgress(5, "Inspecting framework responses...");
+
+    function bytesToHex(bytes, count = 32) {
+      return Array.from(bytes.slice(0, count))
+        .map(byte => byte.toString(16).padStart(2, "0"))
+        .join(" ");
+    }
+
+    for (let i = 0; i < FALLBACK_BASES.length; i++) {
+      const base = FALLBACK_BASES[i];
+      const url = base + frameworkPath;
+
+      try {
+        log("----------------------------------------");
+        log("Testing framework mirror " + (i + 1));
+        log(url);
 
         const response = await originalFetch(url, {
           method: "GET",
@@ -939,27 +903,50 @@
         });
 
         log("HTTP STATUS: " + response.status);
+        log(
+          "CONTENT-TYPE: " +
+          (response.headers.get("content-type") || "missing")
+        );
+        log(
+          "CONTENT-ENCODING: " +
+          (response.headers.get("content-encoding") || "missing")
+        );
+        log(
+          "CONTENT-LENGTH: " +
+          (response.headers.get("content-length") || "missing")
+        );
 
-        if (!response.ok) {
-          throw new Error(
-            "Could not download " + path +
-            ". HTTP " + response.status
-          );
+        if (!response.ok) throw new Error("HTTP " + response.status);
+
+        const buffer = await response.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+
+        log("RECEIVED SIZE: " + buffer.byteLength + " bytes");
+        log("FIRST 32 BYTES: " + bytesToHex(bytes));
+
+        if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) {
+          throw new Error("The framework does not have a GZIP header.");
         }
 
-        if (!response.body) {
-          throw new Error(
-            "The browser returned an empty response stream for " + path
-          );
+        const decompressed = window.fflate.gunzipSync(bytes);
+
+        if (!decompressed || decompressed.length < 1024) {
+          throw new Error("Decompressed framework is empty or too small.");
         }
 
-        const size = response.headers.get("content-length");
+        const decodedStart = new TextDecoder().decode(
+          decompressed.subarray(0, 160)
+        );
 
         log(
-          "Download response received: " +
-          (size
-            ? (Number(size) / 1048576).toFixed(2) + " MB"
-            : "size not provided by server")
+          "GZIP VALIDATION: SUCCESS (" +
+          decompressed.length + " decompressed bytes)",
+          "success"
+        );
+
+        log(
+          "DECOMPRESSED PREVIEW: " +
+          decodedStart.substring(0, 120).replace(/\n/g, " ")
         );
 
         const headers = new Headers(response.headers);
@@ -968,712 +955,736 @@
         headers.delete("content-length");
         headers.delete("transfer-encoding");
         headers.delete("content-range");
+        headers.set("content-type", "application/octet-stream");
 
-        const cachedResponse = new Response(response.body, {
+        await cache.put(url, new Response(buffer, {
           status: 200,
           statusText: "OK",
           headers
-        });
+        }));
 
-        await cache.put(url, cachedResponse);
+        BUILD_BASE_URL = base;
 
-        log("Successfully cached: " + path, "success");
+        log("FRAMEWORK RESPONSE SAVED.", "success");
+        log("SELECTED MIRROR: " + (i + 1), "success");
+
+        return BUILD_BASE_URL;
+
+      } catch (error) {
+        failures.push("Mirror " + (i + 1) + ": " + error.message);
+        log("MIRROR FAILED: " + error.message, "error");
       }
     }
 
-    /* PATCH UNITY LOADER */
+    throw new Error(
+      "Every Unity framework mirror failed:\n" + failures.join("\n")
+    );
+  }
 
-    function patchUnityLoaderSource(source) {
-      const pattern =
-        /return i = e\.parsedBody,\s*s = b\[t\],\s*new Promise\(function\(e, t\) \{/;
+  /* CACHE UNITY BUILD FILES */
 
-      if (!pattern.test(source)) {
-        throw new Error(
-          "Could not locate Unity's decompression function."
-        );
+  async function cacheUnityBuildFiles() {
+    const cache = await caches.open(CACHE_NAME);
+
+    const files = [
+      "Build/w-pt.wasm.unityweb",
+      "Build/w-pt.data.unityweb"
+    ];
+
+    for (const path of files) {
+      const url = BUILD_BASE_URL + path;
+
+      setStatus("Preparing Unity engine files...");
+      log("----------------------------------------");
+      log("Checking Unity build file: " + path);
+
+      const existing = await cache.match(url);
+
+      if (existing) {
+        log("Already cached: " + path, "success");
+        continue;
       }
 
-      const replacement = `
-        return i = e.parsedBody,
-        s = b[t],
-        s && s.indexOf(".unityweb") !== -1
-          ? Promise.resolve().then(async function() {
-              window.__silkLog(
-                "Decompressing Unity file: " + s
-              );
+      log("Downloading: " + url);
 
-              var inputBlob = new Blob([i]);
-              i = null;
-
-              try {
-                var result;
-
-                if ("DecompressionStream" in window) {
-                  window.__silkLog(
-                    "Using native streaming GZIP decompression."
-                  );
-
-                  var decompressionStream =
-                    new DecompressionStream("gzip");
-
-                  var decompressedStream =
-                    inputBlob.stream().pipeThrough(
-                      decompressionStream
-                    );
-
-                  var outputBuffer =
-                    await new Response(
-                      decompressedStream
-                    ).arrayBuffer();
-
-                  result = new Uint8Array(outputBuffer);
-
-                } else {
-                  window.__silkLog(
-                    "Native decompression unavailable; using fflate fallback."
-                  );
-
-                  var compressedBuffer =
-                    await inputBlob.arrayBuffer();
-
-                  result = window.fflate.gunzipSync(
-                    new Uint8Array(compressedBuffer)
-                  );
-
-                  compressedBuffer = null;
-                }
-
-                inputBlob = null;
-
-                window.__silkLog(
-                  "Decompressed successfully: " +
-                  result.length + " bytes"
-                );
-
-                return result;
-
-              } catch (error) {
-                window.__silkLog(
-                  "DECOMPRESSION FAILED: " + error.message
-                );
-                throw error;
-              }
-            })
-          : new Promise(function(e, t) {
-      `;
-
-      const patched = source.replace(pattern, replacement);
-
-      if (patched === source) {
-        throw new Error("Unity loader patch failed.");
-      }
-
-      log("Unity native streaming decompression patch enabled.", "success");
-
-      return patched;
-    }
-
-    /* UNITY BANNER */
-
-    function unityShowBanner(message, type) {
-      log(
-        "UNITY " + (type || "MESSAGE").toUpperCase() + ": " + message,
-        type === "error" ? "error" : "warning"
-      );
-
-      const div = document.createElement("div");
-
-      div.textContent = message;
-      div.style.padding = "10px";
-      div.style.marginBottom = "5px";
-
-      if (type === "error") {
-        div.style.background = "#a00000";
-      } else {
-        div.style.background = "#8a6900";
-
-        setTimeout(() => {
-          div.remove();
-        }, 5000);
-      }
-
-      document.getElementById("unity-warning").appendChild(div);
-    }
-
-    /* START UNITY */
-
-    async function startUnity() {
-      setStatus("Checking Unity framework...");
-      setProgress(5, "Validating game engine files...");
-
-      unityLoadingBar.style.display = "block";
-
-      await selectBuildMirror();
-      await cacheUnityBuildFiles();
-
-      const config = {
-        dataUrl:
-          BUILD_BASE_URL + "Build/w-pt.data.unityweb",
-
-        frameworkUrl:
-          BUILD_BASE_URL + "Build/w-pt.framework.js.unityweb",
-
-        codeUrl:
-          BUILD_BASE_URL + "Build/w-pt.wasm.unityweb",
-
-        streamingAssetsUrl: "StreamingAssets",
-
-        companyName: "EDUrocks Group, Truffled, GN-Math",
-        productName: "Hollow Knight SilkSong",
-        productVersion: "1.0",
-
-        devicePixelRatio: 1,
-        matchWebGLToCanvasSize: true,
-
-        webglContextAttributes: {
-          powerPreference: "low-power",
-          antialias: false,
-          preserveDrawingBuffer: false
-        },
-
-        showBanner: unityShowBanner
-      };
-
-      const loaderUrl =
-        BUILD_BASE_URL + "Build/w-pt.loader.js";
-
-      log("Downloading Unity loader: " + loaderUrl);
-
-      const loaderResponse = await originalFetch(loaderUrl, {
+      const response = await originalFetch(url, {
         method: "GET",
         cache: "no-store"
       });
 
-      if (!loaderResponse.ok) {
+      log("HTTP STATUS: " + response.status);
+
+      if (!response.ok) {
         throw new Error(
-          "Could not download Unity loader. HTTP " +
-          loaderResponse.status
+          "Could not download " + path + ". HTTP " + response.status
         );
       }
 
-      let loaderSource = await loaderResponse.text();
+      if (!response.body) {
+        throw new Error(
+          "The browser returned an empty response stream for " + path
+        );
+      }
+
+      const size = response.headers.get("content-length");
 
       log(
-        "Unity loader downloaded (" +
-        loaderSource.length + " characters)."
+        "Download response received: " +
+        (size
+          ? (Number(size) / 1048576).toFixed(2) + " MB"
+          : "size not provided by server")
       );
 
-      loaderSource = patchUnityLoaderSource(loaderSource);
+      const headers = new Headers(response.headers);
 
-      const loaderBlob = new Blob(
-        [loaderSource],
-        { type: "text/javascript" }
+      headers.delete("content-encoding");
+      headers.delete("content-length");
+      headers.delete("transfer-encoding");
+      headers.delete("content-range");
+
+      const cachedResponse = new Response(response.body, {
+        status: 200,
+        statusText: "OK",
+        headers
+      });
+
+      await cache.put(url, cachedResponse);
+      log("Successfully cached: " + path, "success");
+    }
+  }
+
+  /* PATCH UNITY LOADER */
+
+  function patchUnityLoaderSource(source) {
+    const pattern =
+      /return i = e\.parsedBody,\s*s = b\[t\],\s*new Promise\(function\(e, t\) \{/;
+
+    if (!pattern.test(source)) {
+      throw new Error("Could not locate Unity's decompression function.");
+    }
+
+    const replacement = `
+      return i = e.parsedBody,
+      s = b[t],
+      s && s.indexOf(".unityweb") !== -1
+        ? Promise.resolve().then(async function() {
+            window.__silkLog("Decompressing Unity file: " + s);
+
+            var inputBlob = new Blob([i]);
+            i = null;
+
+            try {
+              var result;
+
+              if ("DecompressionStream" in window) {
+                window.__silkLog(
+                  "Using native streaming GZIP decompression."
+                );
+
+                var decompressionStream =
+                  new DecompressionStream("gzip");
+
+                var decompressedStream =
+                  inputBlob.stream().pipeThrough(decompressionStream);
+
+                var outputBuffer =
+                  await new Response(decompressedStream).arrayBuffer();
+
+                result = new Uint8Array(outputBuffer);
+
+              } else {
+                window.__silkLog(
+                  "Native decompression unavailable; using fflate fallback."
+                );
+
+                var compressedBuffer = await inputBlob.arrayBuffer();
+
+                result = window.fflate.gunzipSync(
+                  new Uint8Array(compressedBuffer)
+                );
+
+                compressedBuffer = null;
+              }
+
+              inputBlob = null;
+
+              window.__silkLog(
+                "Decompressed successfully: " + result.length + " bytes"
+              );
+
+              if (s.indexOf(".wasm.unityweb") !== -1) {
+                window.__silkLog(
+                  "WASM binary decompressed. Inspecting memory..."
+                );
+
+                inspectWasmMemory(result);
+              }
+
+              return result;
+
+            } catch (error) {
+              window.__silkLog(
+                "DECOMPRESSION FAILED: " + error.message
+              );
+              throw error;
+            }
+          })
+        : new Promise(function(e, t) {
+    `;
+
+    const patched = source.replace(pattern, replacement);
+
+    if (patched === source) {
+      throw new Error("Unity loader patch failed.");
+    }
+
+    log("Unity native streaming decompression patch enabled.", "success");
+    return patched;
+  }
+
+  /* UNITY BANNER */
+
+  function unityShowBanner(message, type) {
+    log(
+      "UNITY " + (type || "MESSAGE").toUpperCase() + ": " + message,
+      type === "error" ? "error" : "warning"
+    );
+
+    const div = document.createElement("div");
+    div.textContent = message;
+    div.style.padding = "10px";
+    div.style.marginBottom = "5px";
+
+    if (type === "error") {
+      div.style.background = "#a00000";
+    } else {
+      div.style.background = "#8a6900";
+      setTimeout(() => div.remove(), 5000);
+    }
+
+    document.getElementById("unity-warning").appendChild(div);
+  }
+
+  /* START UNITY */
+
+  async function startUnity() {
+    setStatus("Checking Unity framework...");
+    setProgress(5, "Validating game engine files...");
+    unityLoadingBar.style.display = "block";
+
+    await selectBuildMirror();
+    await cacheUnityBuildFiles();
+
+    const config = {
+      dataUrl: BUILD_BASE_URL + "Build/w-pt.data.unityweb",
+      frameworkUrl: BUILD_BASE_URL + "Build/w-pt.framework.js.unityweb",
+      codeUrl: BUILD_BASE_URL + "Build/w-pt.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+
+      companyName: "EDUrocks Group, Truffled, GN-Math",
+      productName: "Hollow Knight SilkSong",
+      productVersion: "1.0",
+
+      devicePixelRatio: 1,
+      matchWebGLToCanvasSize: true,
+
+      webglContextAttributes: {
+        powerPreference: "low-power",
+        antialias: false,
+        preserveDrawingBuffer: false
+      },
+
+      showBanner: unityShowBanner
+    };
+
+    const loaderUrl = BUILD_BASE_URL + "Build/w-pt.loader.js";
+
+    log("Downloading Unity loader: " + loaderUrl);
+
+    const loaderResponse = await originalFetch(loaderUrl, {
+      method: "GET",
+      cache: "no-store"
+    });
+
+    if (!loaderResponse.ok) {
+      throw new Error(
+        "Could not download Unity loader. HTTP " + loaderResponse.status
       );
+    }
 
-      const loaderObjectUrl =
-        URL.createObjectURL(loaderBlob);
+    let loaderSource = await loaderResponse.text();
 
-      const script = document.createElement("script");
-      script.src = loaderObjectUrl;
+    log("Unity loader downloaded (" + loaderSource.length + " characters).");
 
-      script.onload = async () => {
-        URL.revokeObjectURL(loaderObjectUrl);
+    loaderSource = patchUnityLoaderSource(loaderSource);
 
-        try {
-          log("Patched Unity loader executed.", "success");
+    const loaderBlob = new Blob(
+      [loaderSource],
+      { type: "text/javascript" }
+    );
 
-          if (typeof createUnityInstance !== "function") {
-            throw new Error(
-              "Unity loader loaded, but createUnityInstance is missing."
+    const loaderObjectUrl = URL.createObjectURL(loaderBlob);
+    const script = document.createElement("script");
+
+    script.src = loaderObjectUrl;
+
+    script.onload = async () => {
+      URL.revokeObjectURL(loaderObjectUrl);
+
+      try {
+        log("Patched Unity loader executed.", "success");
+
+        if (typeof createUnityInstance !== "function") {
+          throw new Error(
+            "Unity loader loaded, but createUnityInstance is missing."
+          );
+        }
+
+        log("Starting Unity instance...");
+
+        const instance = await createUnityInstance(
+          canvas,
+          config,
+          progress => {
+            unityProgress.style.width = (progress * 100) + "%";
+
+            progressDetail.textContent =
+              "Unity is loading: " + Math.round(progress * 100) + "%";
+          }
+        );
+
+        window.unityInstance = instance;
+        unityStarted = true;
+
+        log("Unity started successfully.", "success");
+        log("The diagnostics console will remain active.");
+        log("Streaming AssetBundle requests will be monitored.");
+        log("Current asset request count: " + streamingRequestCount);
+
+        loadingScreen.style.display = "none";
+        unityLoadingBar.style.display = "none";
+
+        setTimeout(() => {
+          log("Post-startup check:");
+          log("Asset requests: " + streamingRequestCount);
+          log("Cache hits: " + streamingCacheHits);
+          log("Network downloads: " + streamingNetworkDownloads);
+          log("Asset failures: " + streamingFailures);
+
+          if (streamingRequestCount === 0) {
+            log(
+              "No StreamingAssets requests have been detected yet.",
+              "warning"
             );
           }
+        }, 5000);
 
-          log("Starting Unity instance...");
+      } catch (error) {
+        showFatalError(error);
+      }
+    };
 
-          const instance = await createUnityInstance(
-            canvas,
-            config,
-            progress => {
-              unityProgress.style.width =
-                (progress * 100) + "%";
+    script.onerror = () => {
+      URL.revokeObjectURL(loaderObjectUrl);
 
-              progressDetail.textContent =
-                "Unity is loading: " +
-                Math.round(progress * 100) + "%";
-            }
-          );
+      showFatalError(
+        new Error(
+          "Could not execute patched Unity loader: " + loaderUrl
+        )
+      );
+    };
 
-          window.unityInstance = instance;
-          unityStarted = true;
+    document.body.appendChild(script);
+  }
 
-          log("Unity started successfully.", "success");
-          log("The diagnostics console will remain active.");
-          log("Streaming AssetBundle requests will be monitored.");
-          log(
-            "Current asset request count: " +
-            streamingRequestCount
-          );
+  /* SAVE SYSTEM */
 
-          loadingScreen.style.display = "none";
-          unityLoadingBar.style.display = "none";
-
-          setTimeout(() => {
-            log("Post-startup check:");
-            log("Asset requests: " + streamingRequestCount);
-            log("Cache hits: " + streamingCacheHits);
-            log("Network downloads: " + streamingNetworkDownloads);
-            log("Asset failures: " + streamingFailures);
-
-            if (streamingRequestCount === 0) {
-              log(
-                "No StreamingAssets requests have been detected yet.",
-                "warning"
-              );
-            }
-          }, 5000);
-
-        } catch (error) {
-          showFatalError(error);
-        }
+  function encodeValue(value) {
+    if (value instanceof ArrayBuffer) {
+      return {
+        __type: "ArrayBuffer",
+        data: arrayBufferToBase64(value)
       };
-
-      script.onerror = () => {
-        URL.revokeObjectURL(loaderObjectUrl);
-
-        showFatalError(
-          new Error(
-            "Could not execute patched Unity loader: " +
-            loaderUrl
-          )
-        );
-      };
-
-      document.body.appendChild(script);
     }
 
-    /* SAVE SYSTEM */
-
-    function encodeValue(value) {
-      if (value instanceof ArrayBuffer) {
-        return {
-          __type: "ArrayBuffer",
-          data: arrayBufferToBase64(value)
-        };
-      }
-
-      if (ArrayBuffer.isView(value)) {
-        return {
-          __type: "TypedArray",
-          name: value.constructor.name,
-          data: arrayBufferToBase64(
-            value.buffer.slice(
-              value.byteOffset,
-              value.byteOffset + value.byteLength
-            )
+    if (ArrayBuffer.isView(value)) {
+      return {
+        __type: "TypedArray",
+        name: value.constructor.name,
+        data: arrayBufferToBase64(
+          value.buffer.slice(
+            value.byteOffset,
+            value.byteOffset + value.byteLength
           )
-        };
-      }
-
-      if (value instanceof Blob) {
-        return {
-          __type: "Blob",
-          type: value.type,
-          data: arrayBufferToBase64(value)
-        };
-      }
-
-      if (value instanceof Date) {
-        return {
-          __type: "Date",
-          data: value.toISOString()
-        };
-      }
-
-      if (Array.isArray(value)) {
-        return value.map(encodeValue);
-      }
-
-      if (value && typeof value === "object") {
-        const output = {};
-
-        for (const key of Object.keys(value)) {
-          output[key] = encodeValue(value[key]);
-        }
-
-        return output;
-      }
-
-      return value;
+        )
+      };
     }
 
-    function decodeValue(value) {
-      if (!value || typeof value !== "object") {
-        return value;
-      }
+    if (value instanceof Blob) {
+      return {
+        __type: "Blob",
+        type: value.type,
+        data: arrayBufferToBase64(value)
+      };
+    }
 
-      if (value.__type === "ArrayBuffer") {
-        return base64ToArrayBuffer(value.data);
-      }
+    if (value instanceof Date) {
+      return {
+        __type: "Date",
+        data: value.toISOString()
+      };
+    }
 
-      if (value.__type === "TypedArray") {
-        const buffer = base64ToArrayBuffer(value.data);
-        const constructor = window[value.name];
+    if (Array.isArray(value)) return value.map(encodeValue);
 
-        if (typeof constructor !== "function") {
-          throw new Error(
-            "Unsupported typed array: " + value.name
-          );
-        }
-
-        return new constructor(buffer);
-      }
-
-      if (value.__type === "Blob") {
-        return new Blob(
-          [base64ToArrayBuffer(value.data)],
-          { type: value.type }
-        );
-      }
-
-      if (value.__type === "Date") {
-        return new Date(value.data);
-      }
-
-      if (Array.isArray(value)) {
-        return value.map(decodeValue);
-      }
-
+    if (value && typeof value === "object") {
       const output = {};
 
       for (const key of Object.keys(value)) {
-        output[key] = decodeValue(value[key]);
+        output[key] = encodeValue(value[key]);
       }
 
       return output;
     }
 
-    function arrayBufferToBase64(buffer) {
-      const bytes = new Uint8Array(buffer);
-      const chunkSize = 0x8000;
-      let binary = "";
+    return value;
+  }
 
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(
-          ...bytes.subarray(i, i + chunkSize)
+  function decodeValue(value) {
+    if (!value || typeof value !== "object") return value;
+
+    if (value.__type === "ArrayBuffer") {
+      return base64ToArrayBuffer(value.data);
+    }
+
+    if (value.__type === "TypedArray") {
+      const buffer = base64ToArrayBuffer(value.data);
+      const constructor = window[value.name];
+
+      if (typeof constructor !== "function") {
+        throw new Error("Unsupported typed array: " + value.name);
+      }
+
+      return new constructor(buffer);
+    }
+
+    if (value.__type === "Blob") {
+      return new Blob(
+        [base64ToArrayBuffer(value.data)],
+        { type: value.type }
+      );
+    }
+
+    if (value.__type === "Date") return new Date(value.data);
+
+    if (Array.isArray(value)) return value.map(decodeValue);
+
+    const output = {};
+
+    for (const key of Object.keys(value)) {
+      output[key] = decodeValue(value[key]);
+    }
+
+    return output;
+  }
+
+  function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 0x8000;
+    let binary = "";
+
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(
+        ...bytes.subarray(i, i + chunkSize)
+      );
+    }
+
+    return btoa(binary);
+  }
+
+  function base64ToArrayBuffer(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    return bytes.buffer;
+  }
+
+  function requestResult(request) {
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function exportDatabase(dbName) {
+    const db = await requestResult(indexedDB.open(dbName));
+
+    const result = {
+      name: db.name,
+      version: db.version,
+      stores: []
+    };
+
+    for (const storeName of Array.from(db.objectStoreNames)) {
+      const transaction = db.transaction(storeName, "readonly");
+      const store = transaction.objectStore(storeName);
+
+      const keys = await requestResult(store.getAllKeys());
+      const values = await requestResult(store.getAll());
+
+      result.stores.push({
+        name: storeName,
+        keyPath: store.keyPath,
+        autoIncrement: store.autoIncrement,
+        records: keys.map((key, index) => ({
+          key: encodeValue(key),
+          value: encodeValue(values[index])
+        }))
+      });
+    }
+
+    db.close();
+    return result;
+  }
+
+  async function saveGame() {
+    try {
+      if (!indexedDB.databases) {
+        throw new Error(
+          "This browser does not support listing IndexedDB databases."
         );
       }
 
-      return btoa(binary);
-    }
+      const databases = await indexedDB.databases();
 
-    function base64ToArrayBuffer(base64) {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
+      const saveData = {
+        format: "silksong-save",
+        version: 1,
+        created: new Date().toISOString(),
+        databases: []
+      };
 
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
+      for (const info of databases) {
+        if (!info.name) continue;
+
+        const name = info.name.toLowerCase();
+
+        if (
+          !name.includes("unity") &&
+          !name.includes("em_fs") &&
+          !name.includes("idbfs")
+        ) continue;
+
+        log("Saving database: " + info.name);
+        saveData.databases.push(await exportDatabase(info.name));
       }
 
-      return bytes.buffer;
-    }
+      if (!saveData.databases.length) {
+        throw new Error(
+          "No Unity save databases were found yet. Play the game first, then save."
+        );
+      }
 
-    function requestResult(request) {
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result);
+      const blob = new Blob(
+        [JSON.stringify(saveData)],
+        { type: "application/json" }
+      );
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "Silksong-Game-Save.silksong-save";
+      link.click();
+
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      log("Save file exported successfully.", "success");
+
+    } catch (error) {
+      alert("Save failed:\n" + error.message);
+      log("SAVE ERROR: " + error.message, "error");
+    }
+  }
+
+  async function importDatabase(data) {
+    const existing = await requestResult(indexedDB.open(data.name));
+    let version = existing.version;
+
+    const missingStores = data.stores.filter(
+      store => !existing.objectStoreNames.contains(store.name)
+    );
+
+    existing.close();
+
+    if (missingStores.length) {
+      version++;
+
+      await new Promise((resolve, reject) => {
+        const request = indexedDB.open(data.name, version);
+
+        request.onupgradeneeded = () => {
+          const db = request.result;
+
+          for (const store of missingStores) {
+            if (!db.objectStoreNames.contains(store.name)) {
+              db.createObjectStore(store.name, {
+                keyPath: store.keyPath || undefined,
+                autoIncrement: !!store.autoIncrement
+              });
+            }
+          }
+        };
+
+        request.onsuccess = () => {
+          request.result.close();
+          resolve();
+        };
+
         request.onerror = () => reject(request.error);
       });
     }
 
-    async function exportDatabase(dbName) {
-      const db = await requestResult(indexedDB.open(dbName));
+    const db = await requestResult(indexedDB.open(data.name));
 
-      const result = {
-        name: db.name,
-        version: db.version,
-        stores: []
-      };
+    for (const storeData of data.stores) {
+      if (!db.objectStoreNames.contains(storeData.name)) continue;
 
-      for (const storeName of Array.from(db.objectStoreNames)) {
+      await new Promise((resolve, reject) => {
         const transaction = db.transaction(
-          storeName,
-          "readonly"
+          storeData.name,
+          "readwrite"
         );
 
-        const store = transaction.objectStore(storeName);
+        const store = transaction.objectStore(storeData.name);
+        store.clear();
 
-        const keys = await requestResult(store.getAllKeys());
-        const values = await requestResult(store.getAll());
+        for (const record of storeData.records) {
+          const key = decodeValue(record.key);
+          const value = decodeValue(record.value);
 
-        result.stores.push({
-          name: storeName,
-          keyPath: store.keyPath,
-          autoIncrement: store.autoIncrement,
-          records: keys.map((key, index) => ({
-            key: encodeValue(key),
-            value: encodeValue(values[index])
-          }))
-        });
-      }
+          if (store.keyPath !== null) store.put(value);
+          else store.put(value, key);
+        }
 
-      db.close();
-      return result;
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      });
     }
 
-    async function saveGame() {
-      try {
-        if (!indexedDB.databases) {
-          throw new Error(
-            "This browser does not support listing IndexedDB databases."
-          );
-        }
+    db.close();
+  }
 
-        const databases = await indexedDB.databases();
+  async function loadGameFile(file) {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
 
-        const saveData = {
-          format: "silksong-save",
-          version: 1,
-          created: new Date().toISOString(),
-          databases: []
-        };
-
-        for (const info of databases) {
-          if (!info.name) continue;
-
-          const name = info.name.toLowerCase();
-
-          if (
-            !name.includes("unity") &&
-            !name.includes("em_fs") &&
-            !name.includes("idbfs")
-          ) {
-            continue;
-          }
-
-          log("Saving database: " + info.name);
-
-          saveData.databases.push(
-            await exportDatabase(info.name)
-          );
-        }
-
-        if (!saveData.databases.length) {
-          throw new Error(
-            "No Unity save databases were found yet. " +
-            "Play the game first, then save."
-          );
-        }
-
-        const blob = new Blob(
-          [JSON.stringify(saveData)],
-          { type: "application/json" }
-        );
-
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-
-        link.href = url;
-        link.download = "Silksong-Game-Save.silksong-save";
-        link.click();
-
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
-
-        log("Save file exported successfully.", "success");
-
-      } catch (error) {
-        alert("Save failed:\n" + error.message);
-        log("SAVE ERROR: " + error.message, "error");
+      if (data.format !== "silksong-save") {
+        throw new Error("This is not a valid Silksong save file.");
       }
-    }
 
-    async function importDatabase(data) {
-      const existing = await requestResult(
-        indexedDB.open(data.name)
+      if (!Array.isArray(data.databases)) {
+        throw new Error("The save file contains no database data.");
+      }
+
+      for (const database of data.databases) {
+        log("Restoring database: " + database.name);
+        await importDatabase(database);
+      }
+
+      alert(
+        "Save imported. The page will reload to apply the restored progress."
       );
 
-      let version = existing.version;
+      location.reload();
 
-      const missingStores = data.stores.filter(
-        store => !existing.objectStoreNames.contains(store.name)
-      );
-
-      existing.close();
-
-      if (missingStores.length) {
-        version++;
-
-        await new Promise((resolve, reject) => {
-          const request = indexedDB.open(data.name, version);
-
-          request.onupgradeneeded = () => {
-            const db = request.result;
-
-            for (const store of missingStores) {
-              if (!db.objectStoreNames.contains(store.name)) {
-                db.createObjectStore(store.name, {
-                  keyPath: store.keyPath || undefined,
-                  autoIncrement: !!store.autoIncrement
-                });
-              }
-            }
-          };
-
-          request.onsuccess = () => {
-            request.result.close();
-            resolve();
-          };
-
-          request.onerror = () => reject(request.error);
-        });
-      }
-
-      const db = await requestResult(indexedDB.open(data.name));
-
-      for (const storeData of data.stores) {
-        if (!db.objectStoreNames.contains(storeData.name)) {
-          continue;
-        }
-
-        await new Promise((resolve, reject) => {
-          const transaction = db.transaction(
-            storeData.name,
-            "readwrite"
-          );
-
-          const store = transaction.objectStore(storeData.name);
-
-          store.clear();
-
-          for (const record of storeData.records) {
-            const key = decodeValue(record.key);
-            const value = decodeValue(record.value);
-
-            if (store.keyPath !== null) {
-              store.put(value);
-            } else {
-              store.put(value, key);
-            }
-          }
-
-          transaction.oncomplete = resolve;
-          transaction.onerror = () => reject(transaction.error);
-          transaction.onabort = () => reject(transaction.error);
-        });
-      }
-
-      db.close();
+    } catch (error) {
+      alert("Load failed:\n" + error.message);
+      log("LOAD ERROR: " + error.message, "error");
     }
+  }
 
-    async function loadGameFile(file) {
+  document.getElementById("save-button").addEventListener(
+    "click",
+    saveGame
+  );
+
+  document.getElementById("load-button").addEventListener(
+    "click",
+    () => document.getElementById("save-file").click()
+  );
+
+  document.getElementById("save-file").addEventListener(
+    "change",
+    event => {
+      const file = event.target.files[0];
+      if (file) loadGameFile(file);
+      event.target.value = "";
+    }
+  );
+
+  /* FULLSCREEN */
+
+  document.getElementById("fullscreen-button").addEventListener(
+    "click",
+    async () => {
       try {
-        const text = await file.text();
-        const data = JSON.parse(text);
+        const target = document.getElementById("game");
 
-        if (data.format !== "silksong-save") {
-          throw new Error(
-            "This is not a valid Silksong save file."
-          );
+        if (!document.fullscreenElement) {
+          await target.requestFullscreen();
+        } else {
+          await document.exitFullscreen();
         }
+      } catch (error) {
+        log("Fullscreen error: " + error.message, "error");
+      }
+    }
+  );
 
-        if (!Array.isArray(data.databases)) {
-          throw new Error(
-            "The save file contains no database data."
-          );
-        }
+  /* MAIN */
 
-        for (const database of data.databases) {
-          log("Restoring database: " + database.name);
-          await importDatabase(database);
-        }
+  async function main() {
+    try {
+      if (!window.fflate) {
+        throw new Error("fflate failed to load.");
+      }
 
-        alert(
-          "Save imported. The page will reload to apply the restored progress."
+      if (!("caches" in window)) {
+        throw new Error(
+          "Cache Storage is unavailable in this browser or HTML runner."
         );
-
-        location.reload();
-
-      } catch (error) {
-        alert("Load failed:\n" + error.message);
-        log("LOAD ERROR: " + error.message, "error");
       }
+
+      setStatus("Preparing on-demand game loading...");
+      setProgress(2, "Skipping full archive download...");
+
+      log("On-demand asset loading enabled.", "success");
+      log("The 100-part ZIP download is disabled.");
+      log("AssetBundles will download only when Unity requests them.");
+      log("Downloaded AssetBundles will be cached individually.");
+      log("Previously cached files will be reused.");
+      log("Existing cache preserved: " + CACHE_NAME);
+      log("Fetch and XMLHttpRequest monitoring enabled.");
+      log("Persistent diagnostics enabled.");
+      log("WASM memory inspection enabled.");
+      log("WebAssembly instantiation monitoring enabled.");
+
+      await startUnity();
+
+    } catch (error) {
+      showFatalError(error);
     }
+  }
 
-    document.getElementById("save-button").addEventListener(
-      "click",
-      saveGame
-    );
+  main();
 
-    document.getElementById("load-button").addEventListener(
-      "click",
-      () => document.getElementById("save-file").click()
-    );
-
-    document.getElementById("save-file").addEventListener(
-      "change",
-      event => {
-        const file = event.target.files[0];
-
-        if (file) loadGameFile(file);
-
-        event.target.value = "";
-      }
-    );
-
-    /* FULLSCREEN */
-
-    document.getElementById("fullscreen-button").addEventListener(
-      "click",
-      async () => {
-        try {
-          const target = document.getElementById("game");
-
-          if (!document.fullscreenElement) {
-            await target.requestFullscreen();
-          } else {
-            await document.exitFullscreen();
-          }
-
-        } catch (error) {
-          log("Fullscreen error: " + error.message, "error");
-        }
-      }
-    );
-
-    /* MAIN */
-
-    async function main() {
-      try {
-        if (!window.fflate) {
-          throw new Error("fflate failed to load.");
-        }
-
-        if (!("caches" in window)) {
-          throw new Error(
-            "Cache Storage is unavailable in this browser or HTML runner."
-          );
-        }
-
-        setStatus("Preparing on-demand game loading...");
-        setProgress(2, "Skipping full archive download...");
-
-        log("On-demand asset loading enabled.", "success");
-        log("The 100-part ZIP download is disabled.");
-        log("AssetBundles will download only when Unity requests them.");
-        log("Downloaded AssetBundles will be cached individually.");
-        log("Previously cached files will be reused.");
-        log("Existing cache preserved: " + CACHE_NAME);
-        log("Fetch and XMLHttpRequest monitoring enabled.");
-        log("Persistent diagnostics enabled.");
-
-        await startUnity();
-
-      } catch (error) {
-        showFatalError(error);
-      }
-    }
-
-    main();
-
-  })();
-  </script>
+})();
+</script>
 </body>
 </html>
