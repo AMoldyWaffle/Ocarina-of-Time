@@ -117,6 +117,7 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
   </div>
 </section>
 <footer>END OF LIGHT &nbsp;·&nbsp; EXPLORE THE UNKNOWN</footer>
+<script src="games-index.js"></script>
 <script>
 "use strict";
 
@@ -125,74 +126,7 @@ const REPO = "Ocarina-of-Time";
 const BRANCH = "main";
 const GAME_DIR = "Games";
 const PAGES_BASE = "https://amoldywaffle.github.io/Ocarina-of-Time/";
-const GAME_CATALOG = [
-  {
-    "name": "Angry Birds Rio",
-    "title": "Angry Birds Rio",
-    "path": "Games/Angry Birds Rio/index.html",
-    "cover": "Games/Angry Birds Rio/Cover/images.jpg"
-  },
-  {
-    "name": "Cuphead",
-    "title": "Cuphead",
-    "path": "Games/Cuphead/index.html",
-    "cover": "Games/Cuphead/Cover/images.png"
-  },
-  {
-    "name": "Grand Theft Auto 3",
-    "title": "Grand Theft Auto 3",
-    "path": "Games/Grand Theft Auto 3/index.html",
-    "cover": "Games/Grand Theft Auto 3/Cover/images.jpg"
-  },
-  {
-    "name": "Grand Theft Auto Vice City",
-    "title": "Grand Theft Auto Vice City",
-    "path": "Games/Grand Theft Auto Vice City/index.html",
-    "cover": "Games/Grand Theft Auto Vice City/Cover/10107835_ALT01.jpg"
-  },
-  {
-    "name": "Hollow Knight",
-    "title": "Hollow Knight",
-    "path": "Games/Hollow Knight/index.html",
-    "cover": "Games/Hollow Knight/Cover/images.jpg"
-  },
-  {
-    "name": "Mario Kart 64",
-    "title": "Mario Kart 64",
-    "path": "Games/Mario Kart 64/index.html",
-    "cover": "Games/Mario Kart 64/Cover/images.jpg"
-  },
-  {
-    "name": "Ocarina of Time",
-    "title": "Ocarina Of Time",
-    "path": "Games/Ocarina of Time/index.html",
-    "cover": "Games/Ocarina of Time/Cover/images.jpg"
-  },
-  {
-    "name": "Pokemon Emerald",
-    "title": "Pokemon Emerald",
-    "path": "Games/Pokemon Emerald/index.html",
-    "cover": "Games/Pokemon Emerald/Cover/images.jpg"
-  },
-  {
-    "name": "Super Mario Bros 3",
-    "title": "Super Mario Bros 3",
-    "path": "Games/Super Mario Bros 3/index.html",
-    "cover": "Games/Super Mario Bros 3/Cover/download (3).jpg"
-  },
-  {
-    "name": "Super Mario World",
-    "title": "Super Mario World",
-    "path": "Games/Super Mario World/index.html",
-    "cover": "Games/Super Mario World/Cover/images.jpg"
-  },
-  {
-    "name": "The Binding of Isaac",
-    "title": "The Binding Of Isaac",
-    "path": "Games/The Binding of Isaac/isaac_flash_launcher.html",
-    "cover": "Games/The Binding of Isaac/Cover/TBoI.jpg"
-  }
-];
+const GAME_CATALOG = window.GAME_CATALOG || [];
 const RUNNER_MODE =
   location.protocol === "blob:" ||
   location.hostname === "codetester.io" ||
