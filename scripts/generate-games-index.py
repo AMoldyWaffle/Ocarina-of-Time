@@ -12,7 +12,7 @@ OUTPUT = ROOT / "games-index.js"
 existing = {}
 if OUTPUT.exists():
     text = OUTPUT.read_text(encoding="utf-8")
-    match = re.search(r"window\\.GAME_CATALOG\\s*=\\s*(\\[.*?\\])\\s*;", text, re.S)
+    match = re.search(r"window\.GAME_CATALOG\s*=\s*(\[.*?\])\s*;", text, re.S)
     if match:
         try:
             for game in json.loads(match.group(1)):
