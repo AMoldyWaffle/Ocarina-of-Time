@@ -451,6 +451,280 @@
     log("WebGL context restored.", "success");
   });
 
+  /* WEBGL GRAPHICS DIAGNOSTICS */
+
+  let graphicsContext = null;
+  let graphicsDrawCalls = 0;
+  let graphicsShaderFailures = 0;
+  let graphicsProgramFailures = 0;
+  let graphicsLastReport = 0;
+  let graphicsInstrumentationInstalled = false;
+
+  function safeGetParameter(gl, parameter) {
+    try {
+      return gl.getParameter(parameter);
+    } catch (_) {
+      return "Unavailable";
+    }
+  }
+
+  function installGraphicsInstrumentation(gl, contextName) {
+    if (!gl || graphicsInstrumentationInstalled) return;
+
+    graphicsInstrumentationInstalled = true;
+    graphicsContext = gl;
+
+    log("----------------------------------------");
+    log("WEBGL CONTEXT CREATED", "success");
+    log("Context type: " + contextName);
+
+    try {
+      const attributes = gl.getContextAttributes();
+
+      if (attributes) {
+        log("Context attributes: " + JSON.stringify(attributes));
+      }
+    } catch (error) {
+      log("Could not read context attributes: " + error.message);
+    }
+
+    log("WebGL version: " +
+      safeGetParameter(gl, gl.VERSION));
+
+    log("GLSL version: " +
+      safeGetParameter(gl, gl.SHADING_LANGUAGE_VERSION));
+
+    log("Vendor: " +
+      safeGetParameter(gl, gl.VENDOR));
+
+    log("Renderer: " +
+      safeGetParameter(gl, gl.RENDERER));
+
+    log("Maximum texture size: " +
+      safeGetParameter(gl, gl.MAX_TEXTURE_SIZE));
+
+    log("Maximum renderbuffer size: " +
+      safeGetParameter(gl, gl.MAX_RENDERBUFFER_SIZE));
+
+    log("Maximum viewport dimensions: " +
+      safeGetParameter(gl, gl.MAX_VIEWPORT_DIMS));
+
+    try {
+      const debugExtension =
+        gl.getExtension("WEBGL_debug_renderer_info");
+
+      if (debugExtension) {
+        log("GPU vendor: " +
+          gl.getParameter(debugExtension.UNMASKED_VENDOR_WEBGL));
+
+        log("GPU renderer: " +
+          gl.getParameter(debugExtension.UNMASKED_RENDERER_WEBGL));
+      } else {
+        log("Unmasked GPU information unavailable.", "warning");
+      }
+    } catch (error) {
+      log("GPU information lookup failed: " + error.message, "warning");
+    }
+
+    function wrapMethod(name, callback) {
+      try {
+        const original = gl[name];
+
+        if (typeof original !== "function") return;
+
+        Object.defineProperty(gl, name, {
+          configurable: true,
+          writable: true,
+          value: function(...args) {
+            const result = original.apply(this, args);
+
+            try {
+              callback.call(this, result, args);
+            } catch (_) {}
+
+            return result;
+          }
+        });
+      } catch (error) {
+        log("Could not instrument WebGL method " +
+          name + ": " + error.message, "warning");
+      }
+    }
+
+    /* Count actual rendering commands. */
+
+    const drawMethods = [
+      "drawArrays",
+      "drawElements",
+      "drawArraysInstanced",
+      "drawElementsInstanced",
+      "drawRangeElements"
+    ];
+
+    for (const name of drawMethods) {
+      wrapMethod(name, () => {
+        graphicsDrawCalls++;
+      });
+    }
+
+    /* Detect failed shader compilation. */
+
+    wrapMethod("compileShader", function(shader) {
+      try {
+        const compiled = this.getShaderParameter(
+          shader,
+          this.COMPILE_STATUS
+        );
+
+        if (!compiled) {
+          graphicsShaderFailures++;
+
+          const info = this.getShaderInfoLog(shader) ||
+            "No shader information log available.";
+
+          let source = "";
+
+          try {
+            source = this.getShaderSource(shader) || "";
+          } catch (_) {}
+
+          log("SHADER COMPILATION FAILED #" +
+            graphicsShaderFailures, "error");
+
+          log("Shader error: " + info, "error");
+
+          if (source) {
+            log(
+              "Shader source preview: " +
+              source.substring(0, 1200),
+              "warning"
+            );
+          }
+        }
+      } catch (error) {
+        log("Shader diagnostic failed: " + error.message, "warning");
+      }
+    });
+
+    /* Detect failed program linking. */
+
+    wrapMethod("linkProgram", function(program) {
+      try {
+        const linked = this.getProgramParameter(
+          program,
+          this.LINK_STATUS
+        );
+
+        if (!linked) {
+          graphicsProgramFailures++;
+
+          const info = this.getProgramInfoLog(program) ||
+            "No program information log available.";
+
+          log("SHADER PROGRAM LINK FAILED #" +
+            graphicsProgramFailures, "error");
+
+          log("Program error: " + info, "error");
+        }
+      } catch (error) {
+        log("Program diagnostic failed: " + error.message, "warning");
+      }
+    });
+
+    log("WebGL shader and draw-call instrumentation installed.",
+      "success");
+
+    log("----------------------------------------");
+  }
+
+  /*
+    Capture the WebGL context when Unity requests it.
+    This does not create a context itself.
+  */
+
+  const originalGetContext = HTMLCanvasElement.prototype.getContext;
+
+  HTMLCanvasElement.prototype.getContext = function(type, attributes) {
+    const context = originalGetContext.apply(this, arguments);
+
+    if (
+      this === canvas &&
+      context &&
+      (
+        type === "webgl" ||
+        type === "webgl2" ||
+        type === "experimental-webgl"
+      )
+    ) {
+      installGraphicsInstrumentation(context, type);
+    }
+
+    return context;
+  };
+
+  /*
+    Periodically report whether the game is rendering.
+  */
+
+  setInterval(() => {
+    if (!graphicsContext) return;
+
+    const now = Date.now();
+
+    if (now - graphicsLastReport < 4500) return;
+    graphicsLastReport = now;
+
+    log("----------------------------------------");
+    log("GRAPHICS STATUS REPORT");
+
+    log("Canvas CSS size: " +
+      canvas.clientWidth + " x " + canvas.clientHeight);
+
+    log("Canvas drawing buffer: " +
+      canvas.width + " x " + canvas.height);
+
+    log("Draw calls since page load: " + graphicsDrawCalls);
+
+    log("Shader compilation failures: " +
+      graphicsShaderFailures);
+
+    log("Program linking failures: " +
+      graphicsProgramFailures);
+
+    try {
+      const error = graphicsContext.getError();
+
+      if (error === graphicsContext.NO_ERROR) {
+        log("WebGL error state: NO_ERROR", "success");
+      } else {
+        const names = {};
+
+        names[graphicsContext.INVALID_ENUM] = "INVALID_ENUM";
+        names[graphicsContext.INVALID_VALUE] = "INVALID_VALUE";
+        names[graphicsContext.INVALID_OPERATION] = "INVALID_OPERATION";
+        names[graphicsContext.INVALID_FRAMEBUFFER_OPERATION] =
+          "INVALID_FRAMEBUFFER_OPERATION";
+        names[graphicsContext.OUT_OF_MEMORY] = "OUT_OF_MEMORY";
+        names[graphicsContext.CONTEXT_LOST_WEBGL] =
+          "CONTEXT_LOST_WEBGL";
+
+        log("WebGL error: " +
+          (names[error] || "UNKNOWN (" + error + ")"), "error");
+      }
+    } catch (error) {
+      log("Could not query WebGL error: " + error.message, "warning");
+    }
+
+    if (graphicsDrawCalls === 0) {
+      log("WARNING: No draw calls detected yet.", "warning");
+    } else {
+      log("Unity is issuing graphics draw calls.", "success");
+    }
+
+    log("----------------------------------------");
+
+  }, 5000);
+
   /* WASM MEMORY INSPECTOR */
 
   function readWasmU32(bytes, state) {
@@ -630,6 +904,7 @@
       log("WASM INSPECTION FAILED: " + error.message, "error");
     }
   }
+
   window.__inspectWasmMemory = inspectWasmMemory;
 
   /* WEBASSEMBLY INSTANTIATION MONITOR */
@@ -1190,9 +1465,14 @@
       matchWebGLToCanvasSize: true,
 
       webglContextAttributes: {
-        powerPreference: "low-power",
+        alpha: false,
+        depth: true,
+        stencil: true,
         antialias: false,
-        preserveDrawingBuffer: false
+        premultipliedAlpha: false,
+        preserveDrawingBuffer: false,
+        powerPreference: "high-performance",
+        failIfMajorPerformanceCaveat: false
       },
 
       showBanner: unityShowBanner
@@ -1675,6 +1955,9 @@
       log("Persistent diagnostics enabled.");
       log("WASM memory inspection enabled.");
       log("WebAssembly instantiation monitoring enabled.");
+      log("WebGL shader compilation monitoring enabled.");
+      log("WebGL program linking monitoring enabled.");
+      log("WebGL draw-call monitoring enabled.");
 
       await startUnity();
 
