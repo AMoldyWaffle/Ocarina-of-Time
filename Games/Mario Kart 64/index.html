@@ -180,7 +180,7 @@ html, body {
     status("Downloading Mario Kart 64...");
 
     const romResponse = await fetch(ROM_URL, {
-      cache: "no-store"
+      cache: "default"
     });
 
     if (!romResponse.ok) {
@@ -201,7 +201,7 @@ html, body {
     status("Loading emulator...");
 
     const loaderResponse = await fetch(BASE + "loader.js", {
-      cache: "no-store"
+      cache: "default"
     });
 
     if (!loaderResponse.ok) {
