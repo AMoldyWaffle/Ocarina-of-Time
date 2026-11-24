@@ -975,146 +975,172 @@
     ========================================================= */
 
     async function selectBuildMirror() {
-      const cache = await caches.open(CACHE_NAME);
+  const cache = await caches.open(CACHE_NAME);
 
-      const frameworkPath =
-        "Build/w-pt.framework.js.unityweb";
+  const frameworkPath =
+    "Build/w-pt.framework.js.unityweb";
 
-      let failures = [];
+  const failures = [];
 
-      setStatus("Checking Unity framework mirrors...");
-      setProgress(95, "Validating Unity framework...");
+  setStatus("Diagnosing Unity framework...");
+  setProgress(95, "Inspecting framework responses...");
 
-      for (let i = 0; i < FALLBACK_BASES.length; i++) {
-        const base = FALLBACK_BASES[i];
-        const url = base + frameworkPath;
+  function bytesToHex(bytes, count = 32) {
+    return Array.from(bytes.slice(0, count))
+      .map(byte => byte.toString(16).padStart(2, "0"))
+      .join(" ");
+  }
 
-        try {
-          log(
-            "Checking Unity framework on mirror " +
-            (i + 1) + ": " + base
-          );
-
-          const response = await originalFetch(url, {
-            method: "GET",
-            cache: "no-store"
-          });
-
-          if (!response.ok) {
-            throw new Error(
-              "HTTP " + response.status
-            );
-          }
-
-          if (response.status !== 200) {
-            throw new Error(
-              "Unexpected HTTP status " + response.status
-            );
-          }
-
-          const contentType =
-            response.headers.get("content-type") || "unknown";
-
-          const contentEncoding =
-            response.headers.get("content-encoding") || "none";
-
-          const buffer = await response.arrayBuffer();
-
-          if (buffer.byteLength < 1024) {
-            throw new Error(
-              "Framework response is too small: " +
-              buffer.byteLength + " bytes"
-            );
-          }
-
-          // Check whether the server returned an HTML error page
-          // instead of the Unity framework file.
-          const sample = new Uint8Array(
-            buffer,
-            0,
-            Math.min(buffer.byteLength, 512)
-          );
-
-          let beginning = "";
-
-          for (let j = 0; j < sample.length; j++) {
-            beginning += String.fromCharCode(sample[j]);
-          }
-
-          const trimmedBeginning =
-            beginning.trimStart().toLowerCase();
-
-          if (
-            trimmedBeginning.startsWith("<!doctype html") ||
-            trimmedBeginning.startsWith("<html") ||
-            trimmedBeginning.startsWith("<head") ||
-            trimmedBeginning.startsWith("<body")
-          ) {
-            throw new Error(
-              "The server returned an HTML page instead of the framework."
-            );
-          }
-
-          log(
-            "Framework response received: " +
-            (buffer.byteLength / 1048576).toFixed(2) +
-            " MB"
-          );
-
-          log("Framework Content-Type: " + contentType);
-          log("Framework Content-Encoding: " + contentEncoding);
-
-          /*
-            Fetch automatically handles HTTP-level content encoding.
-            Remove those transport headers before caching the already
-            received bytes. This avoids presenting an already-decoded
-            response as though it still needs HTTP decompression.
-          */
-
-          const headers = new Headers(response.headers);
-
-          headers.delete("content-encoding");
-          headers.delete("content-length");
-          headers.delete("transfer-encoding");
-
-          const cachedResponse = new Response(buffer, {
-            status: 200,
-            statusText: "OK",
-            headers
-          });
-
-          await cache.put(url, cachedResponse);
-
-          BUILD_BASE_URL = base;
-
-          log(
-            "Selected Build mirror " +
-            (i + 1) + ": " + BUILD_BASE_URL
-          );
-
-          log(
-            "Unity framework validated and cached."
-          );
-
-          return BUILD_BASE_URL;
-
-        } catch (error) {
-          failures.push(
-            "Mirror " + (i + 1) + ": " + error.message
-          );
-
-          log(
-            "Framework mirror " + (i + 1) +
-            " failed: " + error.message
-          );
+  function bytesToText(bytes, count = 100) {
+    return Array.from(bytes.slice(0, count))
+      .map(byte => {
+        if (byte >= 32 && byte <= 126) {
+          return String.fromCharCode(byte);
         }
+
+        return ".";
+      })
+      .join("");
+  }
+
+  function identifyFormat(bytes) {
+    if (
+      bytes[0] === 0x1f &&
+      bytes[1] === 0x8b
+    ) {
+      return "GZIP";
+    }
+
+    if (
+      bytes[0] === 0x50 &&
+      bytes[1] === 0x4b
+    ) {
+      return "ZIP";
+    }
+
+    if (
+      bytes[0] === 0x42 &&
+      bytes[1] === 0x52 &&
+      bytes[2] === 0x4f &&
+      bytes[3] === 0x54
+    ) {
+      return "BROTLI SIGNATURE";
+    }
+
+    const text = bytesToText(bytes).trimStart().toLowerCase();
+
+    if (
+      text.startsWith("<!doctype html") ||
+      text.startsWith("<html") ||
+      text.startsWith("<head")
+    ) {
+      return "HTML ERROR PAGE";
+    }
+
+    if (
+      text.startsWith("function") ||
+      text.startsWith("var ") ||
+      text.startsWith("(function") ||
+      text.startsWith("(()=>")
+    ) {
+      return "JAVASCRIPT";
+    }
+
+    return "UNKNOWN / UNITY COMPRESSED DATA";
+  }
+
+  for (let i = 0; i < FALLBACK_BASES.length; i++) {
+    const base = FALLBACK_BASES[i];
+    const url = base + frameworkPath;
+
+    try {
+      log("----------------------------------------");
+      log("Testing framework mirror " + (i + 1));
+      log(url);
+
+      const response = await originalFetch(url, {
+        method: "GET",
+        cache: "no-store"
+      });
+
+      log("HTTP STATUS: " + response.status);
+      log("CONTENT-TYPE: " +
+        (response.headers.get("content-type") || "missing"));
+
+      log("CONTENT-ENCODING: " +
+        (response.headers.get("content-encoding") || "missing"));
+
+      log("CONTENT-LENGTH: " +
+        (response.headers.get("content-length") || "missing"));
+
+      log("ACCEPT-RANGES: " +
+        (response.headers.get("accept-ranges") || "missing"));
+
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
       }
 
-      throw new Error(
-        "Could not find a working Unity framework mirror.\n\n" +
-        failures.join("\n")
+      const buffer = await response.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+
+      const format = identifyFormat(bytes);
+
+      log("RECEIVED SIZE: " + buffer.byteLength + " bytes");
+      log("RECEIVED SIZE: " +
+        (buffer.byteLength / 1048576).toFixed(2) + " MB");
+
+      log("DETECTED FORMAT: " + format);
+      log("FIRST 32 BYTES: " + bytesToHex(bytes));
+      log("FIRST 100 CHARACTERS: " + bytesToText(bytes));
+
+      if (buffer.byteLength < 1024) {
+        throw new Error("Framework file is suspiciously small.");
+      }
+
+      if (format === "HTML ERROR PAGE") {
+        throw new Error("CDN returned HTML instead of the framework.");
+      }
+
+      /*
+        Do not rewrite Content-Encoding or alter the file.
+        Keep the exact response body and headers so Unity can
+        receive the CDN response without an invented encoding.
+      */
+
+      const headers = new Headers(response.headers);
+
+      headers.delete("content-length");
+      headers.delete("transfer-encoding");
+
+      const cachedResponse = new Response(buffer, {
+        status: 200,
+        statusText: "OK",
+        headers
+      });
+
+      await cache.put(url, cachedResponse);
+
+      BUILD_BASE_URL = base;
+
+      log("FRAMEWORK RESPONSE SAVED.");
+      log("SELECTED MIRROR: " + (i + 1));
+
+      return BUILD_BASE_URL;
+
+    } catch (error) {
+      failures.push(
+        "Mirror " + (i + 1) + ": " + error.message
       );
+
+      log("MIRROR FAILED: " + error.message);
     }
+  }
+
+  throw new Error(
+    "Every Unity framework mirror failed:\n" +
+    failures.join("\n")
+  );
+}
 
     /* =========================================================
        UNITY BANNER
