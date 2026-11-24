@@ -1145,8 +1145,13 @@
       const existing = await cache.match(url);
 
       if (existing) {
-        log("Already cached: " + path, "success");
-        continue;
+        if (await hasGzipHeader(existing)) {
+          log("Already cached and GZIP-validated: " + path, "success");
+          continue;
+        }
+
+        log("Cached Unity file is invalid; replacing it: " + path, "warning");
+        await cache.delete(url);
       }
 
       log("Downloading Unity build file: " + path);
@@ -1177,6 +1182,12 @@
           ? (Number(size) / 1048576).toFixed(2) + " MB"
           : "unknown size")
       );
+
+      if (!(await hasGzipHeader(response))) {
+        throw new Error(
+          "Unity build file is not a valid GZIP stream: " + path
+        );
+      }
 
       const headers = new Headers(response.headers);
 
@@ -1221,58 +1232,68 @@
               "Decompressing Unity file: " + s
             );
 
-            var inputBlob = new Blob([i]);
-
+            /*
+              Avoid wrapping the compressed ArrayBuffer in a Blob.
+              Response(arrayBuffer).body exposes a stream directly and
+              avoids an additional Blob allocation/copy on large WASM/data files.
+              The final decompressed buffer is still required by this Unity loader.
+            */
+            var compressedInput = i;
             i = null;
 
             try {
-              var result;
+              var result = null;
 
               if ("DecompressionStream" in window) {
-
-                window.__silkLog(
-                  "Using native GZIP decompression."
-                );
-
-                var decompressionStream =
-                  new DecompressionStream("gzip");
-
-                var decompressedStream =
-                  inputBlob.stream().pipeThrough(
-                    decompressionStream
+                try {
+                  window.__silkLog(
+                    "Using zero-intermediate-Blob native GZIP stream."
                   );
 
-                var outputBuffer =
-                  await new Response(
-                    decompressedStream
-                  ).arrayBuffer();
+                  var inputStream =
+                    new Response(compressedInput).body;
 
-                result = new Uint8Array(outputBuffer);
-                outputBuffer = null;
+                  var outputStream = inputStream.pipeThrough(
+                    new DecompressionStream("gzip")
+                  );
 
-              } else {
+                  var outputBuffer =
+                    await new Response(outputStream).arrayBuffer();
+
+                  result = new Uint8Array(outputBuffer);
+                  outputBuffer = null;
+                  inputStream = null;
+                  outputStream = null;
+                  compressedInput = null;
+
+                } catch (nativeError) {
+                  window.__silkLog(
+                    "Native decompression failed; trying fflate: " +
+                    nativeError.message
+                  );
+                }
+              }
+
+              if (!result) {
+                if (!window.fflate || !window.fflate.gunzipSync) {
+                  throw new Error(
+                    "Native GZIP decompression failed and fflate is unavailable."
+                  );
+                }
 
                 window.__silkLog(
                   "Using fflate decompression fallback."
                 );
 
-                var compressedBuffer =
-                  await inputBlob.arrayBuffer();
-
-                inputBlob = null;
-
                 var compressedBytes =
-                  new Uint8Array(compressedBuffer);
+                  compressedInput instanceof Uint8Array
+                    ? compressedInput
+                    : new Uint8Array(compressedInput);
 
-                result = window.fflate.gunzipSync(
-                  compressedBytes
-                );
-
+                result = window.fflate.gunzipSync(compressedBytes);
                 compressedBytes = null;
-                compressedBuffer = null;
+                compressedInput = null;
               }
-
-              inputBlob = null;
 
               window.__silkLog(
                 "Decompressed successfully: " +
@@ -1293,7 +1314,7 @@
 
             } catch (error) {
 
-              inputBlob = null;
+              compressedInput = null;
 
               window.__silkLog(
                 "DECOMPRESSION FAILED: " +
@@ -1371,6 +1392,9 @@
       "Graphics resolution scale: " +
       selectedScale.toFixed(2) + "x",
       "success"
+    );
+    log(
+      "Resolution scaling reduces WebGL pixel workload; it does not shrink the Unity WASM heap."
     );
 
     const config = {
@@ -1983,8 +2007,8 @@
       log("Small AssetBundle caching is limited to 2 MB.");
       log("Only one AssetBundle cache write can run at once.");
       log("Framework validation no longer decompresses the file.");
-      log("Native streaming GZIP decompression enabled.");
-      log("Temporary decompression references are released.");
+      log("Native streaming GZIP decompression enabled without an intermediate Blob.");
+      log("Temporary decompression references are released as soon as possible.");
       log("Heavy WebGL instrumentation has been removed.");
       log("Diagnostic history limited to " + MAX_LOG_LINES + " lines.");
 
