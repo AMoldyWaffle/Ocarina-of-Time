@@ -1930,16 +1930,19 @@
         const store =
           transaction.objectStore(storeData.name);
 
+        // Decode before clearing so malformed exports cannot erase a live store.
+        const preparedRecords = storeData.records.map(record => ({
+          key: decodeValue(record.key),
+          value: decodeValue(record.value)
+        }));
+
         store.clear();
 
-        for (const record of storeData.records) {
-          const key = decodeValue(record.key);
-          const value = decodeValue(record.value);
-
+        for (const record of preparedRecords) {
           if (store.keyPath !== null) {
-            store.put(value);
+            store.put(record.value);
           } else {
-            store.put(value, key);
+            store.put(record.value, record.key);
           }
         }
 
@@ -1972,6 +1975,22 @@
       if (!confirm("Import this Silksong save? Existing browser save data in the included databases will be replaced.")) {
         log("Save import cancelled.");
         return;
+      }
+
+      // Validate all encoded values before touching the live IndexedDB databases.
+      for (const database of data.databases) {
+        if (!database || typeof database.name !== "string" || !Array.isArray(database.stores)) {
+          throw new Error("The save file contains an invalid database entry.");
+        }
+        for (const store of database.stores) {
+          if (!store || typeof store.name !== "string" || !Array.isArray(store.records)) {
+            throw new Error("The save file contains an invalid object store.");
+          }
+          for (const record of store.records) {
+            decodeValue(record.key);
+            decodeValue(record.value);
+          }
+        }
       }
 
       await flushUnityStorage();
