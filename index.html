@@ -392,6 +392,30 @@ async function launchInRunner(game) {
 }
 
 function launch(game) {
+  /*
+   * Cuphead must load from its own GitHub Pages URL, not through the
+   * proxy/runner document. Fuze injects a SharedWorker whose script is
+   * hosted on jsDelivr; keeping the game inside a wrapper origin can
+   * make the browser reject that worker as cross-origin.
+   *
+   * Navigate directly so the document origin matches the game's host.
+   */
+  if (game.name.toLowerCase() === "cuphead") {
+    log("info", ["Launching Cuphead directly to preserve its own origin."]);
+    log("info", ["Game URL:", game.url]);
+
+    if (RUNNER_MODE) {
+      location.assign(game.url);
+      return;
+    }
+
+    openPlayer(game);
+    frame.onload = () => log("info", ["Cuphead document loaded directly."]);
+    frame.onerror = () => log("error", ["Cuphead direct navigation failed."]);
+    frame.src = game.url;
+    return;
+  }
+
   if (RUNNER_MODE) {
     launchInRunner(game);
     return;
