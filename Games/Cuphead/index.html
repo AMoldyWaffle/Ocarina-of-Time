@@ -709,6 +709,8 @@
           `Downloading ${asset.parts} parts for ${asset.name}`
         );
 
+        blob = await downloadParts(asset);
+
         // Individual parts are cached by downloadParts(). Avoid storing
         // another full-size copy of the multi-gigabyte data asset.
       }
@@ -1270,11 +1272,11 @@
 
         await initializeCache();
 
-        // These assets are independent. The shared limiter keeps total
-        // network concurrency at eight instead of creating three separate pools.
-        await Promise.all(
-          ASSETS.map(asset => loadSplitAsset(asset))
-        );
+        // Keep large assets sequential to avoid assembling multiple
+        // multi-gigabyte Blob objects in memory at the same time.
+        for (const asset of ASSETS) {
+          await loadSplitAsset(asset);
+        }
 
         for (const asset of SINGLE_ASSETS) {
           await loadSingleAsset(asset);
