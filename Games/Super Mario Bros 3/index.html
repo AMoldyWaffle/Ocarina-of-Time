@@ -86,7 +86,6 @@ html, body {
   }
 }
 
-/* Floating corner controls */
 #controls {
   position: fixed;
   z-index: 20;
@@ -128,7 +127,6 @@ button:disabled {
   background: rgba(32, 134, 75, 0.98);
 }
 
-/* Console */
 #console {
   position: fixed;
   z-index: 30;
@@ -268,7 +266,6 @@ button:disabled {
     consoleBox.classList.add("visible");
   }
 
-  // Console toggle
   document.getElementById("consoleToggle").addEventListener("click", () => {
     consoleBox.classList.toggle("visible");
   });
@@ -278,7 +275,6 @@ button:disabled {
     loadButton.disabled = false;
   }
 
-  // Download save state
   function downloadState(data, name) {
     const blob = new Blob([data], {
       type: "application/octet-stream"
@@ -297,7 +293,6 @@ button:disabled {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
-  // Save state
   saveButton.addEventListener("click", () => {
     if (!emu || !gameStarted || savePending) return;
 
@@ -319,7 +314,6 @@ button:disabled {
     }
   });
 
-  // Load state
   loadButton.addEventListener("click", () => {
     if (!gameStarted) return;
 
@@ -362,7 +356,6 @@ button:disabled {
     }
   });
 
-  // Check emulator core report
   async function checkCoreReport() {
     log("Checking FCEUMM core report...");
 
@@ -400,7 +393,6 @@ button:disabled {
     log("FCEUMM core report validated.");
   }
 
-  // Capture errors from emulator iframe
   function attachFrameDiagnostics(frame) {
     if (!frame) return;
 
@@ -459,7 +451,6 @@ button:disabled {
 
   async function startLauncher() {
     try {
-      // Check core files
       showLoading(
         "Loading Super Mario Bros. 3",
         "Checking emulator files..."
@@ -469,7 +460,6 @@ button:disabled {
 
       await checkCoreReport();
 
-      // Download Waffle loader
       showLoading(
         "Loading Super Mario Bros. 3",
         "Downloading emulator loader..."
@@ -487,13 +477,10 @@ button:disabled {
         );
       }
 
-      let loaderCode = await loaderResponse.text();
-
-// Your repository stores emulator cores in /cores/, not /packs/.
-loaderCode = loaderCode.replace(
-  'base + "packs/"',
-  'base + "cores/"'
-);
+      // IMPORTANT:
+      // Keep the original Waffle loader unchanged.
+      // Its packs directory is separate from the cores directory.
+      const loaderCode = await loaderResponse.text();
 
       if (!loaderCode.includes("WafflesEmu")) {
         throw new Error("Invalid emulator loader.");
@@ -511,7 +498,6 @@ loaderCode = loaderCode.replace(
 
       log("Emulator loader ready.");
 
-      // Open emulator
       showLoading(
         "Starting emulator",
         "Preparing game screen..."
@@ -524,7 +510,6 @@ loaderCode = loaderCode.replace(
 
       attachFrameDiagnostics(emu.frame);
 
-      // Listen for emulator events
       emu.on(message => {
         if (!message || !message.evt) return;
 
@@ -605,7 +590,6 @@ loaderCode = loaderCode.replace(
         }
       });
 
-      // Wait for emulator handshake
       showLoading(
         "Starting emulator",
         "Waiting for emulator connection..."
@@ -625,7 +609,6 @@ loaderCode = loaderCode.replace(
 
       log("Emulator is ready.");
 
-      // Download ROM
       showLoading(
         "Downloading Super Mario Bros. 3",
         "This may take a moment..."
@@ -653,7 +636,6 @@ loaderCode = loaderCode.replace(
         );
       }
 
-      // Validate NES header
       const romHeader = new Uint8Array(romBuffer, 0, 4);
 
       if (
@@ -675,7 +657,6 @@ loaderCode = loaderCode.replace(
 
       log("NES ROM header validated.");
 
-      // Launch game
       showLoading(
         "Starting Super Mario Bros. 3",
         "Loading game..."
