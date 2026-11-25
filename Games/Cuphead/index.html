@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,14 +8,6 @@
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>Five Nights at Freddy's: Into the Pit</title>
 
-  <!--
-    Game asset source:
-    https://github.com/AMoldyWaffle/Into-The-Pit
-
-    IMPORTANT:
-    The repository must contain the Build/ and StreamingAssets/ folders
-    with the matching .part files before the game can launch.
-  -->
   <base href="https://raw.githubusercontent.com/AMoldyWaffle/Into-The-Pit/main/">
 
   <style>
@@ -407,81 +400,124 @@
       outline: none;
     }
 
-    @media (max-width: 650px) {
-      .topline { padding: 0 15px; font-size: 8px; letter-spacing: 1px; }
-      .hero { padding: 25px 5px; }
-      .orbit { width: 205px; height: 205px; }
-      .loading-panel { padding: 17px 15px; }
-      .hero-subtitle { font-size: 10px; letter-spacing: 1.5px; }
-      .footer { font-size: 8px; letter-spacing: 2px; }
-    }
+    /* GAME TOOLS - OUTSIDE THE UNITY CONTAINER */
 
-
-
-    /* Always-visible game controls. These are outside the Unity container. */
     #gameTools {
       position: fixed !important;
       top: 14px !important;
       right: 14px !important;
-      z-index: 2147483647 !important;
-      display: flex !important;
+      z-index: 10001 !important;
+
+      display: flex;
       flex-direction: row;
       flex-wrap: wrap;
       justify-content: flex-end;
+      align-items: center;
       gap: 8px;
-      visibility: visible !important;
-      opacity: 1 !important;
-      pointer-events: auto !important;
+
+      max-width: calc(100vw - 28px);
+      visibility: hidden;
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .game-tool-button {
-      appearance: none;
-      display: inline-flex !important;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 38px;
+
       padding: 9px 13px;
-      border: 1px solid rgba(169, 154, 255, .65);
+      border: 1px solid rgba(169, 156, 255, .55);
       border-radius: 8px;
-      background: rgba(12, 14, 34, .94);
+
+      background: rgba(12, 13, 32, .94);
       color: #f4f2ff;
-      font: 700 11px/1.2 Inter, ui-sans-serif, system-ui, sans-serif;
-      letter-spacing: .5px;
+
+      font: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .7px;
+
       cursor: pointer;
-      box-shadow: 0 3px 18px rgba(0, 0, 0, .45);
-      pointer-events: auto !important;
+      pointer-events: auto;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 18px #0007;
     }
 
     .game-tool-button:hover {
-      background: rgba(64, 53, 120, .98);
-      border-color: #bdb1ff;
+      background: rgba(58, 49, 105, .96);
+      border-color: var(--cyan);
     }
 
-    .game-tool-button:active { transform: translateY(1px); }
+    .game-tool-button:disabled {
+      opacity: .5;
+      cursor: wait;
+    }
 
     #saveStatus {
-      position: fixed !important;
-      top: 62px !important;
-      right: 14px !important;
-      z-index: 2147483647 !important;
-      display: none;
-      max-width: min(420px, calc(100vw - 28px));
+      position: fixed;
+      top: 60px;
+      right: 14px;
+      z-index: 10002;
+
+      max-width: min(380px, calc(100vw - 28px));
       padding: 8px 11px;
-      border: 1px solid rgba(145, 227, 239, .4);
+
+      border: 1px solid rgba(145, 227, 239, .25);
       border-radius: 7px;
-      background: rgba(4, 10, 22, .96);
-      color: #c9f7ff;
-      font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+
+      background: rgba(5, 8, 22, .95);
+      color: #dceaff;
+
+      font-size: 11px;
+      line-height: 1.45;
+
+      display: none;
       overflow-wrap: anywhere;
-      box-shadow: 0 4px 18px #0009;
+      pointer-events: none;
     }
 
-    #restoreFileInput { display: none !important; }
+    #restoreFileInput {
+      display: none;
+    }
 
     @media (max-width: 650px) {
-      #gameTools { top: 8px !important; right: 8px !important; gap: 5px; }
-      .game-tool-button { min-height: 34px; padding: 7px 9px; font-size: 10px; }
-      #saveStatus { top: 52px !important; right: 8px !important; }
+      .topline {
+        padding: 0 15px;
+        font-size: 8px;
+        letter-spacing: 1px;
+      }
+
+      .hero { padding: 25px 5px; }
+      .orbit { width: 205px; height: 205px; }
+      .loading-panel { padding: 17px 15px; }
+
+      .hero-subtitle {
+        font-size: 10px;
+        letter-spacing: 1.5px;
+      }
+
+      .footer {
+        font-size: 8px;
+        letter-spacing: 2px;
+      }
+
+      #gameTools {
+        top: 8px !important;
+        right: 8px !important;
+        gap: 5px;
+        max-width: calc(100vw - 16px);
+      }
+
+      .game-tool-button {
+        padding: 8px 9px;
+        font-size: 9px;
+      }
+
+      #saveStatus {
+        top: 48px;
+        right: 8px;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -495,16 +531,6 @@
 </head>
 
 <body>
-
-  <!-- Kept directly under body so the hidden Unity container cannot hide them. -->
-  <div id="gameTools" role="toolbar" aria-label="Game controls">
-    <button class="game-tool-button" id="exportSaveButton" type="button">Download Save</button>
-    <button class="game-tool-button" id="importSaveButton" type="button">Load Save</button>
-    <button class="game-tool-button" id="fullscreenButton" type="button">Fullscreen</button>
-  </div>
-  <div id="saveStatus" role="status" aria-live="polite"></div>
-  <input id="restoreFileInput" type="file" accept=".json,application/json">
-
   <div id="spaceBackground" aria-hidden="true">
     <i class="shooting-star"></i>
     <i class="shooting-star"></i>
@@ -552,19 +578,524 @@
     <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
   </div>
 
+  <!--
+    IMPORTANT:
+    These controls are now direct children of BODY.
+    They are no longer inside the Unity container.
+  -->
+
+  <div id="gameTools" aria-label="Game tools">
+    <button class="game-tool-button" id="exportSaveButton" type="button">
+      DOWNLOAD SAVE
+    </button>
+
+    <button class="game-tool-button" id="importSaveButton" type="button">
+      LOAD SAVE
+    </button>
+
+    <button class="game-tool-button" id="fullscreenButton" type="button">
+      FULLSCREEN
+    </button>
+
+    <input
+      id="restoreFileInput"
+      type="file"
+      accept=".json,application/json"
+    >
+  </div>
+
+  <div id="saveStatus" role="status" aria-live="polite"></div>
+
   <script>
     "use strict";
 
-    // All game files are expected to be committed to this repository.
+    // ============================================
+    // SAVE / LOAD / FULLSCREEN
+    // ============================================
+
+    const exportSaveButton = document.getElementById("exportSaveButton");
+    const importSaveButton = document.getElementById("importSaveButton");
+    const fullscreenButton = document.getElementById("fullscreenButton");
+    const restoreFileInput = document.getElementById("restoreFileInput");
+    const saveStatus = document.getElementById("saveStatus");
+    const gameTools = document.getElementById("gameTools");
+
+    function setSaveStatus(message, isError = false) {
+      saveStatus.textContent = message;
+      saveStatus.style.display = "block";
+
+      saveStatus.style.borderColor = isError
+        ? "rgba(255,105,125,.55)"
+        : "rgba(145,227,239,.35)";
+
+      saveStatus.style.color = isError
+        ? "#ffbdc7"
+        : "#dceaff";
+    }
+
+    // Show controls independently of Unity initialization.
+    function showGameTools() {
+      gameTools.style.setProperty("display", "flex", "important");
+      gameTools.style.setProperty("visibility", "visible", "important");
+      gameTools.style.setProperty("opacity", "1", "important");
+      gameTools.style.setProperty("pointer-events", "auto", "important");
+    }
+
+    async function encodeIDBValue(value) {
+      if (value instanceof Blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = () => resolve({
+            __amwType: "Blob",
+            mime: value.type,
+            data: String(reader.result).split(",")[1] || ""
+          });
+
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(value);
+        });
+      }
+
+      if (value instanceof ArrayBuffer) {
+        const bytes = new Uint8Array(value);
+        let binary = "";
+
+        const chunk = 0x8000;
+
+        for (let i = 0; i < bytes.length; i += chunk) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+        }
+
+        return {
+          __amwType: "ArrayBuffer",
+          data: btoa(binary)
+        };
+      }
+
+      if (ArrayBuffer.isView(value)) {
+        return {
+          __amwType: "TypedArray",
+          constructor: value.constructor.name,
+          data: await encodeIDBValue(value.buffer.slice(
+            value.byteOffset,
+            value.byteOffset + value.byteLength
+          ))
+        };
+      }
+
+      if (value instanceof Date) {
+        return {
+          __amwType: "Date",
+          data: value.toISOString()
+        };
+      }
+
+      if (Array.isArray(value)) {
+        return Promise.all(value.map(encodeIDBValue));
+      }
+
+      if (value && typeof value === "object") {
+        const result = {};
+
+        for (const [key, item] of Object.entries(value)) {
+          result[key] = await encodeIDBValue(item);
+        }
+
+        return result;
+      }
+
+      return value;
+    }
+
+    async function decodeIDBValue(value) {
+      if (Array.isArray(value)) {
+        return Promise.all(value.map(decodeIDBValue));
+      }
+
+      if (value && typeof value === "object") {
+        if (value.__amwType === "ArrayBuffer") {
+          const binary = atob(value.data);
+          const bytes = new Uint8Array(binary.length);
+
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+
+          return bytes.buffer;
+        }
+
+        if (value.__amwType === "Blob") {
+          const binary = atob(value.data);
+          const bytes = new Uint8Array(binary.length);
+
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+
+          return new Blob([bytes], {
+            type: value.mime || ""
+          });
+        }
+
+        if (value.__amwType === "TypedArray") {
+          const buffer = await decodeIDBValue(value.data);
+
+          const constructors = {
+            Int8Array,
+            Uint8Array,
+            Uint8ClampedArray,
+            Int16Array,
+            Uint16Array,
+            Int32Array,
+            Uint32Array,
+            Float32Array,
+            Float64Array,
+            BigInt64Array,
+            BigUint64Array,
+            DataView
+          };
+
+          const Constructor = constructors[value.constructor];
+
+          if (!Constructor) {
+            throw new Error("Unsupported typed array: " + value.constructor);
+          }
+
+          return new Constructor(buffer);
+        }
+
+        if (value.__amwType === "Date") {
+          return new Date(value.data);
+        }
+
+        const result = {};
+
+        for (const [key, item] of Object.entries(value)) {
+          result[key] = await decodeIDBValue(item);
+        }
+
+        return result;
+      }
+
+      return value;
+    }
+
+    function openDatabase(name, version) {
+      return new Promise((resolve, reject) => {
+        const request = version
+          ? indexedDB.open(name, version)
+          : indexedDB.open(name);
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+
+        request.onblocked = () => reject(new Error(
+          "The save database is busy. Close other game tabs and try again."
+        ));
+      });
+    }
+
+    function requestResult(request) {
+      return new Promise((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function exportGameSave() {
+      if (!indexedDB.databases) {
+        throw new Error(
+          "This browser does not support IndexedDB database listing. " +
+          "Use a current Chromium-based browser."
+        );
+      }
+
+      const databases = (await indexedDB.databases())
+        .filter(info => info.name && info.name.startsWith("Unity"));
+
+      if (!databases.length) {
+        throw new Error(
+          "No Unity save database was found yet. Launch the game, make a save, " +
+          "then try Download Save again."
+        );
+      }
+
+      const backup = {
+        format: "AMW-UNITY-SAVE",
+        version: 1,
+        game: "Five Nights at Freddy's: Into the Pit",
+        createdAt: new Date().toISOString(),
+        databases: []
+      };
+
+      for (const info of databases) {
+        const db = await openDatabase(info.name);
+
+        const databaseBackup = {
+          name: db.name,
+          version: db.version,
+          stores: []
+        };
+
+        for (const storeName of Array.from(db.objectStoreNames)) {
+          const tx = db.transaction(storeName, "readonly");
+          const store = tx.objectStore(storeName);
+
+          const [values, keys] = await Promise.all([
+            requestResult(store.getAll()),
+            requestResult(store.getAllKeys())
+          ]);
+
+          const records = [];
+
+          for (let i = 0; i < values.length; i++) {
+            records.push({
+              key: await encodeIDBValue(keys[i]),
+              value: await encodeIDBValue(values[i])
+            });
+          }
+
+          databaseBackup.stores.push({
+            name: store.name,
+            keyPath: store.keyPath,
+            autoIncrement: store.autoIncrement,
+
+            indexes: Array.from(store.indexNames).map(indexName => {
+              const index = store.index(indexName);
+
+              return {
+                name: index.name,
+                keyPath: index.keyPath,
+                unique: index.unique,
+                multiEntry: index.multiEntry
+              };
+            }),
+
+            records
+          });
+        }
+
+        db.close();
+        backup.databases.push(databaseBackup);
+      }
+
+      const blob = new Blob(
+        [JSON.stringify(backup)],
+        { type: "application/json" }
+      );
+
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+
+      link.download =
+        "Into-The-Pit-Save-" +
+        new Date().toISOString().replace(/[:.]/g, "-") +
+        ".json";
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+      setSaveStatus(
+        "Save backup downloaded. Keep this JSON file somewhere safe."
+      );
+    }
+
+    function deleteDatabase(name) {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.deleteDatabase(name);
+
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+
+        request.onblocked = () => reject(new Error(
+          "The save database is open in another tab. Close other game tabs and retry."
+        ));
+      });
+    }
+
+    async function restoreGameSave(file) {
+      const backup = JSON.parse(await file.text());
+
+      if (
+        !backup ||
+        backup.format !== "AMW-UNITY-SAVE" ||
+        backup.version !== 1 ||
+        !Array.isArray(backup.databases)
+      ) {
+        throw new Error("That file is not a valid Into the Pit save backup.");
+      }
+
+      if (!backup.databases.length) {
+        throw new Error("The backup file contains no save databases.");
+      }
+
+      const confirmed = confirm(
+        "Restore this backup? This will REPLACE the current Into the Pit " +
+        "save data in this browser. This cannot be undone."
+      );
+
+      if (!confirmed) return;
+
+      for (const dbBackup of backup.databases) {
+        await deleteDatabase(dbBackup.name);
+
+        const db = await new Promise((resolve, reject) => {
+          const request = indexedDB.open(
+            dbBackup.name,
+            dbBackup.version
+          );
+
+          request.onupgradeneeded = () => {
+            const target = request.result;
+
+            for (const storeBackup of dbBackup.stores) {
+              const options = {
+                autoIncrement: storeBackup.autoIncrement
+              };
+
+              if (storeBackup.keyPath !== null) {
+                options.keyPath = storeBackup.keyPath;
+              }
+
+              const store = target.createObjectStore(
+                storeBackup.name,
+                options
+              );
+
+              for (const index of storeBackup.indexes || []) {
+                store.createIndex(index.name, index.keyPath, {
+                  unique: index.unique,
+                  multiEntry: index.multiEntry
+                });
+              }
+            }
+          };
+
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+
+          request.onblocked = () => reject(new Error(
+            "Restore was blocked by another tab."
+          ));
+        });
+
+        for (const storeBackup of dbBackup.stores) {
+          const decodedRecords = await Promise.all(
+            storeBackup.records.map(async record => ({
+              key: await decodeIDBValue(record.key),
+              value: await decodeIDBValue(record.value)
+            }))
+          );
+
+          const tx = db.transaction(
+            storeBackup.name,
+            "readwrite"
+          );
+
+          const store = tx.objectStore(storeBackup.name);
+
+          for (const record of decodedRecords) {
+            if (store.keyPath === null) {
+              store.put(record.value, record.key);
+            } else {
+              store.put(record.value);
+            }
+          }
+
+          await new Promise((resolve, reject) => {
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(
+              tx.error || new Error("Save restore was aborted.")
+            );
+          });
+        }
+
+        db.close();
+      }
+
+      setSaveStatus(
+        "Save restored successfully. Reload the game to load the restored progress."
+      );
+    }
+
+    exportSaveButton.addEventListener("click", async () => {
+      exportSaveButton.disabled = true;
+
+      try {
+        setSaveStatus("Preparing your save backup...");
+        await exportGameSave();
+      } catch (error) {
+        console.error("[Save export]", error);
+        setSaveStatus(error.message || String(error), true);
+      } finally {
+        exportSaveButton.disabled = false;
+      }
+    });
+
+    importSaveButton.addEventListener("click", () => {
+      restoreFileInput.click();
+    });
+
+    restoreFileInput.addEventListener("change", async () => {
+      const file = restoreFileInput.files &&
+        restoreFileInput.files[0];
+
+      if (!file) return;
+
+      importSaveButton.disabled = true;
+
+      try {
+        setSaveStatus("Restoring save backup...");
+        await restoreGameSave(file);
+      } catch (error) {
+        console.error("[Save restore]", error);
+        setSaveStatus(error.message || String(error), true);
+      } finally {
+        importSaveButton.disabled = false;
+        restoreFileInput.value = "";
+      }
+    });
+
+    fullscreenButton.addEventListener("click", async () => {
+      try {
+        if (!document.fullscreenElement) {
+          // Fullscreen the entire page, not just the game canvas.
+          // This keeps the controls visible in fullscreen mode.
+          await document.documentElement.requestFullscreen();
+        } else {
+          await document.exitFullscreen();
+        }
+      } catch (error) {
+        setSaveStatus(
+          "Fullscreen could not be enabled: " + error.message,
+          true
+        );
+      }
+    });
+
+    document.addEventListener("fullscreenchange", () => {
+      fullscreenButton.textContent = document.fullscreenElement
+        ? "EXIT FULLSCREEN"
+        : "FULLSCREEN";
+    });
+
+    // ============================================
+    // GAME LOADER
+    // ============================================
+
     const GAME_BASE =
       "https://raw.githubusercontent.com/AMoldyWaffle/Into-The-Pit/main/";
 
     const CACHE_NAME = "amw-into-the-pit-cache-v3";
     const MAX_PARALLEL_DOWNLOADS = 12;
 
-    // Retained from the original launcher as the approximate full download size.
-    // The displayed percentage is capped during downloading and finishes during
-    // Unity initialization, so a small size difference cannot push it past 100%.
     const ESTIMATED_TOTAL_BYTES = 645.25 * 1024 * 1024;
 
     const PREBUNDLE_NAME =
@@ -584,10 +1115,12 @@
     let loadedBytes = 0;
     let lastProgressUpdate = 0;
     let activeDownloads = 0;
+
     const downloadWaiters = [];
 
     function setProgress(percent, detail, status) {
       const safePercent = Math.max(0, Math.min(100, percent));
+
       progressFill.style.width = safePercent.toFixed(1) + "%";
       loadingPercent.textContent = Math.floor(safePercent) + "%";
 
@@ -597,19 +1130,27 @@
 
     function updateDownloadProgress(force = false) {
       const now = Date.now();
+
       if (!force && now - lastProgressUpdate < 100) return;
+
       lastProgressUpdate = now;
 
       const mbDone = (loadedBytes / (1024 * 1024)).toFixed(1);
       const mbTotal = (ESTIMATED_TOTAL_BYTES / (1024 * 1024)).toFixed(1);
-      const percent = Math.min(89, (loadedBytes / ESTIMATED_TOTAL_BYTES) * 90);
+
+      const percent = Math.min(
+        89,
+        (loadedBytes / ESTIMATED_TOTAL_BYTES) * 90
+      );
 
       setProgress(
         percent,
         mbDone + " MB / ~" + mbTotal + " MB",
         "DOWNLOADING GAME ASSETS"
       );
-      loadingText.textContent = "Downloading and preparing game files...";
+
+      loadingText.textContent =
+        "Downloading and preparing game files...";
     }
 
     function showError(error) {
@@ -626,11 +1167,12 @@
       errorBox.textContent = message;
       retryButton.style.display = "block";
 
-      // Keep diagnostics visible even if Unity has already hidden the launcher.
       let overlay = document.getElementById("runtimeErrorOverlay");
+
       if (!overlay) {
         overlay = document.createElement("div");
         overlay.id = "runtimeErrorOverlay";
+
         overlay.style.cssText =
           "position:fixed;z-index:99999;left:16px;right:16px;bottom:16px;" +
           "max-height:40vh;overflow:auto;padding:14px 16px;" +
@@ -638,29 +1180,37 @@
           "background:rgba(20,5,14,.96);color:#ffd8df;" +
           "font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;" +
           "overflow-wrap:anywhere;box-shadow:0 8px 35px #000a;";
+
         document.body.appendChild(overlay);
       }
-      overlay.textContent = "INTO THE PIT — RUNTIME ERROR\\n" + message;
+
+      overlay.textContent =
+        "INTO THE PIT — RUNTIME ERROR\n" + message;
     }
 
     async function acquireDownloadSlot() {
       if (activeDownloads >= MAX_PARALLEL_DOWNLOADS) {
         await new Promise(resolve => downloadWaiters.push(resolve));
       }
+
       activeDownloads++;
     }
 
     function releaseDownloadSlot() {
       activeDownloads--;
+
       const next = downloadWaiters.shift();
+
       if (next) next();
     }
 
     function getParts(file, start, end) {
       const parts = [];
+
       for (let i = start; i <= end; i++) {
         parts.push(file + ".part" + i);
       }
+
       return parts;
     }
 
@@ -670,34 +1220,37 @@
       await acquireDownloadSlot();
 
       try {
-        const response = await fetch(url, { cache: "force-cache" });
+        const response = await fetch(url, {
+          cache: "force-cache"
+        });
 
         if (!response.ok) {
           throw new Error(
-            "Could not download " + path + " (HTTP " + response.status + ")."
+            "Could not download " + path +
+            " (HTTP " + response.status + ")."
           );
         }
 
         if (!response.body) {
           const blob = await response.blob();
+
           loadedBytes += blob.size;
           updateDownloadProgress();
+
           return blob;
         }
 
-        // Keep the streamed chunks as Blob parts. This avoids the old extra
-        // Uint8Array allocation and full-buffer copy after every download.
         const reader = response.body.getReader();
         const chunks = [];
-        let partBytes = 0;
 
         while (true) {
           const result = await reader.read();
+
           if (result.done) break;
 
           chunks.push(result.value);
-          partBytes += result.value.byteLength;
           loadedBytes += result.value.byteLength;
+
           updateDownloadProgress();
         }
 
@@ -713,16 +1266,17 @@
 
       if (cachedResponse) {
         const cachedBlob = await cachedResponse.blob();
+
         loadedBytes += cachedBlob.size;
         updateDownloadProgress();
+
         console.log("[Cache] Using cached asset:", cacheKey);
+
         return URL.createObjectURL(cachedBlob);
       }
 
       console.log("[Download] Fetching:", cacheKey);
 
-      // The shared download limiter caps total simultaneous requests across
-      // the data, WASM, and bundle downloads.
       const partBlobs = await Promise.all(
         fileParts.map(path => fetchPart(path))
       );
@@ -731,258 +1285,21 @@
         type: "application/octet-stream"
       });
 
-      // Store the completed merged file. Future launches can skip all of its
-      // individual network requests and only create a local object URL.
-      await cache.put(cacheKey, new Response(mergedBlob));
+      await cache.put(
+        cacheKey,
+        new Response(mergedBlob)
+      );
 
       return URL.createObjectURL(mergedBlob);
     }
 
-
-    /* =========================================================
-       SAVE / RESTORE
-       The backup contains the game's browser IndexedDB databases.
-       It does not include downloaded game assets or browser cache.
-    ========================================================= */
-    const saveStatus = document.getElementById("saveStatus");
-    const restoreFileInput = document.getElementById("restoreFileInput");
-
-    function setSaveStatus(message, duration = 5000) {
-      saveStatus.textContent = message;
-      saveStatus.style.display = "block";
-      if (setSaveStatus.timer) clearTimeout(setSaveStatus.timer);
-      if (duration > 0) {
-        setSaveStatus.timer = setTimeout(() => {
-          saveStatus.style.display = "none";
-        }, duration);
-      }
-    }
-
-    function requestResult(request) {
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error || new Error("IndexedDB request failed."));
-      });
-    }
-
-    async function encodeSaveValue(value) {
-      if (value === null || value === undefined) return value;
-      if (value instanceof Date) return { __saveType: "Date", value: value.toISOString() };
-      if (value instanceof Blob) {
-        return {
-          __saveType: "Blob",
-          mime: value.type,
-          value: Array.from(new Uint8Array(await value.arrayBuffer()))
-        };
-      }
-      if (value instanceof ArrayBuffer) {
-        return { __saveType: "ArrayBuffer", value: Array.from(new Uint8Array(value)) };
-      }
-      if (ArrayBuffer.isView(value)) {
-        return {
-          __saveType: "TypedArray",
-          name: value.constructor.name,
-          value: Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength))
-        };
-      }
-      if (Array.isArray(value)) return await Promise.all(value.map(encodeSaveValue));
-      if (typeof value === "object") {
-        const entries = await Promise.all(Object.entries(value).map(async ([key, item]) => [key, await encodeSaveValue(item)]));
-        return Object.fromEntries(entries);
-      }
-      return value;
-    }
-
-    function decodeSaveValue(value) {
-      if (value === null || value === undefined) return value;
-      if (Array.isArray(value)) return value.map(decodeSaveValue);
-      if (typeof value !== "object") return value;
-      if (value.__saveType === "Date") return new Date(value.value);
-      if (value.__saveType === "ArrayBuffer") return new Uint8Array(value.value).buffer;
-      if (value.__saveType === "TypedArray") {
-        const bytes = new Uint8Array(value.value);
-        const constructors = {
-          Int8Array, Uint8Array, Uint8ClampedArray, Int16Array,
-          Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array,
-          BigInt64Array: window.BigInt64Array,
-          BigUint64Array: window.BigUint64Array
-        };
-        const Constructor = constructors[value.name];
-        if (!Constructor) return bytes;
-        const copy = bytes.buffer.slice(0);
-        return new Constructor(copy);
-      }
-      if (value.__saveType === "Blob") return new Blob([new Uint8Array(value.value || [])], { type: value.mime || "" });
-      const result = {};
-      for (const [key, item] of Object.entries(value)) result[key] = decodeSaveValue(item);
-      return result;
-    }
-
-    function isGameDatabase(name) {
-      const lower = name.toLowerCase();
-      return lower.includes("unity") || lower.includes("idbfs") || lower.includes("em_fs");
-    }
-
-    async function exportDatabase(name) {
-      const db = await requestResult(indexedDB.open(name));
-      const stores = [];
-      for (const storeName of Array.from(db.objectStoreNames)) {
-        const transaction = db.transaction(storeName, "readonly");
-        const store = transaction.objectStore(storeName);
-        const [keys, values] = await Promise.all([
-          requestResult(store.getAllKeys()),
-          requestResult(store.getAll())
-        ]);
-        stores.push({
-          name: storeName,
-          keyPath: store.keyPath,
-          autoIncrement: store.autoIncrement,
-          indexes: Array.from(store.indexNames).map(indexName => {
-            const index = store.index(indexName);
-            return {
-              name: index.name,
-              keyPath: index.keyPath,
-              unique: index.unique,
-              multiEntry: index.multiEntry
-            };
-          }),
-          records: await Promise.all(values.map(async (value, i) => ({
-            key: await encodeSaveValue(keys[i]),
-            value: await encodeSaveValue(value)
-          })))
-        });
-      }
-      const result = { name: db.name, version: db.version, stores };
-      db.close();
-      return result;
-    }
-
-    async function downloadGameSave() {
-      try {
-        if (!indexedDB.databases) {
-          throw new Error("This browser cannot list IndexedDB databases, so automatic save export is unavailable.");
-        }
-        setSaveStatus("Preparing save backup...", 0);
-        const infos = await indexedDB.databases();
-        const targets = infos.filter(info => info.name && isGameDatabase(info.name));
-        if (!targets.length) {
-          throw new Error("No Unity save databases were found. Start the game and create some progress first.");
-        }
-        const backup = {
-          format: "AMW-UNITY-SAVE",
-          version: 1,
-          game: "Five Nights at Freddy's: Into the Pit",
-          created: new Date().toISOString(),
-          databases: []
-        };
-        for (const info of targets) {
-          setSaveStatus("Backing up " + info.name + "...", 0);
-          backup.databases.push(await exportDatabase(info.name));
-        }
-        const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "Into-The-Pit-Save-" + new Date().toISOString().replace(/[:.]/g, "-") + ".json";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 30000);
-        setSaveStatus("Save backup downloaded.");
-      } catch (error) {
-        console.error("Save export failed:", error);
-        setSaveStatus("Save failed: " + error.message, 0);
-      }
-    }
-
-    function deleteDatabase(name) {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.deleteDatabase(name);
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error || new Error("Could not delete database " + name));
-        request.onblocked = () => reject(new Error("Database " + name + " is still open. Close other game tabs and try again."));
-      });
-    }
-
-    async function importDatabase(data) {
-      await deleteDatabase(data.name);
-      const version = Math.max(1, Number(data.version) || 1);
-      const db = await new Promise((resolve, reject) => {
-        const request = indexedDB.open(data.name, version);
-        request.onupgradeneeded = () => {
-          const database = request.result;
-          for (const storeData of data.stores) {
-            const options = { autoIncrement: !!storeData.autoIncrement };
-            if (storeData.keyPath !== null && storeData.keyPath !== undefined) options.keyPath = storeData.keyPath;
-            const store = database.createObjectStore(storeData.name, options);
-            for (const indexData of (storeData.indexes || [])) {
-              store.createIndex(indexData.name, indexData.keyPath, {
-                unique: !!indexData.unique,
-                multiEntry: !!indexData.multiEntry
-              });
-            }
-          }
-        };
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-
-      for (const storeData of data.stores) {
-        if (!db.objectStoreNames.contains(storeData.name)) continue;
-        await new Promise((resolve, reject) => {
-          const transaction = db.transaction(storeData.name, "readwrite");
-          const store = transaction.objectStore(storeData.name);
-          for (const record of storeData.records || []) {
-            const value = decodeSaveValue(record.value);
-            if (store.keyPath !== null) store.put(value);
-            else store.put(value, decodeSaveValue(record.key));
-          }
-          transaction.oncomplete = resolve;
-          transaction.onerror = () => reject(transaction.error);
-          transaction.onabort = () => reject(transaction.error || new Error("Restore transaction aborted."));
-        });
-      }
-      db.close();
-    }
-
-    async function loadGameSave(file) {
-      try {
-        const backup = JSON.parse(await file.text());
-        if (backup.format !== "AMW-UNITY-SAVE" || !Array.isArray(backup.databases)) {
-          throw new Error("This is not a valid Into the Pit save backup.");
-        }
-        if (!confirm("Restore this save? Existing game progress in this browser will be replaced.")) return;
-        setSaveStatus("Restoring game progress...", 0);
-        for (const database of backup.databases) {
-          await importDatabase(database);
-        }
-        setSaveStatus("Save restored. Reloading the game...", 0);
-        setTimeout(() => location.reload(), 1200);
-      } catch (error) {
-        console.error("Save restore failed:", error);
-        setSaveStatus("Load failed: " + error.message, 0);
-      }
-    }
-
-    document.getElementById("exportSaveButton").addEventListener("click", downloadGameSave);
-    document.getElementById("importSaveButton").addEventListener("click", () => restoreFileInput.click());
-    restoreFileInput.addEventListener("change", event => {
-      const file = event.target.files && event.target.files[0];
-      if (file) loadGameSave(file);
-      event.target.value = "";
-    });
-    document.getElementById("fullscreenButton").addEventListener("click", async () => {
-      try {
-        if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-        else await document.exitFullscreen();
-      } catch (error) {
-        setSaveStatus("Fullscreen failed: " + error.message);
-      }
-    });
-
     async function startGame() {
       try {
-        setProgress(0, "Checking browser cache...", "PREPARING GAME");
+        setProgress(
+          0,
+          "Checking browser cache...",
+          "PREPARING GAME"
+        );
 
         if (!("caches" in window)) {
           throw new Error(
@@ -995,10 +1312,12 @@
             getParts("Build/INTOTHEPIT.data", 1, 26),
             "INTOTHEPIT.data"
           ),
+
           mergeFiles(
             getParts("Build/INTOTHEPIT.wasm", 1, 5),
             "INTOTHEPIT.wasm"
           ),
+
           mergeFiles(
             getParts(
               "StreamingAssets/aa/WebGL/" + PREBUNDLE_NAME,
@@ -1009,46 +1328,54 @@
           )
         ]);
 
-        setProgress(90, "Loading Unity engine...", "INITIALIZING UNITY");
+        setProgress(
+          90,
+          "Loading Unity engine...",
+          "INITIALIZING UNITY"
+        );
 
-        // Unity requests this bundle by its normal StreamingAssets URL.
-        // Redirect only that request to the already-merged local object URL.
         const originalOpen = XMLHttpRequest.prototype.open;
+
         XMLHttpRequest.prototype.open = function(method, url, ...rest) {
           if (String(url).includes(PREBUNDLE_NAME)) {
             url = prebundleUrl;
           }
+
           return originalOpen.call(this, method, url, ...rest);
         };
 
-        // Unity's loader inserts frameworkUrl as a normal <script src>.
-        // raw.githubusercontent.com can return JavaScript with a MIME type
-        // that the browser refuses for script loading. Fetch it and provide a
-        // JavaScript Blob URL, just as we do for the loader itself.
         const frameworkUrl = new URL(
           "Build/INTOTHEPIT.framework.js",
           GAME_BASE
         ).href;
 
         let frameworkResponse;
+
         try {
-          frameworkResponse = await fetch(frameworkUrl, { cache: "no-store" });
+          frameworkResponse = await fetch(
+            frameworkUrl,
+            { cache: "no-store" }
+          );
         } catch (error) {
           throw new Error(
-            "Could not fetch the Unity framework from " + frameworkUrl +
-            ". Check raw GitHub access and CORS. " + error.message
+            "Could not fetch the Unity framework from " +
+            frameworkUrl +
+            ". Check raw GitHub access and CORS. " +
+            error.message
           );
         }
 
         if (!frameworkResponse.ok) {
           throw new Error(
             "Unity framework request failed with HTTP " +
-            frameworkResponse.status + " (" +
-            frameworkResponse.statusText + "). URL: " + frameworkUrl
+            frameworkResponse.status +
+            " (" + frameworkResponse.statusText +
+            "). URL: " + frameworkUrl
           );
         }
 
         const frameworkSource = await frameworkResponse.text();
+
         if (
           !frameworkSource ||
           !frameworkSource.includes("unityFramework")
@@ -1059,17 +1386,26 @@
         }
 
         const frameworkBlobUrl = URL.createObjectURL(
-          new Blob([frameworkSource], { type: "text/javascript" })
+          new Blob(
+            [frameworkSource],
+            { type: "text/javascript" }
+          )
         );
 
         const config = {
           dataUrl: dataUrl,
           frameworkUrl: frameworkBlobUrl,
           codeUrl: wasmUrl,
-          streamingAssetsUrl: new URL("StreamingAssets/", GAME_BASE).href,
+
+          streamingAssetsUrl: new URL(
+            "StreamingAssets/",
+            GAME_BASE
+          ).href,
+
           companyName: "Mega Cat Studios",
           productName: "Five Nights at Freddy's Into the Pit",
           productVersion: "Release 1.0.11.7",
+
           showBanner: function(message, type) {
             if (type === "error") {
               showError(new Error("Unity reported: " + message));
@@ -1081,46 +1417,66 @@
 
         if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
           const meta = document.createElement("meta");
+
           meta.name = "viewport";
           meta.content =
             "width=device-width, height=device-height, initial-scale=1.0, " +
             "user-scalable=no, shrink-to-fit=yes";
+
           document.head.appendChild(meta);
         }
 
+        // Reveal the game and the controls immediately.
+        // The controls do not depend on Unity's initialization promise.
         unityContainer.style.display = "block";
+        showGameTools();
 
-        // raw.githubusercontent.com serves JavaScript as a plain-text file on
-        // some routes. Fetch it first, then execute it from a JavaScript Blob
-        // so the browser does not reject it because of the response MIME type.
-        const loaderUrl = new URL("Build/INTOTHEPIT.loader.js", GAME_BASE).href;
+        const loaderUrl = new URL(
+          "Build/INTOTHEPIT.loader.js",
+          GAME_BASE
+        ).href;
 
         let loaderResponse;
+
         try {
-          loaderResponse = await fetch(loaderUrl, { cache: "no-store" });
+          loaderResponse = await fetch(
+            loaderUrl,
+            { cache: "no-store" }
+          );
         } catch (error) {
           throw new Error(
-            "Could not reach the Unity loader at " + loaderUrl +
-            ". The host may be blocking the request. " + error.message
+            "Could not reach the Unity loader at " +
+            loaderUrl +
+            ". The host may be blocking the request. " +
+            error.message
           );
         }
 
         if (!loaderResponse.ok) {
           throw new Error(
-            "Unity loader request failed with HTTP " + loaderResponse.status +
-            " (" + loaderResponse.statusText + "). URL: " + loaderUrl
+            "Unity loader request failed with HTTP " +
+            loaderResponse.status +
+            " (" + loaderResponse.statusText +
+            "). URL: " + loaderUrl
           );
         }
 
         const loaderSource = await loaderResponse.text();
-        if (!loaderSource || !loaderSource.includes("createUnityInstance")) {
+
+        if (
+          !loaderSource ||
+          !loaderSource.includes("createUnityInstance")
+        ) {
           throw new Error(
             "The Unity loader downloaded, but its contents are empty or invalid."
           );
         }
 
         const loaderBlobUrl = URL.createObjectURL(
-          new Blob([loaderSource], { type: "text/javascript" })
+          new Blob(
+            [loaderSource],
+            { type: "text/javascript" }
+          )
         );
 
         const script = document.createElement("script");
@@ -1128,6 +1484,7 @@
 
         script.onerror = () => {
           URL.revokeObjectURL(loaderBlobUrl);
+
           showError(
             new Error(
               "The Unity loader was fetched successfully, but the browser " +
@@ -1140,48 +1497,86 @@
           URL.revokeObjectURL(loaderBlobUrl);
 
           if (typeof createUnityInstance !== "function") {
-            showError(new Error("Unity loader loaded, but createUnityInstance is missing."));
+            showError(
+              new Error(
+                "Unity loader loaded, but createUnityInstance is missing."
+              )
+            );
+
             return;
           }
 
-          createUnityInstance(canvas, config, progress => {
-            const overallProgress = 90 + (progress * 10);
+          createUnityInstance(
+            canvas,
+            config,
+            progress => {
+              const overallProgress = 90 + (progress * 10);
+
+              setProgress(
+                overallProgress,
+                "Starting game engine...",
+                "INITIALIZING UNITY"
+              );
+            }
+          ).then(() => {
+            // Controls are already visible.
+            showGameTools();
+
             setProgress(
-              overallProgress,
-              "Starting game engine...",
-              "INITIALIZING UNITY"
+              100,
+              "Ready",
+              "GAME READY"
             );
-          }).then(() => {
-            setProgress(100, "Ready", "GAME READY");
+
             loadingText.textContent = "Entering the pit...";
+
             setTimeout(() => {
               loadingScreen.classList.add("hidden");
             }, 250);
+
           }).catch(showError);
         };
 
         document.body.appendChild(script);
+
       } catch (error) {
         showError(error);
       }
     }
 
+    // ============================================
+    // ERROR DIAGNOSTICS
+    // ============================================
+
     window.addEventListener("error", event => {
-      console.error("[Page runtime error]", event.message, event.filename, event.lineno);
+      console.error(
+        "[Page runtime error]",
+        event.message,
+        event.filename,
+        event.lineno
+      );
     });
 
     window.addEventListener("unhandledrejection", event => {
-      console.error("[Unhandled promise rejection]", event.reason);
+      console.error(
+        "[Unhandled promise rejection]",
+        event.reason
+      );
     });
 
     canvas.addEventListener("webglcontextlost", event => {
       event.preventDefault();
-      showError(new Error(
-        "The WebGL graphics context was lost. This can happen if the GPU or browser " +
-        "runs out of graphics memory. Check the Console for the last Unity messages."
-      ));
+
+      showError(
+        new Error(
+          "The WebGL graphics context was lost. This can happen if the GPU " +
+          "or browser runs out of graphics memory. Check the Console for " +
+          "the last Unity messages."
+        )
+      );
     });
 
+    // Start the game.
     startGame();
   </script>
 </body>
