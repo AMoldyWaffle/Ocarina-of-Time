@@ -49,6 +49,7 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
 .section-title{display:flex;align-items:center;gap:14px;margin:34px 0 4px;color:#c9c5ed;font-size:11px;letter-spacing:4px;text-transform:uppercase}
 .section-title:after{content:"";height:1px;flex:1;background:linear-gradient(90deg,rgba(140,128,217,.35),transparent)}
 .beta-tag{display:block;width:max-content;margin:8px auto 14px;padding:3px 8px;border:1px solid rgba(196,123,232,.45);border-radius:20px;color:#f0c5ff;font-size:9px;letter-spacing:1.2px}
+.critical-error-tag{display:block;width:max-content;margin:8px auto 14px;padding:4px 9px;border:1px solid rgba(255,83,83,.72);border-radius:20px;background:rgba(110,12,20,.28);color:#ff9696;font-size:9px;font-weight:800;letter-spacing:1.2px;text-shadow:0 0 10px rgba(255,70,70,.35)}
 .game{min-width:0;position:relative;overflow:hidden;border:1px solid rgba(119,116,163,.25);border-radius:13px;background:linear-gradient(145deg,rgba(21,24,45,.92),rgba(8,12,28,.94));box-shadow:0 10px 28px rgba(0,0,0,.16);transition:transform .28s,border-color .28s,box-shadow .28s;animation:fadeUp .55s both}
 .game:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(130deg,rgba(163,149,255,.08),transparent 35%,transparent 70%,rgba(104,202,229,.05));opacity:.6}
 .game:hover{transform:translateY(-7px);border-color:rgba(168,154,255,.72);box-shadow:0 17px 38px rgba(42,35,101,.3),0 0 22px rgba(112,98,189,.13)}
@@ -244,6 +245,7 @@ async function scan() {
 
       const beta = paths.has(folder + "/beta") || paths.has(folder + "/beta.txt");
       const isNew = paths.has(folder + "/newgame") || paths.has(folder + "/newgame.txt");
+      const criticalError = paths.has(folder + "/criticalerror") || paths.has(folder + "/criticalerror.txt");
 
       return {
         name: folderName,
@@ -252,7 +254,8 @@ async function scan() {
         cover,
         url: pagesUrl(gamePath),
         beta,
-        isNew
+        isNew,
+        criticalError
       };
     }).filter(Boolean);
 
@@ -260,7 +263,7 @@ async function scan() {
     render();
     log("info", [
       "Discovered", games.length, "game launchers directly from the repository tree.",
-      "Checked beta/beta.txt and newgame/newgame.txt markers."
+      "Checked beta/beta.txt, newgame/newgame.txt, and criticalerror/criticalerror.txt markers."
     ]);
   } catch (error) {
     statusNode.textContent = "Could not scan the game repository: " + error.message;
@@ -307,6 +310,13 @@ function makeGameCard(game, index) {
     tag.style.display = "block";
     tag.style.width = "max-content";
     tag.style.margin = "0 auto 13px";
+    card.appendChild(tag);
+  }
+
+  if (game.criticalError) {
+    const tag = document.createElement("span");
+    tag.className = "critical-error-tag";
+    tag.textContent = "CRITICAL ERROR";
     card.appendChild(tag);
   }
   return card;
