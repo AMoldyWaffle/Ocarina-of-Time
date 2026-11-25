@@ -392,36 +392,7 @@ async function launchInRunner(game) {
 }
 
 function launch(game) {
-  /*
-   * Cuphead must load from its own GitHub Pages URL, not through the
-   * proxy/runner document. Fuze injects a SharedWorker whose script is
-   * hosted on jsDelivr; keeping the game inside a wrapper origin can
-   * make the browser reject that worker as cross-origin.
-   *
-   * Navigate directly so the document origin matches the game's host.
-   */
-  if (game.name.toLowerCase() === "cuphead") {
-    log("info", ["Opening Cuphead in a separate top-level page to preserve its origin."]);
-    log("info", ["Game URL:", game.url]);
-
-    /*
-     * Some hosting environments sandbox embedded pages and inject their
-     * own Fuze wiring runtime. In that case even a direct iframe URL still
-     * runs with the host origin (news.thoth.wiki), so SharedWorker rejects
-     * the jsDelivr worker script. A top-level navigation gives Cuphead its
-     * actual GitHub Pages origin and avoids the wrapper/sandbox context.
-     *
-     * This runs directly inside the game's click handler to avoid popup
-     * blockers. Keep the library page open in its current tab.
-     */
-    const opened = window.open(game.url, "_blank", "noopener,noreferrer");
-    if (!opened) {
-      log("warn", ["The browser blocked the new tab. Allow pop-ups for this launcher and try again."]);
-      statusNode.textContent = "Cuphead needs a new tab. Allow pop-ups for this launcher, then try again.";
-    }
-    return;
-  }
-
+function launch(game) {
   if (RUNNER_MODE) {
     launchInRunner(game);
     return;
@@ -438,6 +409,7 @@ function launch(game) {
   frame.onload = () => log("info", ["Proxy loader loaded."]);
   frame.onerror = () => log("error", ["Proxy loader navigation failed."]);
   frame.src = loaderUrl;
+}
 }
 
 window.addEventListener("message", event => {
