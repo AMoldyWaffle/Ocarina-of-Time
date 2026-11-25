@@ -178,7 +178,7 @@ const BUILD = "Build/";
 
 const PART_CONCURRENCY = 3;
 
-const STARTUP_TIMEOUT = 180000;
+const UNITY_STARTUP_TIMEOUT = 600000;
 
 /*
     Actual part counts from the GitHub Build folder.
@@ -227,6 +227,7 @@ let diagnosticLines = [];
 let startupFailed = false;
 let unityReady = false;
 let unityStarted = false;
+let unityStartupTimer = null;
 
 let totalParts = 108;
 let completedParts = 0;
@@ -817,6 +818,21 @@ function startUnity(configURL) {
     unityStarted = true;
 
     log("Calling UnityLoader.instantiate...");
+    log("Unity startup watchdog begins now; asset downloading is not covered by this timer.");
+
+    unityStartupTimer = setTimeout(function() {
+        if (!unityReady && !startupFailed) {
+            fail(
+                "No Unity completion callback after " +
+                (UNITY_STARTUP_TIMEOUT / 1000) +
+                " seconds of Unity startup.\\n\\n" +
+                "Last progress: " +
+                percentElement.textContent +
+                "\\nUnity started: " +
+                unityStarted
+            );
+        }
+    }, UNITY_STARTUP_TIMEOUT);
 
     const instance = UnityLoader.instantiate(
         "gameContainer",
@@ -850,6 +866,11 @@ function startUnity(configURL) {
 
                 if (percent >= 100) {
                     unityReady = true;
+
+                    if (unityStartupTimer !== null) {
+                        clearTimeout(unityStartupTimer);
+                        unityStartupTimer = null;
+                    }
 
                     setProgress(100);
 
@@ -908,24 +929,6 @@ window.addEventListener(
         log("Unhandled promise rejection: " + message);
     }
 );
-
-/* =========================================================
-   STARTUP TIMEOUT
-========================================================= */
-
-setTimeout(function() {
-    if (!unityReady && !startupFailed) {
-        fail(
-            "No Unity completion callback after " +
-            (STARTUP_TIMEOUT / 1000) +
-            " seconds.\n\n" +
-            "Last progress: " +
-            percentElement.textContent +
-            "\nUnity started: " +
-            unityStarted
-        );
-    }
-}, STARTUP_TIMEOUT);
 
 /* =========================================================
    MAIN
