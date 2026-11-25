@@ -286,16 +286,22 @@
     const partDownloadWaiters = [];
 
     async function acquirePartSlot() {
-      if (activePartDownloads >= PART_CONCURRENCY) {
-        await new Promise(resolve => partDownloadWaiters.push(resolve));
+      if (activePartDownloads < PART_CONCURRENCY) {
+        activePartDownloads++;
+        return;
       }
-      activePartDownloads++;
+
+      await new Promise(resolve => partDownloadWaiters.push(resolve));
     }
 
     function releasePartSlot() {
-      activePartDownloads--;
       const next = partDownloadWaiters.shift();
-      if (next) next();
+
+      if (next) {
+        next();
+      } else {
+        activePartDownloads--;
+      }
     }
 
     // ============================================================
@@ -703,12 +709,8 @@
           `Downloading ${asset.parts} parts for ${asset.name}`
         );
 
-        blob = await downloadParts(asset);
-
-        await saveCachedAsset(
-          asset.name,
-          blob
-        );
+        // Individual parts are cached by downloadParts(). Avoid storing
+        // another full-size copy of the multi-gigabyte data asset.
       }
 
       if (blob.size !== asset.size) {
