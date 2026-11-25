@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<base id="assetBase" href="https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/">
+<base id="assetBase" href="https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hollow Knight — Fast Launcher</title>
+<title>Hollow Knight</title>
 <link rel="icon" href="TemplateData/favicon.ico">
 <link rel="stylesheet" href="TemplateData/style.css">
 
@@ -19,21 +19,21 @@ body{display:flex;align-items:center;justify-content:center}
     background:radial-gradient(ellipse at 50% 100%,rgba(120,0,0,.25),transparent 65%),#000
 }
 .loader-content{width:min(660px,92%);text-align:center}
-#status{font-size:15px;font-weight:bold;margin-bottom:10px}
+#status{font-size:15px;font-weight:bold;margin-bottom:8px}
 #metrics{font-size:12px;color:#aaa;margin-bottom:12px;min-height:18px}
 #overallBar{height:6px;width:100%;background:#222;border-radius:6px;overflow:hidden}
-#overallProgress{height:100%;width:0%;background:#c41919;box-shadow:0 0 14px #a80000;transition:width .15s ease}
-#percentage{margin-top:12px;font-size:13px;color:#ccc;letter-spacing:2px}
+#overallProgress{height:100%;width:0%;background:#c41919;box-shadow:0 0 14px #a80000;transition:width .12s linear}
+#percentage{margin-top:10px;font-size:13px;color:#ccc;letter-spacing:2px}
 
-.row{display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:18px;margin-bottom:6px}
+.row{display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:16px;margin-bottom:5px}
 .bar{height:4px;width:100%;background:#181818;border-radius:4px;overflow:hidden}
-.fill{height:100%;width:0%;background:#a81616;transition:width .15s ease}
+.fill{height:100%;width:0%;background:#a81616;transition:width .12s linear}
 
-#details{margin-top:14px;font-size:11px;color:#888;min-height:16px}
+#details{margin-top:12px;font-size:11px;color:#888;min-height:16px}
 #downloadConsole{
-    width:100%;height:155px;margin-top:14px;padding:10px;overflow-y:auto;
+    width:100%;height:150px;margin-top:12px;padding:10px;overflow-y:auto;
     background:rgba(10,10,10,.95);border:1px solid #2b2b2b;border-radius:4px;
-    font-family:Consolas,monospace;font-size:10px;line-height:1.55;text-align:left;
+    font-family:Consolas,monospace;font-size:10px;line-height:1.5;text-align:left;
     white-space:pre-wrap;overflow-wrap:anywhere
 }
 .log-info{color:#aaa}.log-ok{color:#66cc8a}.log-warn{color:#e6bc5c}.log-err{color:#ff5c5c}
@@ -63,14 +63,14 @@ body{display:flex;align-items:center;justify-content:center}
 <div id="loadingScreen">
     <div class="loader-content">
         <div id="status">Preparing launcher...</div>
-        <div id="metrics">Speed: -- MB/s · Active streams: 0</div>
+        <div id="metrics">Speed: -- MB/s · ETA: -- · Streams: 0</div>
         <div id="overallBar"><div id="overallProgress"></div></div>
         <div id="percentage">0%</div>
 
-        <div class="row"><span>GAME DATA</span><span id="dataCount">0 / 44</span></div>
+        <div class="row"><span>GAME DATA (44 PARTS)</span><span id="dataCount">0 / 44</span></div>
         <div class="bar"><div class="fill" id="dataProgress"></div></div>
 
-        <div class="row"><span>WEBASSEMBLY</span><span id="wasmCount">0 / 3</span></div>
+        <div class="row"><span>WEBASSEMBLY (3 PARTS)</span><span id="wasmCount">0 / 3</span></div>
         <div class="bar"><div class="fill" id="wasmProgress"></div></div>
 
         <div id="details">Starting up...</div>
@@ -101,13 +101,12 @@ body{display:flex;align-items:center;justify-content:center}
 "use strict";
 
 const CFG = {
-    // Put fastest/private CDN first if you host Build/ yourself
     mirrors: [
-        "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-        "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+        "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+        "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/",
-        "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/"
+        "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/"
     ],
     buildURL: "Build/",
     loader: "hk.loader.js",
@@ -116,21 +115,22 @@ const CFG = {
     wasmPrefix: "hk.wasm",
     dataParts: 44,
     wasmParts: 3,
+    estimatedTotalMB: 892,
     streamingAssets: "StreamingAssets",
     companyName: "Stratus Dev Team",
     productName: "Hollow Knight",
     productVersion: "1.5.12620",
-    cacheVersion: "hk-fast-v1",
-    storageDir: "HollowKnightFastCache",
-    dbName: "HollowKnightFastDB",
+    cacheVersion: "hk-turbo-v1",
+    storageDir: "HollowKnightTurboCache",
+    dbName: "HollowKnightTurboDB",
 
-    // Speed & resilience tuning
-    globalConcurrency: 8,
-    perHostConcurrency: 3,
-    hedgeAfterMs: 7000,       // Start a backup race if a chunk takes > 7s
-    requestTimeoutMs: 45000,
-    probeTimeoutMs: 3500,
-    maxRetriesPerPart: 8
+    // Multi-edge turbo settings
+    maxGlobalStreams: 16,
+    maxStreamsPerMirror: 4,
+    sliceBytes: 4 * 1024 * 1024, // Split 19MB parts into ~4.75MB parallel range slices
+    hedgeAfterMs: 3200,          // Race any slice slower than 3.2s on another CDN
+    sliceTimeoutMs: 20000,
+    maxSliceRetries: 8
 };
 
 const $ = id => document.getElementById(id);
@@ -147,9 +147,9 @@ const consoleEl = $("downloadConsole");
 const errEl = $("loadingError");
 const retryEl = $("retryButton");
 
-let totalBytesDownloaded = 0;
-let downloadStartTime = 0;
-let activeRequests = 0;
+let bytesDownloaded = 0;
+let startTimeMs = 0;
+let activeStreams = 0;
 let completedData = 0;
 let completedWasm = 0;
 let storageMode = null;
@@ -157,21 +157,22 @@ let opfsDir = null;
 let idb = null;
 let running = false;
 
-const hostStats = new Map();
+const mirrorState = new Map();
 
-function getHostStat(mirror) {
-    if (!hostStats.has(mirror)) {
-        hostStats.set(mirror, {
-            host: new URL(mirror).hostname,
+function getMirror(url) {
+    if (!mirrorState.has(url)) {
+        mirrorState.set(url, {
+            url,
+            host: new URL(url).hostname,
             active: 0,
-            maxActive: CFG.perHostConcurrency,
-            avgMs: 4000,
-            score: 0,
+            maxActive: CFG.maxStreamsPerMirror,
+            ewmaMBps: 1.0,
             fails: 0,
-            blockedUntil: 0
+            cooldownUntil: 0,
+            supportsRange: true
         });
     }
-    return hostStats.get(mirror);
+    return mirrorState.get(url);
 }
 
 function log(msg, type = "info") {
@@ -179,173 +180,224 @@ function log(msg, type = "info") {
     line.className = "log-" + type;
     line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
     consoleEl.appendChild(line);
-    while (consoleEl.children.length > 250) consoleEl.removeChild(consoleEl.firstChild);
+    while (consoleEl.children.length > 220) consoleEl.removeChild(consoleEl.firstChild);
     consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 
-function updateMetrics() {
-    const elapsedSec = Math.max(0.2, (performance.now() - downloadStartTime) / 1000);
-    const mbps = (totalBytesDownloaded / 1048576) / elapsedSec;
-    metricsEl.textContent = `Speed: ${mbps.toFixed(2)} MB/s · Active streams: ${activeRequests}/${CFG.globalConcurrency}`;
-}
-
-function updateProgress() {
+function updateUI() {
     dataFillEl.style.width = `${(completedData / CFG.dataParts) * 100}%`;
     wasmFillEl.style.width = `${(completedWasm / CFG.wasmParts) * 100}%`;
     dataCountEl.textContent = `${completedData} / ${CFG.dataParts}`;
     wasmCountEl.textContent = `${completedWasm} / ${CFG.wasmParts}`;
-    const overall = ((completedData + completedWasm) / (CFG.dataParts + CFG.wasmParts)) * 75;
+
+    const partRatio = (completedData + completedWasm) / (CFG.dataParts + CFG.wasmParts);
+    const overall = partRatio * 75;
     overallFillEl.style.width = `${overall.toFixed(1)}%`;
     pctEl.textContent = `${Math.floor(overall)}%`;
-    updateMetrics();
+
+    const sec = Math.max(0.25, (performance.now() - startTimeMs) / 1000);
+    const mbDone = bytesDownloaded / 1048576;
+    const mbps = mbDone / sec;
+    const remMB = Math.max(0, CFG.estimatedTotalMB * (1 - partRatio));
+    const etaSec = mbps > 0.05 ? Math.round(remMB / mbps) : 0;
+    const etaText = etaSec > 0 ? `${etaSec}s` : "--";
+
+    metricsEl.textContent = `Speed: ${mbps.toFixed(2)} MB/s · ETA: ${etaText} · Streams: ${activeStreams}/${CFG.maxGlobalStreams}`;
 }
 
-function rankedMirrors(exclude = new Set()) {
+function getRankedMirrors(exclude = new Set()) {
     const now = performance.now();
     return CFG.mirrors
         .filter(m => !exclude.has(m))
         .sort((a, b) => {
-            const A = getHostStat(a);
-            const B = getHostStat(b);
-            const aPen = A.blockedUntil > now ? 1 : 0;
-            const bPen = B.blockedUntil > now ? 1 : 0;
-            if (aPen !== bPen) return aPen - bPen;
-            if (A.score !== B.score) return B.score - A.score;
-            return A.avgMs - B.avgMs;
+            const A = getMirror(a);
+            const B = getMirror(b);
+            const aCool = A.cooldownUntil > now ? 1 : 0;
+            const bCool = B.cooldownUntil > now ? 1 : 0;
+            if (aCool !== bCool) return aCool - bCool;
+            const aLoad = A.active / Math.max(1, A.maxActive);
+            const bLoad = B.active / Math.max(1, B.maxActive);
+            const aScore = A.ewmaMBps * (1 - aLoad * 0.45) - A.fails * 0.15;
+            const bScore = B.ewmaMBps * (1 - bLoad * 0.45) - B.fails * 0.15;
+            return bScore - aScore;
         });
 }
 
-async function probeMirrors() {
-    statusEl.textContent = "Probing mirrors...";
-    detailsEl.textContent = "Checking reachability and latency.";
-    const probeFile = "TemplateData/favicon.ico";
-
-    await Promise.all(CFG.mirrors.map(async mirror => {
-        const st = getHostStat(mirror);
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), CFG.probeTimeoutMs);
-        const t0 = performance.now();
-        try {
-            const res = await fetch(new URL(probeFile, mirror).href, {
-                signal: ctrl.signal,
-                cache: "no-store"
-            });
-            if (!res.ok) throw new Error("HTTP " + res.status);
-            await res.arrayBuffer();
-            const ms = Math.max(10, performance.now() - t0);
-            st.avgMs = ms;
-            st.score = Math.max(1, 10000 / ms);
-            log(`Probe ${st.host}: ${Math.round(ms)} ms`, "ok");
-        } catch (e) {
-            st.fails++;
-            st.score = -50;
-            log(`Probe ${st.host} failed (${e.message || e})`, "warn");
-        } finally {
-            clearTimeout(timer);
-        }
-    }));
-
-    const best = rankedMirrors()[0] || CFG.mirrors[0];
-    $("assetBase").href = best;
-    log(`Primary mirror selected: ${new URL(best).hostname}`, "ok");
+async function acquireSlot(mirror, parentSignal) {
+    const m = getMirror(mirror);
+    while (m.active >= m.maxActive || activeStreams >= CFG.maxGlobalStreams) {
+        if (parentSignal?.aborted) throw new DOMException("Aborted", "AbortError");
+        await new Promise(r => setTimeout(r, 25));
+    }
+    m.active++;
+    activeStreams++;
+    updateUI();
 }
 
-async function fetchWithHostSlot(mirror, relPath, parentSignal) {
-    const st = getHostStat(mirror);
+function releaseSlot(mirror) {
+    const m = getMirror(mirror);
+    m.active = Math.max(0, m.active - 1);
+    activeStreams = Math.max(0, activeStreams - 1);
+    updateUI();
+}
+
+async function fetchRangeOrWhole(mirror, relPath, start, end, parentSignal) {
+    await acquireSlot(mirror, parentSignal);
+    const m = getMirror(mirror);
     const url = new URL(relPath, mirror).href;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(new Error("Slice timeout")), CFG.sliceTimeoutMs);
+    const onParentAbort = () => ctrl.abort(parentSignal.reason || new Error("Aborted"));
+    parentSignal?.addEventListener("abort", onParentAbort, { once: true });
 
-    while (st.active >= st.maxActive || activeRequests >= CFG.globalConcurrency) {
-        if (parentSignal?.aborted) throw new DOMException("Aborted", "AbortError");
-        await new Promise(r => setTimeout(r, 40));
-    }
-
-    st.active++;
-    activeRequests++;
-    updateMetrics();
-
-    const timeoutCtrl = new AbortController();
-    const timer = setTimeout(() => timeoutCtrl.abort(new Error("Timeout")), CFG.requestTimeoutMs);
-    const onAbort = () => timeoutCtrl.abort(parentSignal.reason || new Error("Aborted"));
-    parentSignal?.addEventListener("abort", onAbort, { once: true });
+    const headers = {};
+    const isRange = typeof start === "number" && typeof end === "number";
+    if (isRange) headers["Range"] = `bytes=${start}-${end}`;
 
     const t0 = performance.now();
     try {
         const res = await fetch(url, {
-            signal: timeoutCtrl.signal,
+            headers,
+            signal: ctrl.signal,
             cache: "no-store",
             redirect: "follow"
         });
+
         if (!res.ok) throw new Error("HTTP " + res.status);
-        const blob = await res.blob();
-        if (!blob.size) throw new Error("Empty body");
 
+        const buf = await res.arrayBuffer();
         const ms = Math.max(1, performance.now() - t0);
-        st.avgMs = st.avgMs * 0.7 + ms * 0.3;
-        const speedMBps = (blob.size / 1048576) / (ms / 1000);
-        st.score = st.score * 0.6 + speedMBps * 25 * 0.4;
-        if (speedMBps > 1.5 && st.maxActive < CFG.perHostConcurrency + 1) st.maxActive++;
+        const speed = (buf.byteLength / 1048576) / (ms / 1000);
 
-        totalBytesDownloaded += blob.size;
-        updateMetrics();
-        return { blob, speedMBps, host: st.host };
+        m.ewmaMBps = m.ewmaMBps * 0.65 + speed * 0.35;
+        bytesDownloaded += buf.byteLength;
+        updateUI();
+
+        // If server ignored Range and returned 200 full file, slice client-side
+        if (isRange && res.status === 200) {
+            m.supportsRange = false;
+            return {
+                bytes: new Uint8Array(buf.slice(start, end + 1)),
+                fullBuffer: buf,
+                host: m.host,
+                speed
+            };
+        }
+
+        return {
+            bytes: new Uint8Array(buf),
+            fullBuffer: null,
+            host: m.host,
+            speed
+        };
     } catch (err) {
-        st.fails++;
-        st.score -= 10;
+        m.fails++;
+        m.ewmaMBps = Math.max(0.15, m.ewmaMBps * 0.7);
         if (/HTTP 403|HTTP 429/.test(String(err.message || err))) {
-            st.blockedUntil = performance.now() + 20000;
-            st.maxActive = Math.max(1, st.maxActive - 1);
+            m.cooldownUntil = performance.now() + 15000;
+            m.maxActive = Math.max(1, m.maxActive - 1);
         }
         throw err;
     } finally {
         clearTimeout(timer);
-        parentSignal?.removeEventListener("abort", onAbort);
-        st.active--;
-        activeRequests--;
-        updateMetrics();
+        parentSignal?.removeEventListener("abort", onParentAbort);
+        releaseSlot(mirror);
     }
 }
 
-async function fetchHedgedPart(relPath, partName) {
+async function fetchHedgedSlice(relPath, start, end, label) {
     const tried = new Set();
     let lastErr = null;
 
-    for (let attempt = 0; attempt < CFG.maxRetriesPerPart; attempt++) {
-        const candidates = rankedMirrors(tried);
-        if (!candidates.length) tried.clear();
-        const primaryMirror = rankedMirrors(tried)[0] || CFG.mirrors[0];
-        tried.add(primaryMirror);
+    for (let attempt = 0; attempt < CFG.maxSliceRetries; attempt++) {
+        if (tried.size >= CFG.mirrors.length) tried.clear();
+        const m1 = getRankedMirrors(tried)[0] || CFG.mirrors[0];
+        tried.add(m1);
 
-        const ctrl1 = new AbortController();
-        const ctrl2 = new AbortController();
-        let backupTimer = null;
+        const c1 = new AbortController();
+        const c2 = new AbortController();
+        let hedgeTimer = null;
 
-        const p1 = fetchWithHostSlot(primaryMirror, relPath, ctrl1.signal)
-            .then(r => { clearTimeout(backupTimer); ctrl2.abort(); return r; });
+        const p1 = fetchRangeOrWhole(m1, relPath, start, end, c1.signal)
+            .then(r => { clearTimeout(hedgeTimer); c2.abort(); return r; });
 
-        const p2Promise = new Promise((resolve, reject) => {
-            backupTimer = setTimeout(() => {
-                const backupMirror = rankedMirrors(tried)[0];
-                if (!backupMirror) return reject(new Error("No backup mirror"));
-                tried.add(backupMirror);
-                log(`Hedging ${partName} onto ${new URL(backupMirror).hostname}`, "info");
-                fetchWithHostSlot(backupMirror, relPath, ctrl2.signal).then(resolve, reject);
+        const p2 = new Promise((resolve, reject) => {
+            hedgeTimer = setTimeout(() => {
+                const m2 = getRankedMirrors(tried)[0];
+                if (!m2) return reject(new Error("No alternate mirror"));
+                tried.add(m2);
+                fetchRangeOrWhole(m2, relPath, start, end, c2.signal).then(resolve, reject);
             }, CFG.hedgeAfterMs);
         });
 
         try {
-            const winner = await Promise.any([p1, p2Promise]);
-            log(`${partName} (${(winner.blob.size / 1048576).toFixed(2)} MB, ${winner.speedMBps.toFixed(2)} MB/s) <- ${winner.host}`, "ok");
-            return winner.blob;
-        } catch (aggErr) {
-            clearTimeout(backupTimer);
-            ctrl1.abort();
-            ctrl2.abort();
-            lastErr = aggErr.errors?.[0] || aggErr;
-            log(`${partName} attempt ${attempt + 1} failed: ${lastErr.message || lastErr}`, "warn");
+            return await Promise.any([p1, p2]);
+        } catch (agg) {
+            clearTimeout(hedgeTimer);
+            c1.abort();
+            c2.abort();
+            lastErr = agg.errors?.[0] || agg;
         }
     }
+    throw new Error(`${label} failed: ${lastErr?.message || lastErr}`);
+}
 
-    throw new Error(`Failed downloading ${partName}: ${lastErr?.message || lastErr}`);
+async function probePartSize(relPath) {
+    for (const mirror of getRankedMirrors()) {
+        try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 5000);
+            const res = await fetch(new URL(relPath, mirror).href, {
+                method: "HEAD",
+                signal: ctrl.signal,
+                cache: "no-store"
+            });
+            clearTimeout(timer);
+            if (res.ok) {
+                const len = Number(res.headers.get("content-length"));
+                if (len > 0) return len;
+            }
+        } catch (_) {}
+    }
+    return 0;
+}
+
+async function downloadPartTurbo(prefix, index) {
+    const partName = `${prefix}.${String(index).padStart(3, "0")}`;
+    const relPath = CFG.buildURL + partName;
+    const t0 = performance.now();
+
+    const totalSize = await probePartSize(relPath);
+
+    // If HEAD gave size and > sliceBytes, fetch byte slices concurrently across multiple CDNs
+    if (totalSize > CFG.sliceBytes * 1.25) {
+        const ranges = [];
+        for (let offset = 0; offset < totalSize; offset += CFG.sliceBytes) {
+            ranges.push([offset, Math.min(totalSize - 1, offset + CFG.sliceBytes - 1)]);
+        }
+
+        const results = await Promise.all(
+            ranges.map(([s, e], i) => fetchHedgedSlice(relPath, s, e, `${partName}[${i}]`))
+        );
+
+        // If any mirror returned the full buffer on slice 0, use it immediately
+        const full = results.find(r => r.fullBuffer && r.fullBuffer.byteLength === totalSize);
+        const blob = full
+            ? new Blob([full.fullBuffer], { type: "application/octet-stream" })
+            : new Blob(results.map(r => r.bytes), { type: "application/octet-stream" });
+
+        const sec = Math.max(0.05, (performance.now() - t0) / 1000);
+        const mbps = (blob.size / 1048576) / sec;
+        log(`${partName} (${(blob.size / 1048576).toFixed(2)} MB @ ${mbps.toFixed(2)} MB/s via ${ranges.length}x parallel slices)`, "ok");
+        return blob;
+    }
+
+    // Fallback whole-part hedged download
+    const res = await fetchHedgedSlice(relPath, null, null, partName);
+    const sec = Math.max(0.05, (performance.now() - t0) / 1000);
+    const mbps = (res.bytes.byteLength / 1048576) / sec;
+    log(`${partName} (${(res.bytes.byteLength / 1048576).toFixed(2)} MB @ ${mbps.toFixed(2)} MB/s) <- ${res.host}`, "ok");
+    return new Blob([res.bytes], { type: "application/octet-stream" });
 }
 
 async function initStorage() {
@@ -354,13 +406,12 @@ async function initStorage() {
             const root = await navigator.storage.getDirectory();
             opfsDir = await root.getDirectoryHandle(CFG.storageDir, { create: true });
             storageMode = "opfs";
-            log("Using OPFS disk cache", "ok");
+            log("OPFS disk cache ready", "ok");
             return;
         } catch (e) {
-            log("OPFS unavailable, falling back to IndexedDB: " + e.message, "warn");
+            log("OPFS unavailable, using IndexedDB", "warn");
         }
     }
-
     idb = await new Promise((resolve, reject) => {
         const req = indexedDB.open(CFG.dbName, 1);
         req.onupgradeneeded = () => req.result.createObjectStore("parts");
@@ -368,10 +419,10 @@ async function initStorage() {
         req.onerror = () => reject(req.error);
     });
     storageMode = "indexeddb";
-    log("Using IndexedDB cache", "ok");
+    log("IndexedDB cache ready", "ok");
 }
 
-async function readPartCache(key) {
+async function getCachedPart(key) {
     if (storageMode === "opfs") {
         try {
             const fh = await opfsDir.getFileHandle(key);
@@ -388,7 +439,7 @@ async function readPartCache(key) {
     });
 }
 
-async function writePartCache(key, blob) {
+async function putCachedPart(key, blob) {
     if (storageMode === "opfs") {
         const fh = await opfsDir.getFileHandle(key, { create: true });
         const w = await fh.createWritable();
@@ -404,39 +455,41 @@ async function writePartCache(key, blob) {
     });
 }
 
-async function assembleAsset(prefix, partCount, onStep) {
-    const blobs = new Array(partCount);
-    let nextIdx = 0;
+async function buildBundle(prefix, count, onDone) {
+    const blobs = new Array(count);
+    let cursor = 0;
 
     async function worker() {
         while (true) {
-            const idx = nextIdx++;
-            if (idx >= partCount) return;
+            const idx = cursor++;
+            if (idx >= count) return;
             const partName = `${prefix}.${String(idx).padStart(3, "0")}`;
-            const cacheKey = `${CFG.cacheVersion}_${partName}`;
+            const key = `${CFG.cacheVersion}_${partName}`;
 
-            let blob = await readPartCache(cacheKey);
+            let blob = await getCachedPart(key);
             if (!blob) {
-                blob = await fetchHedgedPart(CFG.buildURL + partName, partName);
-                await writePartCache(cacheKey, blob);
+                blob = await downloadPartTurbo(prefix, idx);
+                await putCachedPart(key, blob);
+            } else {
+                bytesDownloaded += blob.size;
             }
             blobs[idx] = blob;
-            onStep();
+            onDone();
         }
     }
 
-    const workers = Math.min(partCount, CFG.globalConcurrency);
-    await Promise.all(Array.from({ length: workers }, worker));
+    // 4 concurrent parts x 4 parallel slices each = 16 active multi-CDN streams
+    await Promise.all(Array.from({ length: Math.min(count, 4) }, worker));
     return new Blob(blobs, { type: "application/octet-stream" });
 }
 
-function loadScriptFromBlob(blob) {
+function injectScriptBlob(blob) {
     return new Promise((resolve, reject) => {
         const url = URL.createObjectURL(blob);
         const s = document.createElement("script");
         s.src = url;
         s.onload = () => resolve(url);
-        s.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Loader execution failed")); };
+        s.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Loader script failed")); };
         document.body.appendChild(s);
     });
 }
@@ -446,32 +499,29 @@ async function startGame() {
     running = true;
     errEl.style.display = "none";
     retryEl.style.display = "none";
+    bytesDownloaded = 0;
     completedData = 0;
     completedWasm = 0;
-    totalBytesDownloaded = 0;
-    downloadStartTime = performance.now();
-    updateProgress();
+    startTimeMs = performance.now();
+    updateUI();
 
     try {
         await initStorage();
-        await probeMirrors();
-
-        statusEl.textContent = "Downloading game bundle...";
-        detailsEl.textContent = "Hedging slow chunks and caching completed parts.";
+        statusEl.textContent = "Downloading Hollow Knight (Multi-CDN Turbo)...";
+        detailsEl.textContent = "Splitting chunks across multiple edge mirrors simultaneously.";
 
         const [dataBlob, wasmBlob, loaderRes, fwRes] = await Promise.all([
-            assembleAsset(CFG.dataPrefix, CFG.dataParts, () => { completedData++; updateProgress(); }),
-            assembleAsset(CFG.wasmPrefix, CFG.wasmParts, () => { completedWasm++; updateProgress(); }),
-            fetch(new URL(CFG.buildURL + CFG.loader, $("assetBase").href).href, { cache: "no-store" }),
-            fetch(new URL(CFG.buildURL + CFG.framework, $("assetBase").href).href, { cache: "no-store" })
+            buildBundle(CFG.dataPrefix, CFG.dataParts, () => { completedData++; updateUI(); }),
+            buildBundle(CFG.wasmPrefix, CFG.wasmParts, () => { completedWasm++; updateUI(); }),
+            fetch(new URL(CFG.buildURL + CFG.loader, CFG.mirrors[0]).href, { cache: "no-store" }),
+            fetch(new URL(CFG.buildURL + CFG.framework, CFG.mirrors[0]).href, { cache: "no-store" })
         ]);
 
-        if (!loaderRes.ok || !fwRes.ok) throw new Error("Failed to fetch Unity loader or framework");
-
+        if (!loaderRes.ok || !fwRes.ok) throw new Error("Failed to fetch Unity loader/framework");
         const [loaderBlob, fwBlob] = await Promise.all([loaderRes.blob(), fwRes.blob()]);
-        await loadScriptFromBlob(loaderBlob);
+        await injectScriptBlob(loaderBlob);
 
-        statusEl.textContent = "Launching Hollow Knight...";
+        statusEl.textContent = "Launching WebGL engine...";
         const instance = await createUnityInstance($("unity-canvas"), {
             dataUrl: URL.createObjectURL(dataBlob),
             wasmCodeUrl: URL.createObjectURL(wasmBlob),
@@ -481,9 +531,9 @@ async function startGame() {
             productName: CFG.productName,
             productVersion: CFG.productVersion
         }, p => {
-            const v = 75 + p * 25;
-            overallFillEl.style.width = `${v.toFixed(1)}%`;
-            pctEl.textContent = `${Math.floor(v)}%`;
+            const pct = 75 + p * 25;
+            overallFillEl.style.width = `${pct.toFixed(1)}%`;
+            pctEl.textContent = `${Math.floor(pct)}%`;
         });
 
         window.unityInstance = instance;
@@ -499,7 +549,7 @@ async function startGame() {
             $("unity-canvas").height = Math.round(600 * s);
         };
     } catch (e) {
-        log("Fatal: " + (e.message || e), "err");
+        log("Error: " + (e.message || e), "err");
         errEl.textContent = e.message || String(e);
         errEl.style.display = "block";
         retryEl.style.display = "inline-block";
@@ -509,7 +559,7 @@ async function startGame() {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-    log("Fast launcher initialized.", "info");
+    log("Multi-CDN Turbo Launcher ready.", "info");
     startGame();
 });
 </script>
