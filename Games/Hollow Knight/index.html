@@ -180,12 +180,12 @@ body{display:flex;align-items:center;justify-content:center}
 
 const CONFIG = {
     baseURLs: [
-        "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://quantil.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://originfastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+        "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/",
         "https://github.com/AMoldyWaffle/Hollow-Knight/raw/refs/heads/main/",
         "https://github.com/AMoldyWaffle/Hollow-Knight/raw/main/",
@@ -208,20 +208,19 @@ const CONFIG = {
     productName: "Hollow Knight",
     productVersion: "1.5.12620",
 
-    // New cache version for this downloader.
-    cacheVersion: "hk-adaptive-global-v12",
+    cacheVersion: "hk-adaptive-global-v13",
 
     storageDirectory: "HollowKnightCache",
     databaseName: "HollowKnightFileCache",
 
     chunkRetries: 9,
+    requestTimeoutMs: 18000,
 
-    // Actual simultaneous network request limits are controlled below.
     downloadConcurrency: {
-        initial: 6,
-        minimum: 3,
-        maximum: 12,
-        increaseEvery: 6
+        initial: 10,
+        minimum: 4,
+        maximum: 16,
+        increaseEvery: 4
     },
 
     progressUpdateInterval: 100,
@@ -231,6 +230,201 @@ const CONFIG = {
         wasm: []
     }
 };
+
+function recordSchedulerSuccess(scheduler, milliseconds) {
+    scheduler.successes++;
+
+    if (milliseconds < 25000) {
+        scheduler.fastSamples++;
+        scheduler.slowSamples = 0;
+    } else if (milliseconds > 45000) {
+        scheduler.slowSamples++;
+        scheduler.fastSamples = 0;
+    } else {
+        scheduler.fastSamples = 0;
+        scheduler.slowSamples = 0;
+    }
+
+    if (
+        scheduler.successes % scheduler.increaseEvery === 0 &&
+        scheduler.fastSamples >= scheduler.increaseEvery
+    ) {
+        const old = scheduler.limit;
+        scheduler.limit = Math.min(scheduler.maximum, scheduler.limit + 1);
+        scheduler.fastSamples = 0;
+
+        if (scheduler.limit !== old) {
+            consoleLog(
+                "Download performance is healthy. Global concurrency increased to " + scheduler.limit + ".",
+                "success"
+            );
+        }
+    }
+
+    if (scheduler.slowSamples >= 3 && scheduler.limit > scheduler.minimum) {
+        scheduler.limit = Math.max(scheduler.minimum, scheduler.limit - 1);
+        scheduler.slowSamples = 0;
+
+        consoleLog(
+            "Downloads are taking longer. Global concurrency reduced to " + scheduler.limit + ".",
+            "warning"
+        );
+    }
+
+    scheduler.drain();
+}
+
+async function fetchFromMirror(relativePath, baseURL, options = {}) {
+    const url = new URL(relativePath, baseURL).href;
+    const timeoutSignal = AbortSignal.timeout(
+        options.timeoutMs || CONFIG.requestTimeoutMs || 18000
+    );
+    const signal = options.signal
+        ? AbortSignal.any([options.signal, timeoutSignal])
+        : timeoutSignal;
+
+    const { timeoutMs, ...fetchOptions } = options;
+
+    const response = await fetch(url, {
+        ...fetchOptions,
+        signal,
+        cache: "no-store",
+        redirect: "follow"
+    });
+
+    if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+    }
+
+    if (response.type === "opaque") {
+        throw new Error("Opaque response cannot be validated");
+    }
+
+    return response;
+}
+
+async function mergeOPFS(prefix, partCount, progressCallback) {
+    const cached = await getOPFSCachedFile(prefix);
+
+    if (cached) {
+        progressCallback(partCount);
+        return cached;
+    }
+
+    try {
+        await storageRoot.removeEntry(prefix + ".complete");
+    } catch (_) {}
+
+    const outputHandle = await storageRoot.getFileHandle(
+        prefix,
+        { create: true }
+    );
+
+    const writer = await outputHandle.createWritable({
+        keepExistingData: false
+    });
+
+    let totalBytes = 0;
+    let completed = 0;
+    let nextWriteIndex = 0;
+    const readyBlobs = new Map();
+    let writeChain = Promise.resolve();
+
+    function enqueueOrderedWrites() {
+        writeChain = writeChain.then(async () => {
+            while (readyBlobs.has(nextWriteIndex)) {
+                const blob = readyBlobs.get(nextWriteIndex);
+                readyBlobs.delete(nextWriteIndex);
+
+                await writer.write(blob);
+                totalBytes += blob.size;
+                completed++;
+                nextWriteIndex++;
+
+                progressCallback(completed);
+
+                if (completed % 6 === 0 || completed === partCount) {
+                    consoleLog(
+                        prefix + " assembly progress: " +
+                        completed + "/" + partCount + " parts.",
+                        "info"
+                    );
+                }
+            }
+        });
+        return writeChain;
+    }
+
+    try {
+        consoleLog(
+            "Starting " + prefix +
+            " with streaming ordered OPFS writes.",
+            "info"
+        );
+
+        let nextIndex = 0;
+        const workerCount = Math.min(partCount, CONFIG.downloadConcurrency.maximum);
+
+        async function worker() {
+            while (true) {
+                const index = nextIndex++;
+                if (index >= partCount) return;
+
+                const blob = await fetchValidatedPart(prefix, index);
+                readyBlobs.set(index, blob);
+                await enqueueOrderedWrites();
+            }
+        }
+
+        await Promise.all(
+            Array.from({ length: workerCount }, () => worker())
+        );
+
+        await writeChain;
+        await writer.close();
+
+        const mergedFile = await outputHandle.getFile();
+
+        if (
+            mergedFile.size === 0 ||
+            mergedFile.size !== totalBytes
+        ) {
+            throw new Error(
+                "Merged file size validation failed for " + prefix
+            );
+        }
+
+        await markOPFSComplete(prefix, mergedFile.size);
+
+        consoleLog(
+            prefix + " assembled successfully (" +
+            (mergedFile.size / 1048576).toFixed(2) + " MB).",
+            "success"
+        );
+
+        return mergedFile;
+
+    } catch (error) {
+        try {
+            await writer.abort();
+        } catch (_) {}
+
+        try {
+            await storageRoot.removeEntry(prefix);
+        } catch (_) {}
+
+        try {
+            await storageRoot.removeEntry(prefix + ".complete");
+        } catch (_) {}
+
+        consoleLog(
+            "Assembly failed for " + prefix + ": " + error.message,
+            "error"
+        );
+
+        throw error;
+    }
+}
 
 /* ============================================================
    ELEMENTS
