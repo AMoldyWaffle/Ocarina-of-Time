@@ -4,6 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
 <title>Mario Kart 64</title>
 
 <style>
@@ -44,6 +45,7 @@ html, body {
 #overlay {
   position: absolute;
   inset: 0;
+  z-index: 5;
   display: grid;
   place-items: center;
   text-align: center;
@@ -67,11 +69,12 @@ html, body {
   padding: 9px 14px;
   border: 1px solid #555;
   border-radius: 7px;
-  background: #202126;
+  background: rgba(32, 33, 38, 0.88);
   color: white;
   font-size: 13px;
   cursor: pointer;
   opacity: 0.75;
+  backdrop-filter: blur(8px);
 }
 
 #consoleButton:hover {
@@ -96,10 +99,26 @@ html, body {
   font: 12px/1.5 Consolas, monospace;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  backdrop-filter: blur(8px);
 }
 
 #consolePanel.visible {
   display: block;
+}
+
+@media (max-width: 480px) {
+  #consoleButton {
+    right: 9px;
+    bottom: 9px;
+    padding: 8px 11px;
+    font-size: 12px;
+  }
+
+  #consolePanel {
+    left: 8px;
+    right: 8px;
+    bottom: 52px;
+  }
 }
 </style>
 </head>
@@ -133,14 +152,19 @@ html, body {
 
   let emulatorStarted = false;
 
+  // Console toggle
   consoleButton.addEventListener("click", () => {
     const isVisible = consolePanel.classList.toggle("visible");
-    consoleButton.textContent = isVisible ? "Hide Console" : "Console";
+
+    consoleButton.textContent =
+      isVisible ? "Hide Console" : "Console";
   });
 
   function log(message) {
     const line = "[Mario Kart 64 Launcher] " + message;
+
     console.log(line);
+
     consolePanel.textContent += line + "\n";
     consolePanel.scrollTop = consolePanel.scrollHeight;
   }
@@ -148,16 +172,23 @@ html, body {
   function status(message) {
     log(message);
     overlay.textContent = message;
+    overlay.classList.remove("hidden");
   }
 
   function fail(error) {
     const message = error?.message || String(error);
 
-    overlay.textContent = "Unable to start game:\n" + message;
+    overlay.textContent =
+      "Unable to start game:\n" + message;
+
     overlay.classList.remove("hidden");
 
     log("ERROR: " + message);
-    console.error("[Mario Kart 64 Launcher]", error);
+
+    console.error(
+      "[Mario Kart 64 Launcher]",
+      error
+    );
 
     consolePanel.classList.add("visible");
     consoleButton.textContent = "Hide Console";
@@ -166,16 +197,117 @@ html, body {
   function timeout(promise, milliseconds, message) {
     return Promise.race([
       promise,
+
       new Promise((_, reject) => {
-        setTimeout(
-          () => reject(new Error(message)),
-          milliseconds
-        );
+        setTimeout(() => {
+          reject(new Error(message));
+        }, milliseconds);
       })
     ]);
   }
 
+  // Validate emulator core report
+  async function checkCoreReport() {
+    log("Checking mupen64plus_next core report...");
+
+    const response = await fetch(
+      BASE + "cores/reports/mupen64plus_next.json",
+      {
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "Core report download failed: HTTP " +
+        response.status
+      );
+    }
+
+    const reportText = await response.text();
+
+    let report;
+
+    try {
+      report = JSON.parse(reportText);
+    } catch {
+      throw new Error(
+        "The mupen64plus_next core report is not valid JSON."
+      );
+    }
+
+    if (report.core !== "mupen64plus_next") {
+      throw new Error(
+        "Unexpected emulator core: " + report.core
+      );
+    }
+
+    log("N64 core report validated.");
+  }
+
+  // Capture errors from inside the emulator iframe
+  function attachFrameDiagnostics(frame) {
+    if (!frame) return;
+
+    const attach = () => {
+      try {
+        const frameWindow = frame.contentWindow;
+
+        if (!frameWindow) return;
+
+        frameWindow.addEventListener("error", event => {
+          log(
+            "IFRAME ERROR: " +
+            (event.message || "Unknown JavaScript error")
+          );
+
+          if (event.filename) {
+            log("File: " + event.filename);
+          }
+
+          if (event.lineno) {
+            log("Line: " + event.lineno);
+          }
+
+          if (event.error?.stack) {
+            log(event.error.stack);
+          }
+        });
+
+        frameWindow.addEventListener(
+          "unhandledrejection",
+          event => {
+            const reason = event.reason;
+
+            log(
+              "IFRAME PROMISE ERROR: " +
+              (reason?.stack ||
+               reason?.message ||
+               String(reason))
+            );
+          }
+        );
+
+        log("Iframe diagnostics attached.");
+
+      } catch (error) {
+        log(
+          "Could not attach iframe diagnostics: " +
+          error.message
+        );
+      }
+    };
+
+    frame.addEventListener("load", attach);
+    attach();
+  }
+
   try {
+    // Check core report
+    status("Checking emulator files...");
+
+    await checkCoreReport();
+
     // Download ROM
     status("Downloading Mario Kart 64...");
 
@@ -185,7 +317,8 @@ html, body {
 
     if (!romResponse.ok) {
       throw new Error(
-        "ROM download failed: HTTP " + romResponse.status
+        "ROM download failed: HTTP " +
+        romResponse.status
       );
     }
 
@@ -195,41 +328,68 @@ html, body {
       throw new Error("Downloaded ROM is empty.");
     }
 
-    log("ROM downloaded: " + romBuffer.byteLength + " bytes");
+    log(
+      "ROM downloaded: " +
+      romBuffer.byteLength +
+      " bytes"
+    );
+
+    // Validate N64 ROM size
+    if (romBuffer.byteLength < 1024 * 1024) {
+      throw new Error(
+        "ROM is unexpectedly small. Downloaded " +
+        romBuffer.byteLength +
+        " bytes."
+      );
+    }
 
     // Download Waffle loader
     status("Loading emulator...");
 
-    const loaderResponse = await fetch(BASE + "loader.js", {
-      cache: "default"
-    });
+    const loaderResponse = await fetch(
+      BASE + "loader.js",
+      {
+        cache: "default"
+      }
+    );
 
     if (!loaderResponse.ok) {
       throw new Error(
-        "Loader download failed: HTTP " + loaderResponse.status
+        "Loader download failed: HTTP " +
+        loaderResponse.status
       );
     }
 
     const loaderCode = await loaderResponse.text();
 
     if (!loaderCode.includes("WafflesEmu")) {
-      throw new Error("Downloaded loader.js is invalid.");
+      throw new Error(
+        "Downloaded loader.js is invalid."
+      );
     }
 
     const script = document.createElement("script");
     script.textContent = loaderCode;
+
     document.head.appendChild(script);
 
     if (!window.WafflesEmu) {
-      throw new Error("Waffle loader failed to initialize.");
+      throw new Error(
+        "Waffle loader failed to initialize."
+      );
     }
 
-    // Open emulator in this page
+    log("Waffle loader ready.");
+
+    // Open emulator
     status("Opening emulator...");
 
-    const emu = await WafflesEmu.open(BASE, {
-      container: container
+    const emu = await window.WafflesEmu.open(BASE, {
+      container: container,
+      dataBase: BASE
     });
+
+    attachFrameDiagnostics(emu.frame);
 
     // Listen for emulator events
     emu.on(message => {
@@ -243,21 +403,46 @@ html, body {
           break;
 
         case "loading":
-          status("Loading Mario Kart 64...");
+          status(
+            message.msg || "Loading Mario Kart 64..."
+          );
           break;
 
         case "started":
           emulatorStarted = true;
+
           overlay.classList.add("hidden");
+
           log("Mario Kart 64 started!");
           break;
 
         case "error":
-          fail(
-            new Error(
-              message.msg || "The emulator reported an error."
-            )
+          log(
+            "Emulator error: " +
+            (message.msg || "Unknown error")
           );
+
+          if (!emulatorStarted) {
+            fail(
+              new Error(
+                message.msg ||
+                "The emulator reported an error."
+              )
+            );
+          }
+          break;
+
+        case "paused":
+          log("Game paused.");
+          break;
+
+        case "playing":
+          log("Game resumed.");
+          break;
+
+        case "exit":
+          emulatorStarted = false;
+          status("Emulator stopped.");
           break;
       }
     });
@@ -293,7 +478,9 @@ html, body {
 
     setTimeout(() => {
       if (!emulatorStarted) {
-        log("Still waiting for the emulator to report that the game started.");
+        log(
+          "Still waiting for the emulator to report that the game started."
+        );
       }
     }, 30000);
 

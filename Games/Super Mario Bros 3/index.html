@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,8 +6,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#080808">
 <title>Super Mario Bros. 3</title>
+
 <style>
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 html, body {
   margin: 0;
@@ -34,7 +38,9 @@ header {
   border-bottom: 1px solid #333;
 }
 
-header strong { font-size: 15px; }
+header strong {
+  font-size: 15px;
+}
 
 #status {
   color: #aaa;
@@ -55,6 +61,13 @@ header strong { font-size: 15px; }
   height: 100%;
 }
 
+#emulator iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
 #overlay {
   position: absolute;
   inset: 0;
@@ -69,7 +82,9 @@ header strong { font-size: 15px; }
   padding: 20px;
 }
 
-#overlay.hidden { display: none; }
+#overlay.hidden {
+  display: none;
+}
 
 #overlay h2 {
   margin: 0;
@@ -92,7 +107,9 @@ header strong { font-size: 15px; }
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 #controls {
@@ -117,7 +134,9 @@ button {
   cursor: pointer;
 }
 
-button:hover { background: #3b3b3b; }
+button:hover {
+  background: #3b3b3b;
+}
 
 button:disabled {
   opacity: 0.5;
@@ -129,7 +148,9 @@ button:disabled {
   background: #176b3b;
 }
 
-#saveButton:hover { background: #20864b; }
+#saveButton:hover {
+  background: #20864b;
+}
 
 #console {
   position: absolute;
@@ -150,7 +171,9 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
-#console.visible { display: block; }
+#console.visible {
+  display: block;
+}
 
 #consoleToggle {
   position: absolute;
@@ -162,7 +185,9 @@ button:disabled {
 }
 
 @media (max-width: 480px) {
-  #controls { gap: 6px; }
+  #controls {
+    gap: 6px;
+  }
 
   button {
     padding: 10px 11px;
@@ -171,6 +196,7 @@ button:disabled {
 }
 </style>
 </head>
+
 <body>
 
 <header>
@@ -194,7 +220,12 @@ button:disabled {
 <div id="controls">
   <button id="saveButton" type="button" disabled>Save to PC</button>
   <button id="loadButton" type="button" disabled>Load from PC</button>
-  <input id="stateFile" type="file" accept=".state,.bin,application/octet-stream" hidden>
+  <input
+    id="stateFile"
+    type="file"
+    accept=".state,.bin,application/octet-stream"
+    hidden
+  >
 </div>
 
 <script>
@@ -215,6 +246,7 @@ button:disabled {
   const overlay = document.getElementById("overlay");
   const loadingTitle = document.getElementById("loadingTitle");
   const loadingMessage = document.getElementById("loadingMessage");
+  const spinner = document.getElementById("spinner");
   const status = document.getElementById("status");
   const consoleBox = document.getElementById("console");
 
@@ -228,8 +260,12 @@ button:disabled {
 
   function log(message) {
     const time = new Date().toLocaleTimeString();
-    consoleBox.textContent += "[" + time + "] " + message + "\n";
+
+    consoleBox.textContent +=
+      "[" + time + "] " + message + "\n";
+
     consoleBox.scrollTop = consoleBox.scrollHeight;
+    console.log("[SMB3 Launcher] " + message);
   }
 
   function setStatus(message) {
@@ -240,6 +276,7 @@ button:disabled {
     loadingTitle.textContent = title;
     loadingMessage.textContent = message;
     overlay.classList.remove("hidden");
+    spinner.style.display = "block";
   }
 
   function hideLoading() {
@@ -248,9 +285,13 @@ button:disabled {
 
   function fail(message) {
     log("ERROR: " + message);
+
     setStatus("Error");
+
     showLoading("Unable to start", message);
-    document.getElementById("spinner").style.display = "none";
+    spinner.style.display = "none";
+
+    consoleBox.classList.add("visible");
   }
 
   document.getElementById("consoleToggle").addEventListener("click", () => {
@@ -280,6 +321,7 @@ button:disabled {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
+  // Save state
   saveButton.addEventListener("click", () => {
     if (!emu || !gameStarted || savePending) return;
 
@@ -287,18 +329,24 @@ button:disabled {
       savePending = true;
       saveButton.disabled = true;
       saveButton.textContent = "Saving...";
+
       log("Creating save state...");
+
       emu.send("saveState");
+
     } catch (error) {
       savePending = false;
       saveButton.disabled = false;
       saveButton.textContent = "Save to PC";
+
       log("Save failed: " + error.message);
     }
   });
 
+  // Load state
   loadButton.addEventListener("click", () => {
     if (!gameStarted) return;
+
     stateFile.click();
   });
 
@@ -321,6 +369,7 @@ button:disabled {
       emu.send("loadState", { data }, [data]);
 
       log("Save state sent to emulator.");
+
       setStatus("Save loaded");
       loadButton.textContent = "Loaded!";
 
@@ -331,23 +380,139 @@ button:disabled {
     } catch (error) {
       log("Load failed: " + error.message);
       loadButton.textContent = "Load failed";
+
     } finally {
       loadButton.disabled = false;
       stateFile.value = "";
     }
   });
 
+  // Check emulator files before starting
+  async function checkCoreReport() {
+    log("Checking FCEUMM core report...");
+
+    const response = await fetch(
+      BASE + "cores/reports/fceumm.json",
+      {
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "FCEUMM core report failed: HTTP " + response.status
+      );
+    }
+
+    const reportText = await response.text();
+
+    let report;
+
+    try {
+      report = JSON.parse(reportText);
+    } catch {
+      throw new Error(
+        "The FCEUMM core report is not valid JSON."
+      );
+    }
+
+    if (report.core !== "fceumm") {
+      throw new Error(
+        "Unexpected emulator core: " + report.core
+      );
+    }
+
+    log("FCEUMM core report validated.");
+  }
+
+  // Capture errors from the emulator iframe
+  function attachFrameDiagnostics(frame) {
+    if (!frame) return;
+
+    function attach() {
+      try {
+        const frameWindow = frame.contentWindow;
+
+        if (!frameWindow) return;
+
+        frameWindow.addEventListener("error", event => {
+          const message =
+            event.message || "Unknown iframe JavaScript error";
+
+          log("IFRAME ERROR: " + message);
+
+          if (event.filename) {
+            log("File: " + event.filename);
+          }
+
+          if (event.lineno) {
+            log("Line: " + event.lineno);
+          }
+
+          if (event.error && event.error.stack) {
+            log(event.error.stack);
+          }
+        });
+
+        frameWindow.addEventListener(
+          "unhandledrejection",
+          event => {
+            const reason = event.reason;
+
+            log(
+              "IFRAME PROMISE ERROR: " +
+              (reason?.stack ||
+               reason?.message ||
+               String(reason))
+            );
+          }
+        );
+
+        log("Iframe diagnostics attached.");
+
+      } catch (error) {
+        log(
+          "Could not attach iframe diagnostics: " +
+          error.message
+        );
+      }
+    }
+
+    frame.addEventListener("load", attach);
+
+    // Also attempt immediately in case the iframe already loaded.
+    attach();
+  }
+
   async function startLauncher() {
     try {
-      showLoading("Loading Super Mario Bros. 3", "Downloading emulator loader...");
+      // Validate core files
+      showLoading(
+        "Loading Super Mario Bros. 3",
+        "Checking emulator files..."
+      );
+
       setStatus("Preparing");
+
+      await checkCoreReport();
+
+      // Download loader
+      showLoading(
+        "Loading Super Mario Bros. 3",
+        "Downloading emulator loader..."
+      );
 
       log("Downloading emulator loader...");
 
-      const loaderResponse = await fetch(LOADER_URL);
+      const loaderResponse = await fetch(LOADER_URL, {
+        cache: "default"
+      });
 
       if (!loaderResponse.ok) {
-        throw new Error("Loader download failed: HTTP " + loaderResponse.status);
+        throw new Error(
+          "Loader download failed: HTTP " +
+          loaderResponse.status
+        );
       }
 
       const loaderCode = await loaderResponse.text();
@@ -361,19 +526,33 @@ button:disabled {
       document.head.appendChild(script);
 
       if (!window.WafflesEmu) {
-        throw new Error("Emulator loader did not initialize.");
+        throw new Error(
+          "Emulator loader did not initialize."
+        );
       }
 
       log("Emulator loader ready.");
 
-      showLoading("Starting emulator", "Preparing game screen...");
+      // Open emulator
+      showLoading(
+        "Starting emulator",
+        "Preparing game screen..."
+      );
+
       setStatus("Starting emulator");
 
       emu = await window.WafflesEmu.open(BASE, {
-        container: emulatorContainer
+        container: emulatorContainer,
+
+        // Explicitly use the repository root for emulator data.
+        // The core files are stored in BASE + "cores/".
+        dataBase: BASE
       });
 
-      emu.on((message) => {
+      attachFrameDiagnostics(emu.frame);
+
+      // Listen for emulator events
+      emu.on(message => {
         if (!message || !message.evt) return;
 
         switch (message.evt) {
@@ -388,19 +567,29 @@ button:disabled {
 
           case "started":
             gameStarted = true;
+
             hideLoading();
             enableControls();
+
             setStatus("Playing");
+
             log("Super Mario Bros. 3 started.");
             break;
 
           case "state":
             if (message.data) {
-              downloadState(message.data, "Super-Mario-Bros-3");
+              downloadState(
+                message.data,
+                "Super-Mario-Bros-3"
+              );
+
               log("Save state downloaded.");
               setStatus("Saved to PC");
+
             } else {
-              log("Save state response contained no data.");
+              log(
+                "Save state response contained no data."
+              );
             }
 
             savePending = false;
@@ -409,12 +598,24 @@ button:disabled {
             break;
 
           case "error":
-            log("Emulator error: " + (message.msg || "Unknown error"));
+            log(
+              "Emulator error: " +
+              (message.msg || "Unknown error")
+            );
+
             if (savePending) {
               savePending = false;
               saveButton.disabled = false;
               saveButton.textContent = "Save to PC";
             }
+
+            if (!gameStarted) {
+              fail(
+                message.msg ||
+                "The emulator reported an error."
+              );
+            }
+
             break;
 
           case "paused":
@@ -427,47 +628,101 @@ button:disabled {
 
           case "exit":
             gameStarted = false;
+
             setStatus("Stopped");
+
             saveButton.disabled = true;
             loadButton.disabled = true;
             break;
         }
       });
 
+      // Wait for emulator handshake
+      showLoading(
+        "Starting emulator",
+        "Waiting for emulator connection..."
+      );
+
       await Promise.race([
         emu.ready,
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Emulator connection timed out.")), 45000)
-        )
+
+        new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(
+              new Error("Emulator connection timed out.")
+            );
+          }, 45000);
+        })
       ]);
 
       log("Emulator is ready.");
 
-      showLoading("Downloading Super Mario Bros. 3", "This may take a moment...");
+      // Download ROM
+      showLoading(
+        "Downloading Super Mario Bros. 3",
+        "This may take a moment..."
+      );
+
       setStatus("Downloading ROM");
 
-      const romResponse = await fetch(ROM_URL);
+      log("Downloading Super Mario Bros. 3...");
+
+      const romResponse = await fetch(ROM_URL, {
+        cache: "default"
+      });
 
       if (!romResponse.ok) {
-        throw new Error("ROM download failed: HTTP " + romResponse.status);
+        throw new Error(
+          "ROM download failed: HTTP " +
+          romResponse.status
+        );
       }
 
       const romBuffer = await romResponse.arrayBuffer();
 
       if (romBuffer.byteLength < 16) {
         throw new Error(
-          "ROM file is too small to be a valid NES ROM: " + romBuffer.byteLength + " bytes."
+          "ROM file is too small to be a valid NES ROM: " +
+          romBuffer.byteLength +
+          " bytes."
         );
       }
 
-      log("ROM downloaded: " + (romBuffer.byteLength / 1048576) + " MB.");
+      // Validate NES header
+      const romHeader = new Uint8Array(romBuffer, 0, 4);
 
-      showLoading("Starting Super Mario Bros. 3", "Loading game...");
+      if (
+        romHeader[0] !== 0x4E ||
+        romHeader[1] !== 0x45 ||
+        romHeader[2] !== 0x53 ||
+        romHeader[3] !== 0x1A
+      ) {
+        throw new Error(
+          "Downloaded file does not have a valid NES ROM header."
+        );
+      }
+
+      log(
+        "ROM downloaded: " +
+        (romBuffer.byteLength / 1048576).toFixed(2) +
+        " MB."
+      );
+
+      // Launch game
+      showLoading(
+        "Starting Super Mario Bros. 3",
+        "Loading game..."
+      );
+
       setStatus("Loading game");
 
-      const romFile = new File([romBuffer], ROM_NAME, {
-        type: "application/octet-stream"
-      });
+      const romFile = new File(
+        [romBuffer],
+        ROM_NAME,
+        {
+          type: "application/octet-stream"
+        }
+      );
 
       await emu.load(romFile, {
         system: "nes",
@@ -476,13 +731,26 @@ button:disabled {
 
       log("ROM sent to emulator.");
 
+      setTimeout(() => {
+        if (!gameStarted) {
+          log(
+            "Still waiting for the emulator to report that the game started."
+          );
+        }
+      }, 30000);
+
     } catch (error) {
-      fail(error && error.message ? error.message : String(error));
+      fail(
+        error && error.message
+          ? error.message
+          : String(error)
+      );
     }
   }
 
   startLauncher();
 })();
 </script>
+
 </body>
 </html>
