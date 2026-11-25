@@ -132,15 +132,16 @@ html, body {
   const container = document.getElementById("emulator");
 
   let emulatorStarted = false;
+  let emulator;
 
-  // Console toggle
   consoleButton.addEventListener("click", () => {
-    const isVisible = consolePanel.classList.toggle("visible");
-    consoleButton.textContent = isVisible ? "Hide Console" : "Console";
+    const visible = consolePanel.classList.toggle("visible");
+    consoleButton.textContent = visible ? "Hide Console" : "Console";
   });
 
   function log(message) {
     const line = "[SMW Launcher] " + message;
+
     console.log(line);
     consolePanel.textContent += line + "\n";
     consolePanel.scrollTop = consolePanel.scrollHeight;
@@ -149,6 +150,7 @@ html, body {
   function status(message) {
     log(message);
     overlay.textContent = message;
+    overlay.classList.remove("hidden");
   }
 
   function fail(error) {
@@ -158,9 +160,13 @@ html, body {
     overlay.classList.remove("hidden");
 
     log("ERROR: " + message);
+
+    if (error?.stack) {
+      log(error.stack);
+    }
+
     console.error("[SMW Launcher]", error);
 
-    // Automatically show console if an error occurs
     consolePanel.classList.add("visible");
     consoleButton.textContent = "Hide Console";
   }
@@ -169,16 +175,32 @@ html, body {
     return Promise.race([
       promise,
       new Promise((_, reject) => {
-        setTimeout(
-          () => reject(new Error(message)),
-          milliseconds
-        );
+        setTimeout(() => {
+          reject(new Error(message));
+        }, milliseconds);
       })
     ]);
   }
 
+  async function checkFile(url, description) {
+    log("Checking " + description + "...");
+
+    const response = await fetch(url, {
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        description + " returned HTTP " + response.status
+      );
+    }
+
+    log(description + " is accessible.");
+    return response;
+  }
+
   try {
-    // Download ROM automatically
+    // Download ROM
     status("Downloading Super Mario World...");
 
     const romResponse = await fetch(ROM_URL, {
@@ -200,6 +222,32 @@ html, body {
     }
 
     log("ROM downloaded: " + romBuffer.byteLength + " bytes");
+
+    // Verify the SNES core report exists
+    status("Checking emulator files...");
+
+    const reportResponse = await checkFile(
+      BASE + "cores/reports/snes9x.json",
+      "SNES core report"
+    );
+
+    const reportText = await reportResponse.text();
+
+    let report;
+
+    try {
+      report = JSON.parse(reportText);
+    } catch {
+      throw new Error("The SNES core report is not valid JSON.");
+    }
+
+    if (report.core !== "snes9x") {
+      throw new Error(
+        "Unexpected core report: " + JSON.stringify(report)
+      );
+    }
+
+    log("SNES core report validated.");
 
     // Download Waffle loader
     status("Loading emulator...");
@@ -228,15 +276,66 @@ html, body {
       throw new Error("Waffle loader failed to initialize.");
     }
 
-    // Open emulator inside this page
+    // Open emulator
     status("Opening emulator...");
 
-    const emu = await WafflesEmu.open(BASE, {
-      container: container
+    emulator = await WafflesEmu.open(BASE, {
+      container: container,
+
+      // Explicitly point EmulatorJS at the repository root.
+      // Core files are located inside BASE + "cores/".
+      dataBase: BASE
     });
 
-    // Listen for emulator events
-    emu.on(message => {
+    // Capture errors from inside the emulator iframe
+    if (emulator.frame) {
+      emulator.frame.addEventListener("load", () => {
+        log("Emulator iframe loaded.");
+
+        try {
+          const frameWindow = emulator.frame.contentWindow;
+
+          frameWindow.addEventListener("error", event => {
+            log(
+              "IFRAME JAVASCRIPT ERROR: " +
+              (event.message || "Unknown error")
+            );
+
+            if (event.filename) {
+              log("File: " + event.filename);
+            }
+
+            if (event.lineno) {
+              log("Line: " + event.lineno);
+            }
+
+            if (event.error?.stack) {
+              log(event.error.stack);
+            }
+          });
+
+          frameWindow.addEventListener(
+            "unhandledrejection",
+            event => {
+              log(
+                "IFRAME PROMISE ERROR: " +
+                (event.reason?.stack ||
+                 event.reason?.message ||
+                 String(event.reason))
+              );
+            }
+          );
+        } catch (error) {
+          log(
+            "Could not attach iframe error listeners: " +
+            error.message
+          );
+        }
+      });
+    }
+
+    // Listen for Waffle events
+    emulator.on(message => {
       if (!message || !message.evt) return;
 
       log("Waffle event: " + message.evt);
@@ -266,18 +365,18 @@ html, body {
       }
     });
 
-    // Wait for emulator
+    // Wait for emulator handshake
     status("Initializing emulator...");
 
     await timeout(
-      emu.ready,
+      emulator.ready,
       45000,
       "Waffle initialization timed out."
     );
 
     log("Waffle is ready.");
 
-    // Load ROM automatically
+    // Send ROM
     status("Launching Super Mario World...");
 
     const romFile = new File(
@@ -288,16 +387,23 @@ html, body {
       }
     );
 
-    await emu.load(romFile, {
+    await emulator.load(romFile, {
       system: "snes",
       core: "snes9x"
     });
 
     log("ROM sent to emulator.");
 
+    // Detect a game that never finishes starting
     setTimeout(() => {
       if (!emulatorStarted) {
-        log("Still waiting for the emulator to report that the game started.");
+        log(
+          "The emulator has not reported that the game started."
+        );
+
+        log(
+          "Check the iframe error messages above for the actual core-loading failure."
+        );
       }
     }, 30000);
 
