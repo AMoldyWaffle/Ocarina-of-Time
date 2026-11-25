@@ -1,1375 +1,1011 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Cuphead</title>
 
-  <title>Cuphead</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #000;
-      color: white;
-      font-family: Arial, sans-serif;
-    }
-
-    #gameContainer {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-    }
-
-    #gameContainer canvas {
-      width: 100% !important;
-      height: 100% !important;
-      display: block;
-    }
-
-    #loadingScreen {
-      position: absolute;
-      inset: 0;
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background: #000;
-      padding: 24px;
-      text-align: center;
-    }
-
-    #loadingTitle {
-      font-family: cursive;
-      font-size: 48px;
-      font-weight: bold;
-      background: linear-gradient(
-        270deg,
-        #ff0000,
-        #ff7f00,
-        #ffff00,
-        #00ff00,
-        #0000ff,
-        #4b0082,
-        #8f00ff
-      );
-      background-size: 400% 400%;
-      background-clip: text;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: rainbow 3s ease infinite;
-    }
-
-    @keyframes rainbow {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    #loadingStatus {
-      margin-top: 20px;
-      font-size: 16px;
-      color: #ddd;
-    }
-
-    #progressOuter {
-      width: min(600px, 90vw);
-      height: 12px;
-      margin-top: 18px;
-      border-radius: 20px;
-      overflow: hidden;
-      background: #292929;
-    }
-
-    #progressInner {
-      width: 0%;
-      height: 100%;
-      background: linear-gradient(90deg, #ff3333, #ffcc33);
-      transition: width 0.15s linear;
-    }
-
-    #diagnostics {
-      width: min(700px, 90vw);
-      max-height: 180px;
-      overflow-y: auto;
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #333;
-      background: #101010;
-      color: #aaa;
-      font-family: monospace;
-      font-size: 11px;
-      text-align: left;
-      white-space: pre-wrap;
-    }
-
-    #saveControls {
-      position: fixed;
-      top: 12px;
-      right: 12px;
-      z-index: 1000;
-      display: flex;
-      gap: 8px;
-    }
-
-    #saveControls button {
-      padding: 10px 16px;
-      border: 2px solid #d6a832;
-      border-radius: 6px;
-      background: #211b16;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    #saveControls button:hover {
-      background: #49351b;
-    }
-
-    #saveControls button:disabled {
-      opacity: 0.5;
-      cursor: wait;
-    }
-
-    #saveFileInput {
-      display: none;
-    }
-  </style>
+<style>
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;background:#000;color:white;font-family:Arial,sans-serif}
+#gameContainer{position:absolute;inset:0;width:100%;height:100%}
+#gameContainer canvas{width:100%!important;height:100%!important;display:block}
+#loadingScreen{position:absolute;inset:0;z-index:100;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#000;padding:24px;text-align:center}
+#loadingTitle{font-family:cursive;font-size:48px;font-weight:bold;background:linear-gradient(270deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#8f00ff);background-size:400% 400%;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:rainbow 3s ease infinite}
+@keyframes rainbow{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+#loadingStatus{margin-top:20px;font-size:16px;color:#ddd}
+#progressOuter{width:min(600px,90vw);height:12px;margin-top:18px;border-radius:20px;overflow:hidden;background:#292929}
+#progressInner{width:0%;height:100%;background:linear-gradient(90deg,#ff3333,#ffcc33);transition:width .15s linear}
+#diagnostics{width:min(700px,90vw);max-height:180px;overflow-y:auto;margin-top:20px;padding:10px;border:1px solid #333;background:#101010;color:#aaa;font-family:monospace;font-size:11px;text-align:left;white-space:pre-wrap}
+#saveControls{position:fixed;top:12px;right:12px;z-index:1000;display:flex;gap:8px}
+#saveControls button{padding:10px 16px;border:2px solid #d6a832;border-radius:6px;background:#211b16;color:white;font-weight:bold;cursor:pointer;font-size:14px}
+#saveControls button:hover{background:#49351b}
+#saveControls button:disabled{opacity:.5;cursor:wait}
+#saveFileInput{display:none}
+</style>
 </head>
-
 <body>
 
-  <div id="loadingScreen">
-    <div id="loadingTitle">CUPHEAD</div>
+<div id="loadingScreen">
+  <div id="loadingTitle">CUPHEAD</div>
+  <div id="loadingStatus">Preparing game...</div>
+  <div id="progressOuter"><div id="progressInner"></div></div>
+  <div id="diagnostics"></div>
+</div>
 
-    <div id="loadingStatus">
-      Preparing game...
-    </div>
+<div id="gameContainer"></div>
 
-    <div id="progressOuter">
-      <div id="progressInner"></div>
-    </div>
+<div id="saveControls">
+  <button id="saveButton" type="button">Save</button>
+  <button id="loadButton" type="button">Load</button>
+  <input id="saveFileInput" type="file" accept=".json,application/json">
+</div>
 
-    <div id="diagnostics"></div>
-  </div>
+<script src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Cuphead@main/Build/UnityLoader.js"></script>
 
-  <div id="gameContainer"></div>
+<script>
+(() => {
+"use strict";
 
-  <div id="saveControls">
-    <button id="saveButton" type="button">Save</button>
-    <button id="loadButton" type="button">Load</button>
+/* ============================================================
+   CONFIGURATION
+============================================================ */
 
-    <input
-      id="saveFileInput"
-      type="file"
-      accept=".json,application/json"
-    >
-  </div>
+const REPOSITORY = "AMoldyWaffle/Cuphead";
+const BRANCH = "main";
 
-  <script src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Cuphead@main/Build/UnityLoader.js"></script>
+const CDN_BASE =
+  `https://cdn.jsdelivr.net/gh/${REPOSITORY}@${BRANCH}/Build/`;
 
-  <script>
-  (() => {
-    "use strict";
+const RAW_BASE =
+  `https://raw.githubusercontent.com/${REPOSITORY}/${BRANCH}/Build/`;
 
-    // ============================================================
-    // CONFIGURATION
-    // ============================================================
+const CACHE_NAME = "cuphead-cache-v2";
 
-    const REPOSITORY = "AMoldyWaffle/Cuphead";
-    const BRANCH = "main";
+/*
+  The scheduler is shared by every split asset and single asset.
+  It starts conservatively and adjusts based on real request results.
+*/
+const DOWNLOAD_SETTINGS = {
+  initial: 6,
+  minimum: 3,
+  maximum: 12,
+  increaseEvery: 6
+};
 
-    const CDN_BASE =
-      `https://cdn.jsdelivr.net/gh/${REPOSITORY}@${BRANCH}/Build/`;
+const ASSETS = [
+  {name:"CupheadPort.data.unityweb",parts:103,size:2134335501},
+  {name:"CupheadPort.wasm.code.unityweb",parts:2,size:26100243},
+  {name:"CupheadPort.asm.code.unityweb",parts:3,size:42954393}
+];
 
-    const RAW_BASE =
-      `https://raw.githubusercontent.com/${REPOSITORY}/${BRANCH}/Build/`;
+const SINGLE_ASSETS = [
+  {name:"CupheadPort.json",size:539},
+  {name:"CupheadPort.asm.framework.unityweb",size:537176},
+  {name:"CupheadPort.asm.memory.unityweb",size:3637047},
+  {name:"CupheadPort.wasm.framework.unityweb",size:601597}
+];
 
-    const CACHE_NAME = "cuphead-cache-v1";
+const ASM_FRAMEWORK_SHA =
+  "07a9d2aef6919ee72f1d940a0879a2afe702dd43";
 
-    // Increased from 8 to 32.
-    const PART_CONCURRENCY = 32;
+/* ============================================================
+   ELEMENTS AND STATE
+============================================================ */
 
-    const ASSETS = [
-      {
-        name: "CupheadPort.data.unityweb",
-        parts: 103,
-        size: 2134335501
-      },
-      {
-        name: "CupheadPort.wasm.code.unityweb",
-        parts: 2,
-        size: 26100243
-      },
-      {
-        name: "CupheadPort.asm.code.unityweb",
-        parts: 3,
-        size: 42954393
-      }
-    ];
+const loadingScreen = document.getElementById("loadingScreen");
+const loadingStatus = document.getElementById("loadingStatus");
+const progressInner = document.getElementById("progressInner");
+const diagnostics = document.getElementById("diagnostics");
 
-    const SINGLE_ASSETS = [
-      {
-        name: "CupheadPort.json",
-        size: 539
-      },
-      {
-        name: "CupheadPort.asm.framework.unityweb",
-        size: 537176
-      },
-      {
-        name: "CupheadPort.asm.memory.unityweb",
-        size: 3637047
-      },
-      {
-        name: "CupheadPort.wasm.framework.unityweb",
-        size: 601597
-      }
-    ];
+const saveButton = document.getElementById("saveButton");
+const loadButton = document.getElementById("loadButton");
+const saveFileInput = document.getElementById("saveFileInput");
 
-    const ASM_FRAMEWORK_SHA =
-      "07a9d2aef6919ee72f1d940a0879a2afe702dd43";
+const objectURLs = {};
 
-    // ============================================================
-    // STATE
-    // ============================================================
+let loadedBytes = 0;
+const totalBytes =
+  ASSETS.reduce((n,a)=>n+a.size,0) +
+  SINGLE_ASSETS.reduce((n,a)=>n+a.size,0);
 
-    const loadingScreen =
-      document.getElementById("loadingScreen");
+let cache = null;
+let unityInstance = null;
 
-    const loadingStatus =
-      document.getElementById("loadingStatus");
+/* ============================================================
+   LOGGING AND PROGRESS
+============================================================ */
 
-    const progressInner =
-      document.getElementById("progressInner");
+function log(message) {
+  const time = new Date().toLocaleTimeString();
+  diagnostics.textContent += `[${time}] ${message}\n`;
+  diagnostics.scrollTop = diagnostics.scrollHeight;
+  console.log("[Cuphead]",message);
+}
 
-    const diagnostics =
-      document.getElementById("diagnostics");
+function setStatus(message) {
+  loadingStatus.textContent = message;
+  log(message);
+}
 
-    const objectURLs = {};
+let progressTimer = null;
 
-    let loadedBytes = 0;
+function updateProgress(bytes=0) {
+  loadedBytes = Math.max(0,loadedBytes+bytes);
 
-    const totalBytes =
-      ASSETS.reduce((n, a) => n + a.size, 0) +
-      SINGLE_ASSETS.reduce((n, a) => n + a.size, 0);
+  if(progressTimer!==null)return;
 
-    let cache = null;
-    let unityInstance = null;
+  progressTimer=setTimeout(()=>{
+    progressTimer=null;
 
-    // ============================================================
-    // DOWNLOAD SLOT MANAGER
-    // ============================================================
+    const percentage=Math.min(100,loadedBytes/totalBytes*100);
+    progressInner.style.width=percentage.toFixed(2)+"%";
 
-    let activePartDownloads = 0;
-    const partDownloadWaiters = [];
+    loadingStatus.textContent=
+      `Downloading assets: ${(loadedBytes/1048576).toFixed(1)} MB / ${(totalBytes/1048576).toFixed(1)} MB`;
+  },100);
+}
 
-    async function acquirePartSlot() {
-      if (activePartDownloads < PART_CONCURRENCY) {
-        activePartDownloads++;
-        return;
-      }
+/* ============================================================
+   ADAPTIVE GLOBAL DOWNLOAD SCHEDULER
+============================================================ */
 
-      await new Promise(resolve => {
-        partDownloadWaiters.push(resolve);
-      });
+class DownloadScheduler {
+  constructor(settings) {
+    this.limit=settings.initial;
+    this.minimum=settings.minimum;
+    this.maximum=settings.maximum;
+    this.increaseEvery=settings.increaseEvery;
+
+    this.active=0;
+    this.waiters=[];
+    this.successes=0;
+    this.failures=0;
+    this.fastSamples=0;
+    this.slowSamples=0;
+  }
+
+  acquire() {
+    if(this.active<this.limit) {
+      this.active++;
+      return Promise.resolve();
     }
 
-    function releasePartSlot() {
-      const next = partDownloadWaiters.shift();
+    return new Promise(resolve=>{
+      this.waiters.push(resolve);
+    });
+  }
 
-      if (next) {
-        next();
-      } else {
-        activePartDownloads--;
-      }
+  release() {
+    const next=this.waiters.shift();
+
+    if(next) {
+      next();
+    } else {
+      this.active--;
+    }
+  }
+
+  recordSuccess(milliseconds) {
+    this.successes++;
+
+    if(milliseconds<8000) {
+      this.fastSamples++;
+      this.slowSamples=0;
+    } else if(milliseconds>25000) {
+      this.slowSamples++;
+      this.fastSamples=0;
+    } else {
+      this.fastSamples=0;
+      this.slowSamples=0;
     }
 
-    // ============================================================
-    // SAVE / LOAD ELEMENTS
-    // ============================================================
-
-    const saveButton =
-      document.getElementById("saveButton");
-
-    const loadButton =
-      document.getElementById("loadButton");
-
-    const saveFileInput =
-      document.getElementById("saveFileInput");
-
-    const SAVE_DIRECTORY = "/idbfs";
-
-    // ============================================================
-    // DIAGNOSTICS
-    // ============================================================
-
-    function log(message) {
-      const time = new Date().toLocaleTimeString();
-
-      diagnostics.textContent +=
-        `[${time}] ${message}\n`;
-
-      diagnostics.scrollTop =
-        diagnostics.scrollHeight;
-
-      console.log("[Cuphead]", message);
+    if(this.successes%this.increaseEvery===0 &&
+       this.fastSamples>=this.increaseEvery) {
+      this.limit=Math.min(this.maximum,this.limit+1);
+      this.fastSamples=0;
+      log(`Download speed looks healthy. Concurrency increased to ${this.limit}.`);
     }
 
-    function setStatus(message) {
-      loadingStatus.textContent = message;
-      log(message);
+    this.drain();
+  }
+
+  recordFailure(error) {
+    this.failures++;
+    this.fastSamples=0;
+
+    if(this.limit>this.minimum) {
+      this.limit=Math.max(this.minimum,this.limit-1);
+      log(`Download failure detected. Concurrency reduced to ${this.limit}.`);
     }
 
-    // ============================================================
-    // OPTIMIZED PROGRESS UPDATES
-    // ============================================================
+    this.drain();
+  }
 
-    let progressUpdatePending = false;
+  drain() {
+    while(this.waiters.length && this.active<this.limit) {
+      this.active++;
+      this.waiters.shift()();
+    }
+  }
 
-    function updateProgress(bytes = 0) {
-      loadedBytes += bytes;
+  async run(task) {
+    await this.acquire();
+    const start=performance.now();
 
-      if (progressUpdatePending) return;
+    try {
+      const result=await task();
+      this.recordSuccess(performance.now()-start);
+      return result;
+    } catch(error) {
+      this.recordFailure(error);
+      throw error;
+    } finally {
+      this.release();
+    }
+  }
+}
 
-      progressUpdatePending = true;
+const scheduler=new DownloadScheduler(DOWNLOAD_SETTINGS);
 
-      setTimeout(() => {
-        progressUpdatePending = false;
+/* ============================================================
+   MIRROR HEALTH AND ORDERING
+============================================================ */
 
-        const percentage = Math.min(
-          100,
-          (loadedBytes / totalBytes) * 100
-        );
+const mirrorHealth=new Map();
 
-        progressInner.style.width =
-          percentage.toFixed(2) + "%";
+function getMirrorHealth(url) {
+  if(!mirrorHealth.has(url)) {
+    mirrorHealth.set(url,{
+      failures:0,
+      successes:0,
+      averageTime:0,
+      blocked:false
+    });
+  }
+  return mirrorHealth.get(url);
+}
 
-        const mbDone =
-          (loadedBytes / 1048576).toFixed(1);
+function orderedSources(url) {
+  const sources=[...new Set([
+    url,
+    url.replace(CDN_BASE,RAW_BASE)
+  ])];
 
-        const mbTotal =
-          (totalBytes / 1048576).toFixed(1);
+  return sources.sort((a,b)=>{
+    const A=getMirrorHealth(a);
+    const B=getMirrorHealth(b);
 
-        loadingStatus.textContent =
-          `Downloading assets: ${mbDone} MB / ${mbTotal} MB`;
+    if(A.blocked!==B.blocked)return A.blocked?1:-1;
 
-      }, 100);
+    const scoreA=A.averageTime+(A.failures*12000);
+    const scoreB=B.averageTime+(B.failures*12000);
+
+    return scoreA-scoreB;
+  });
+}
+
+function recordMirrorSuccess(url,milliseconds) {
+  const health=getMirrorHealth(url);
+  health.successes++;
+
+  health.averageTime=health.averageTime===0
+    ? milliseconds
+    : health.averageTime*.7+milliseconds*.3;
+}
+
+function recordMirrorFailure(url,error) {
+  const health=getMirrorHealth(url);
+  health.failures++;
+
+  const message=String(error.message||error);
+
+  if(/HTTP 403|HTTP 404|HTTP 410/.test(message)) {
+    health.blocked=true;
+  }
+}
+
+/* ============================================================
+   CACHE
+============================================================ */
+
+function cacheKey(filename) {
+  return new URL(
+    "/__cuphead_cache__/"+encodeURIComponent(filename),
+    location.href
+  ).href;
+}
+
+async function initializeCache() {
+  try {
+    if(!("caches" in window)) {
+      log("Cache Storage unavailable.");
+      return;
     }
 
-    // ============================================================
-    // CACHE
-    // ============================================================
+    cache=await caches.open(CACHE_NAME);
+    log("Persistent asset cache initialized.");
+  } catch(error) {
+    cache=null;
+    log("Cache initialization failed: "+error.message);
+  }
+}
 
-    function cacheKey(filename) {
-      return new URL(
-        "/__cuphead_cache__/" +
-        encodeURIComponent(filename),
-        location.href
-      ).href;
+async function getCachedAsset(filename,expectedSize) {
+  if(!cache)return null;
+
+  try {
+    const response=await cache.match(cacheKey(filename));
+    if(!response)return null;
+
+    const blob=await response.blob();
+
+    if(blob.size!==expectedSize) {
+      log(`Invalid cached asset: ${filename} (${blob.size} bytes)`);
+      await cache.delete(cacheKey(filename));
+      return null;
     }
 
-    async function initializeCache() {
-      try {
-        if (!("caches" in window)) {
-          log("Cache Storage unavailable.");
-          return;
-        }
-
-        cache = await caches.open(CACHE_NAME);
-
-        log("Persistent asset cache initialized.");
-
-      } catch (error) {
-        cache = null;
-
-        log(
-          "Cache initialization failed: " +
-          error.message
-        );
-      }
-    }
-
-    async function getCachedAsset(filename, expectedSize) {
-      if (!cache) return null;
-
-      try {
-        const response =
-          await cache.match(cacheKey(filename));
-
-        if (!response) return null;
-
-        const blob = await response.blob();
-
-        if (blob.size !== expectedSize) {
-          log(
-            `Invalid cached asset: ${filename} ` +
-            `(${blob.size} bytes)`
-          );
-
-          await cache.delete(cacheKey(filename));
-
-          return null;
-        }
-
-        updateProgress(blob.size);
-
-        log(`Using cached asset: ${filename}`);
-
-        return blob;
-
-      } catch (error) {
-        log(
-          `Cache read failed for ${filename}: ` +
-          error.message
-        );
-
-        return null;
-      }
-    }
-
-    async function saveCachedAsset(filename, blob) {
-      if (!cache) return;
-
-      try {
-        await cache.put(
-          cacheKey(filename),
-          new Response(blob)
-        );
-
-        log(`Cached asset: ${filename}`);
-
-      } catch (error) {
-        log(
-          `Could not cache ${filename}: ` +
-          error.message
-        );
-      }
-    }
-
-    // ============================================================
-    // DOWNLOAD HELPERS
-    // ============================================================
-
-    async function fetchResponse(url) {
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(
-          `HTTP ${response.status}: ${url}`
-        );
-      }
-
-      return response;
-    }
-
-    async function fetchBlobWithFallback(filename) {
-      const urls = [
-        CDN_BASE + filename,
-        RAW_BASE + filename
-      ];
-
-      let lastError = null;
-
-      for (const url of urls) {
-        try {
-          log(`Fetching ${filename} from ${url}`);
-
-          const response = await fetchResponse(url);
-
-          return await response.blob();
-
-        } catch (error) {
-          lastError = error;
-
-          log(
-            `Download fallback: ${error.message}`
-          );
-        }
-      }
-
-      if (filename === "CupheadPort.asm.framework.unityweb") {
-        try {
-          log("Trying GitHub Blob API fallback.");
-
-          const apiURL =
-            `https://api.github.com/repos/${REPOSITORY}` +
-            `/git/blobs/${ASM_FRAMEWORK_SHA}`;
-
-          const response =
-            await fetchResponse(apiURL);
-
-          const json = await response.json();
-
-          if (!json.content) {
-            throw new Error(
-              "GitHub Blob API returned no content."
-            );
-          }
-
-          const binary = atob(
-            json.content.replace(/\s/g, "")
-          );
-
-          const bytes = new Uint8Array(binary.length);
-
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-          }
-
-          return new Blob([bytes], {
-            type: "application/octet-stream"
-          });
-
-        } catch (error) {
-          lastError = error;
-
-          log(
-            "GitHub Blob API fallback failed: " +
-            error.message
-          );
-        }
-      }
-
-      throw lastError ||
-        new Error(`Unable to download ${filename}`);
-    }
-
-    // ============================================================
-    // OPTIMIZED PART DOWNLOAD
-    // ============================================================
-
-    async function fetchPart(url, partKey) {
-
-      // Check cached part first.
-      if (cache && partKey) {
-        try {
-          const cachedResponse =
-            await cache.match(partKey);
-
-          if (cachedResponse) {
-            const cachedBlob =
-              await cachedResponse.blob();
-
-            if (cachedBlob.size > 0) {
-              updateProgress(cachedBlob.size);
-
-              log("Using cached part: " + partKey);
-
-              return cachedBlob;
-            }
-
-            await cache.delete(partKey);
-          }
-
-        } catch (error) {
-          log(
-            "Part cache read failed: " +
-            error.message
-          );
-        }
-      }
-
-      await acquirePartSlot();
-
-      try {
-        let lastError = null;
-
-        const sources = [
-          url,
-          url.replace(CDN_BASE, RAW_BASE)
-        ];
-
-        for (const source of sources) {
-          let received = 0;
-
-          try {
-            const response =
-              await fetchResponse(source);
-
-            let blob;
-
-            if (!response.body) {
-              blob = await response.blob();
-
-              updateProgress(blob.size);
-
-            } else {
-              const reader =
-                response.body.getReader();
-
-              const chunks = [];
-
-              while (true) {
-                const result = await reader.read();
-
-                if (result.done) break;
-
-                chunks.push(result.value);
-
-                received += result.value.byteLength;
-
-                updateProgress(
-                  result.value.byteLength
-                );
-              }
-
-              blob = new Blob(chunks, {
-                type: "application/octet-stream"
-              });
-            }
-
-            if (!blob.size) {
-              throw new Error(
-                "Downloaded part was empty."
-              );
-            }
-
-            // Cache without blocking the download worker.
-            if (cache && partKey) {
-              cache.put(
-                partKey,
-                new Response(blob)
-              ).catch(error => {
-                log(
-                  "Could not cache part: " +
-                  error.message
-                );
-              });
-            }
-
-            return blob;
-
-          } catch (error) {
-            loadedBytes = Math.max(
-              0,
-              loadedBytes - received
-            );
-
-            lastError = error;
-
-            log(
-              `Part download failed; trying fallback: ` +
-              error.message
-            );
-          }
-        }
-
-        throw lastError ||
-          new Error("All part sources failed.");
-
-      } finally {
-        releasePartSlot();
-      }
-    }
-
-    // ============================================================
-    // HIGH-CONCURRENCY PART ASSEMBLY
-    // ============================================================
-
-    async function downloadParts(asset) {
-      const parts = new Array(asset.parts);
-
-      let nextIndex = 0;
-
-      async function worker() {
-        while (true) {
-          const index = nextIndex++;
-
-          if (index >= asset.parts) {
-            return;
-          }
-
-          const partNumber = index + 1;
-
-          const filename =
-            `${asset.name}.part${partNumber}`;
-
-          const url = CDN_BASE + filename;
-
-          log(
-            `Downloading ${filename} ` +
-            `(${partNumber}/${asset.parts})`
-          );
-
-          parts[index] = await fetchPart(
-            url,
-            cacheKey(filename)
-          );
-        }
-      }
-
-      const workers = [];
-
-      const workerCount = Math.min(
-        PART_CONCURRENCY,
-        asset.parts
-      );
-
-      for (let i = 0; i < workerCount; i++) {
-        workers.push(worker());
-      }
-
-      await Promise.all(workers);
-
-      const mergedBlob = new Blob(parts, {
-        type: "application/octet-stream"
+    updateProgress(blob.size);
+    log(`Using cached asset: ${filename}`);
+    return blob;
+  } catch(error) {
+    log(`Cache read failed for ${filename}: ${error.message}`);
+    return null;
+  }
+}
+
+async function saveCachedAsset(filename,blob) {
+  if(!cache)return;
+
+  try {
+    await cache.put(cacheKey(filename),new Response(blob));
+    log(`Cached asset: ${filename}`);
+  } catch(error) {
+    log(`Could not cache ${filename}: ${error.message}`);
+  }
+}
+
+/* ============================================================
+   FETCH HELPERS
+============================================================ */
+
+async function fetchResponse(url) {
+  const response=await fetch(url,{cache:"no-store"});
+
+  if(!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${url}`);
+  }
+
+  return response;
+}
+
+async function fetchBlobWithFallback(filename) {
+  const urls=[CDN_BASE+filename,RAW_BASE+filename];
+  let lastError=null;
+
+  for(const url of urls) {
+    try {
+      const blob=await scheduler.run(async()=>{
+        const start=performance.now();
+        const response=await fetchResponse(url);
+        const result=await response.blob();
+        recordMirrorSuccess(url,performance.now()-start);
+        return result;
       });
 
-      if (mergedBlob.size !== asset.size) {
-        throw new Error(
-          `${asset.name} size mismatch. ` +
-          `Expected ${asset.size}, got ${mergedBlob.size}.`
-        );
-      }
-
-      return mergedBlob;
+      if(!blob.size)throw new Error("Downloaded file was empty.");
+      return blob;
+    } catch(error) {
+      lastError=error;
+      recordMirrorFailure(url,error);
+      log(`Download fallback: ${error.message}`);
     }
+  }
 
-    // ============================================================
-    // ASSET ASSEMBLY AND CACHING
-    // ============================================================
+  if(filename==="CupheadPort.asm.framework.unityweb") {
+    try {
+      log("Trying GitHub Blob API fallback.");
 
-    async function loadSplitAsset(asset) {
-      setStatus(`Preparing ${asset.name}...`);
+      const apiURL=
+        `https://api.github.com/repos/${REPOSITORY}/git/blobs/${ASM_FRAMEWORK_SHA}`;
 
-      let blob = await getCachedAsset(
-        asset.name,
-        asset.size
-      );
+      const response=await fetchResponse(apiURL);
+      const json=await response.json();
 
-      if (!blob) {
-        log(
-          `Downloading ${asset.parts} parts for ${asset.name}`
-        );
+      if(!json.content)throw new Error("GitHub Blob API returned no content.");
 
-        blob = await downloadParts(asset);
+      const binary=atob(json.content.replace(/\s/g,""));
+      const bytes=new Uint8Array(binary.length);
+
+      for(let i=0;i<binary.length;i++) {
+        bytes[i]=binary.charCodeAt(i);
       }
 
-      if (blob.size !== asset.size) {
-        throw new Error(
-          `Incorrect assembled size for ${asset.name}.`
-        );
-      }
-
-      objectURLs[asset.name] =
-        URL.createObjectURL(blob);
-
-      log(`Assembled ${asset.name}`);
-
-      return objectURLs[asset.name];
+      return new Blob([bytes],{type:"application/octet-stream"});
+    } catch(error) {
+      lastError=error;
+      log("GitHub Blob API fallback failed: "+error.message);
     }
+  }
 
-    async function loadSingleAsset(asset) {
-      setStatus(`Preparing ${asset.name}...`);
+  throw lastError||new Error(`Unable to download ${filename}`);
+}
 
-      let blob = await getCachedAsset(
-        asset.name,
-        asset.size
-      );
+/* ============================================================
+   PART DOWNLOAD
+============================================================ */
 
-      if (!blob) {
-        blob = await fetchBlobWithFallback(
-          asset.name
-        );
+async function fetchPart(url,partKey) {
+  if(cache&&partKey) {
+    try {
+      const cachedResponse=await cache.match(partKey);
 
-        if (blob.size !== asset.size) {
-          throw new Error(
-            `${asset.name} size mismatch. ` +
-            `Expected ${asset.size}, got ${blob.size}.`
-          );
+      if(cachedResponse) {
+        const cachedBlob=await cachedResponse.blob();
+
+        if(cachedBlob.size>0) {
+          updateProgress(cachedBlob.size);
+          log("Using cached part: "+partKey);
+          return cachedBlob;
         }
 
-        updateProgress(blob.size);
-
-        await saveCachedAsset(
-          asset.name,
-          blob
-        );
+        await cache.delete(partKey);
       }
-
-      objectURLs[asset.name] =
-        URL.createObjectURL(blob);
-
-      log(`Loaded ${asset.name}`);
-
-      return objectURLs[asset.name];
+    } catch(error) {
+      log("Part cache read failed: "+error.message);
     }
+  }
 
-    // ============================================================
-    // UNITY REQUEST REDIRECTION
-    // ============================================================
+  let lastError=null;
 
-    function redirectAssetURL(url) {
-      if (url == null) return url;
+  for(const source of orderedSources(url)) {
+    try {
+      const blob=await scheduler.run(async()=>{
+        const start=performance.now();
+        const response=await fetchResponse(source);
 
-      const original = String(url);
+        let result;
 
-      for (const [filename, blobURL] of
-        Object.entries(objectURLs)) {
-
-        if (original.includes(filename)) {
-          return blobURL;
-        }
-      }
-
-      return original;
-    }
-
-    function installRequestRedirects() {
-      log("Installing local asset request redirects.");
-
-      const originalOpen =
-        XMLHttpRequest.prototype.open;
-
-      XMLHttpRequest.prototype.open =
-        function(method, url, ...rest) {
-
-          const redirected =
-            redirectAssetURL(url);
-
-          if (redirected !== String(url)) {
-            log(
-              `XHR redirected: ${url} -> local Blob`
-            );
-          }
-
-          return originalOpen.call(
-            this,
-            method,
-            redirected,
-            ...rest
-          );
-        };
-
-      const originalFetch =
-        window.fetch.bind(window);
-
-      window.fetch = function(input, init) {
-        const originalURL =
-          input instanceof Request
-            ? input.url
-            : String(input);
-
-        const redirectedURL =
-          redirectAssetURL(originalURL);
-
-        if (redirectedURL !== originalURL) {
-          log(
-            `Fetch redirected: ${originalURL} -> local Blob`
-          );
-
-          if (input instanceof Request) {
-            return originalFetch(
-              new Request(redirectedURL, input),
-              init
-            );
-          }
-
-          return originalFetch(
-            redirectedURL,
-            init
-          );
-        }
-
-        return originalFetch(input, init);
-      };
-
-      log("XHR and Fetch redirects installed.");
-    }
-
-    // ============================================================
-    // SAVE / LOAD SYSTEM
-    // ============================================================
-
-    function getUnityFS() {
-      const candidates = [
-        unityInstance?.Module?.FS,
-        unityInstance?.module?.FS,
-        unityInstance?.Module?.module?.FS,
-        window.Module?.FS,
-        window.FS
-      ];
-
-      return candidates.find(fs =>
-        fs &&
-        typeof fs.readdir === "function" &&
-        typeof fs.readFile === "function" &&
-        typeof fs.writeFile === "function" &&
-        typeof fs.syncfs === "function" &&
-        typeof fs.stat === "function"
-      );
-    }
-
-    function syncUnityFilesystem(fs, populate) {
-      return new Promise((resolve, reject) => {
-        fs.syncfs(populate, error => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve();
-          }
-        });
-      });
-    }
-
-    function bytesToBase64(bytes) {
-      let binary = "";
-
-      const chunkSize = 0x8000;
-
-      for (
-        let i = 0;
-        i < bytes.length;
-        i += chunkSize
-      ) {
-        const chunk = bytes.subarray(
-          i,
-          Math.min(i + chunkSize, bytes.length)
-        );
-
-        binary += String.fromCharCode(...chunk);
-      }
-
-      return btoa(binary);
-    }
-
-    function base64ToBytes(base64) {
-      const binary = atob(base64);
-
-      const bytes =
-        new Uint8Array(binary.length);
-
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-
-      return bytes;
-    }
-
-    function collectSaveFiles(
-      fs,
-      directory,
-      files,
-      directories
-    ) {
-      const entries = fs.readdir(directory);
-
-      for (const entry of entries) {
-        if (entry === "." || entry === "..") {
-          continue;
-        }
-
-        const path =
-          directory === "/"
-            ? "/" + entry
-            : directory + "/" + entry;
-
-        const stat = fs.stat(path);
-
-        if (fs.isDir(stat.mode)) {
-          directories.push(path);
-
-          collectSaveFiles(
-            fs,
-            path,
-            files,
-            directories
-          );
-
-        } else if (fs.isFile(stat.mode)) {
-          const contents = fs.readFile(path);
-
-          files.push({
-            path,
-            data: bytesToBase64(contents)
-          });
-        }
-      }
-    }
-
-    async function exportCupheadSave() {
-      const fs = getUnityFS();
-
-      if (!fs) {
-        throw new Error(
-          "Unity's filesystem is not exposed by this loader. " +
-          "The save cannot be exported through /idbfs."
-        );
-      }
-
-      log("Synchronizing Cuphead save filesystem...");
-
-      await syncUnityFilesystem(fs, false);
-
-      if (!fs.analyzePath(SAVE_DIRECTORY).exists) {
-        throw new Error(
-          "Cuphead's /idbfs directory was not found. " +
-          "This build may store saves somewhere else."
-        );
-      }
-
-      const files = [];
-      const directories = [];
-
-      collectSaveFiles(
-        fs,
-        SAVE_DIRECTORY,
-        files,
-        directories
-      );
-
-      if (files.length === 0) {
-        throw new Error(
-          "No save files were found in /idbfs. " +
-          "No backup was created."
-        );
-      }
-
-      const backup = {
-        format: "cuphead-save-backup",
-        version: 1,
-        created: new Date().toISOString(),
-        directories,
-        files
-      };
-
-      const blob = new Blob(
-        [JSON.stringify(backup)],
-        { type: "application/json" }
-      );
-
-      const url = URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-
-      link.href = url;
-
-      link.download =
-        "Cuphead-Save-" +
-        new Date().toISOString().replace(/[:.]/g, "-") +
-        ".json";
-
-      document.body.appendChild(link);
-
-      link.click();
-
-      link.remove();
-
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 60000);
-
-      log(
-        `Save exported successfully. ${files.length} file(s).`
-      );
-    }
-
-    function ensureDirectory(fs, path) {
-      const parts =
-        path.split("/").filter(Boolean);
-
-      let current = "";
-
-      for (const part of parts) {
-        current += "/" + part;
-
-        if (!fs.analyzePath(current).exists) {
-          fs.mkdir(current);
-        }
-      }
-    }
-
-    function removeDirectoryContents(fs, directory) {
-      for (const entry of fs.readdir(directory)) {
-        if (entry === "." || entry === "..") {
-          continue;
-        }
-
-        const path = directory + "/" + entry;
-
-        const stat = fs.stat(path);
-
-        if (fs.isDir(stat.mode)) {
-          removeDirectoryContents(fs, path);
-          fs.rmdir(path);
+        if(!response.body) {
+          result=await response.blob();
+          updateProgress(result.size);
         } else {
-          fs.unlink(path);
+          const reader=response.body.getReader();
+          const chunks=[];
+
+          while(true) {
+            const item=await reader.read();
+            if(item.done)break;
+
+            chunks.push(item.value);
+            updateProgress(item.value.byteLength);
+          }
+
+          result=new Blob(chunks,{
+            type:"application/octet-stream"
+          });
         }
+
+        if(!result.size)throw new Error("Downloaded part was empty.");
+
+        recordMirrorSuccess(source,performance.now()-start);
+        return result;
+      });
+
+      if(cache&&partKey) {
+        cache.put(partKey,new Response(blob)).catch(error=>{
+          log("Could not cache part: "+error.message);
+        });
       }
+
+      return blob;
+
+    } catch(error) {
+      lastError=error;
+      recordMirrorFailure(source,error);
+      log(`Part source failed (${new URL(source).hostname}): ${error.message}`);
     }
+  }
 
-    async function importCupheadSave(backup) {
-      const fs = getUnityFS();
+  throw lastError||new Error("All part sources failed.");
+}
 
-      if (!fs) {
-        throw new Error(
-          "Unity's filesystem is not exposed by this loader."
-        );
-      }
+/* ============================================================
+   SPLIT ASSET ASSEMBLY
+============================================================ */
 
-      if (
-        !backup ||
-        backup.format !== "cuphead-save-backup" ||
-        backup.version !== 1 ||
-        !Array.isArray(backup.files) ||
-        !Array.isArray(backup.directories)
-      ) {
-        throw new Error(
-          "This is not a valid Cuphead save backup."
-        );
-      }
+async function downloadParts(asset) {
+  const parts=new Array(asset.parts);
+  let nextIndex=0;
 
-      if (backup.files.length === 0) {
-        throw new Error(
-          "The selected backup contains no save files."
-        );
-      }
+  async function worker() {
+    while(true) {
+      const index=nextIndex++;
+      if(index>=asset.parts)return;
 
-      for (const item of backup.files) {
-        if (
-          typeof item.path !== "string" ||
-          !item.path.startsWith(SAVE_DIRECTORY + "/") ||
-          item.path.split("/").includes("..") ||
-          typeof item.data !== "string"
-        ) {
-          throw new Error(
-            "The backup contains an invalid file path."
-          );
-        }
-      }
+      const partNumber=index+1;
+      const filename=`${asset.name}.part${partNumber}`;
+      const url=CDN_BASE+filename;
 
-      for (const directory of backup.directories) {
-        if (
-          typeof directory !== "string" ||
-          (
-            directory !== SAVE_DIRECTORY &&
-            !directory.startsWith(SAVE_DIRECTORY + "/")
-          ) ||
-          directory.split("/").includes("..")
-        ) {
-          throw new Error(
-            "The backup contains an invalid directory."
-          );
-        }
-      }
+      log(`Queued ${filename} (${partNumber}/${asset.parts})`);
 
-      log("Preparing to restore Cuphead save...");
+      parts[index]=await fetchPart(url,cacheKey(filename));
+    }
+  }
 
-      if (!fs.analyzePath(SAVE_DIRECTORY).exists) {
-        fs.mkdir(SAVE_DIRECTORY);
-      }
+  /*
+    These workers may exist for every asset at once, but the shared
+    scheduler controls the actual number of active network requests.
+  */
+  const workerCount=Math.min(12,asset.parts);
 
-      removeDirectoryContents(fs, SAVE_DIRECTORY);
+  await Promise.all(
+    Array.from({length:workerCount},()=>worker())
+  );
 
-      for (const directory of backup.directories) {
-        ensureDirectory(fs, directory);
-      }
+  const mergedBlob=new Blob(parts,{
+    type:"application/octet-stream"
+  });
 
-      for (const item of backup.files) {
-        const parent =
-          item.path.substring(
-            0,
-            item.path.lastIndexOf("/")
-          );
+  if(mergedBlob.size!==asset.size) {
+    throw new Error(
+      `${asset.name} size mismatch. Expected ${asset.size}, got ${mergedBlob.size}.`
+    );
+  }
 
-        ensureDirectory(fs, parent);
+  return mergedBlob;
+}
 
-        fs.writeFile(
-          item.path,
-          base64ToBytes(item.data)
-        );
-      }
+async function loadSplitAsset(asset) {
+  setStatus(`Preparing ${asset.name}...`);
 
-      await syncUnityFilesystem(fs, false);
+  let blob=await getCachedAsset(asset.name,asset.size);
 
-      log(
-        `Save restored successfully. ${backup.files.length} file(s).`
+  if(!blob) {
+    log(`Downloading ${asset.parts} parts for ${asset.name}`);
+    blob=await downloadParts(asset);
+    await saveCachedAsset(asset.name,blob);
+  }
+
+  if(blob.size!==asset.size) {
+    throw new Error(`Incorrect assembled size for ${asset.name}.`);
+  }
+
+  objectURLs[asset.name]=URL.createObjectURL(blob);
+  log(`Assembled ${asset.name}`);
+
+  return objectURLs[asset.name];
+}
+
+async function loadSingleAsset(asset) {
+  setStatus(`Preparing ${asset.name}...`);
+
+  let blob=await getCachedAsset(asset.name,asset.size);
+
+  if(!blob) {
+    blob=await fetchBlobWithFallback(asset.name);
+
+    if(blob.size!==asset.size) {
+      throw new Error(
+        `${asset.name} size mismatch. Expected ${asset.size}, got ${blob.size}.`
       );
-
-      alert(
-        "Cuphead save restored successfully!\n\n" +
-        "The game will now reload to apply the restored progress."
-      );
-
-      location.reload();
     }
 
-    // ============================================================
-    // SAVE BUTTON
-    // ============================================================
+    updateProgress(blob.size);
+    await saveCachedAsset(asset.name,blob);
+  }
 
-    saveButton.addEventListener("click", async () => {
-      saveButton.disabled = true;
+  objectURLs[asset.name]=URL.createObjectURL(blob);
+  log(`Loaded ${asset.name}`);
 
-      try {
-        await exportCupheadSave();
+  return objectURLs[asset.name];
+}
 
-        alert(
-          "Cuphead save backup downloaded successfully!"
-        );
+/* ============================================================
+   UNITY REQUEST REDIRECTION
+============================================================ */
 
-      } catch (error) {
-        console.error(error);
+function redirectAssetURL(url) {
+  if(url==null)return url;
 
-        log("Save failed: " + error.message);
+  const original=String(url);
 
-        alert(
-          "Save failed:\n\n" + error.message
-        );
+  for(const [filename,blobURL] of Object.entries(objectURLs)) {
+    if(original.includes(filename))return blobURL;
+  }
 
-      } finally {
-        saveButton.disabled = false;
-      }
-    });
+  return original;
+}
 
-    // ============================================================
-    // LOAD BUTTON
-    // ============================================================
+function installRequestRedirects() {
+  log("Installing local asset request redirects.");
 
-    loadButton.addEventListener("click", () => {
-      saveFileInput.click();
-    });
+  const originalOpen=XMLHttpRequest.prototype.open;
 
-    saveFileInput.addEventListener("change", async () => {
-      const file = saveFileInput.files?.[0];
+  XMLHttpRequest.prototype.open=function(method,url,...rest) {
+    const redirected=redirectAssetURL(url);
 
-      if (!file) return;
-
-      loadButton.disabled = true;
-
-      try {
-        const contents = await file.text();
-
-        const backup = JSON.parse(contents);
-
-        if (!confirm(
-          "Restore this Cuphead save?\n\n" +
-          "Your current saved progress will be replaced."
-        )) {
-          return;
-        }
-
-        await importCupheadSave(backup);
-
-      } catch (error) {
-        console.error(error);
-
-        log("Load failed: " + error.message);
-
-        alert(
-          "Load failed:\n\n" + error.message
-        );
-
-      } finally {
-        loadButton.disabled = false;
-        saveFileInput.value = "";
-      }
-    });
-
-    // ============================================================
-    // START UNITY
-    // ============================================================
-
-    async function startUnity() {
-      setStatus("Initializing Unity...");
-
-      if (
-        typeof UnityLoader === "undefined" ||
-        typeof UnityLoader.instantiate !== "function"
-      ) {
-        throw new Error(
-          "UnityLoader.js did not load correctly."
-        );
-      }
-
-      installRequestRedirects();
-
-      log("Starting Unity with preloaded assets.");
-
-      unityInstance = UnityLoader.instantiate(
-        "gameContainer",
-        "Build/CupheadPort.json"
-      );
-
-      log("Unity instantiate() called.");
-
-      loadingScreen.style.display = "none";
-
-      return unityInstance;
+    if(redirected!==String(url)) {
+      log(`XHR redirected: ${url} -> local Blob`);
     }
 
-    // ============================================================
-    // MAIN
-    // ============================================================
+    return originalOpen.call(this,method,redirected,...rest);
+  };
 
-    async function main() {
-      try {
-        setStatus("Initializing asset cache...");
+  const originalFetch=window.fetch.bind(window);
 
-        await initializeCache();
+  window.fetch=function(input,init) {
+    const originalURL=input instanceof Request?input.url:String(input);
+    const redirectedURL=redirectAssetURL(originalURL);
 
-        for (const asset of ASSETS) {
-          await loadSplitAsset(asset);
-        }
+    if(redirectedURL!==originalURL) {
+      log(`Fetch redirected: ${originalURL} -> local Blob`);
 
-        for (const asset of SINGLE_ASSETS) {
-          await loadSingleAsset(asset);
-        }
-
-        setStatus("All assets downloaded and assembled.");
-
-        if (loadedBytes < totalBytes) {
-          loadedBytes = totalBytes;
-
-          progressInner.style.width = "100%";
-        }
-
-        await new Promise(resolve =>
-          requestAnimationFrame(resolve)
-        );
-
-        await startUnity();
-
-      } catch (error) {
-        console.error(error);
-
-        setStatus(
-          "Failed to start Cuphead: " + error.message
-        );
-
-        log(error.stack || error.message);
-
-        loadingScreen.style.display = "flex";
+      if(input instanceof Request) {
+        return originalFetch(new Request(redirectedURL,input),init);
       }
+
+      return originalFetch(redirectedURL,init);
     }
 
-    // ============================================================
-    // CLEANUP
-    // ============================================================
+    return originalFetch(input,init);
+  };
 
-    window.addEventListener("beforeunload", () => {
-      for (const url of Object.values(objectURLs)) {
-        URL.revokeObjectURL(url);
-      }
-    });
+  log("XHR and Fetch redirects installed.");
+}
 
-    main();
+/* ============================================================
+   SAVE / LOAD SYSTEM
+============================================================ */
 
-  })();
-  </script>
+const SAVE_DIRECTORY="/idbfs";
 
+function getUnityFS() {
+  const candidates=[
+    unityInstance?.Module?.FS,
+    unityInstance?.module?.FS,
+    unityInstance?.Module?.module?.FS,
+    window.Module?.FS,
+    window.FS
+  ];
+
+  return candidates.find(fs=>
+    fs&&
+    typeof fs.readdir==="function"&&
+    typeof fs.readFile==="function"&&
+    typeof fs.writeFile==="function"&&
+    typeof fs.syncfs==="function"&&
+    typeof fs.stat==="function"
+  );
+}
+
+function syncUnityFilesystem(fs,populate) {
+  return new Promise((resolve,reject)=>{
+    fs.syncfs(populate,error=>error?reject(error):resolve());
+  });
+}
+
+function bytesToBase64(bytes) {
+  let binary="";
+  const chunkSize=0x8000;
+
+  for(let i=0;i<bytes.length;i+=chunkSize) {
+    binary+=String.fromCharCode(
+      ...bytes.subarray(i,Math.min(i+chunkSize,bytes.length))
+    );
+  }
+
+  return btoa(binary);
+}
+
+function base64ToBytes(base64) {
+  const binary=atob(base64);
+  const bytes=new Uint8Array(binary.length);
+
+  for(let i=0;i<binary.length;i++) {
+    bytes[i]=binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+function collectSaveFiles(fs,directory,files,directories) {
+  for(const entry of fs.readdir(directory)) {
+    if(entry==="."||entry==="..")continue;
+
+    const path=directory==="/"?"/"+entry:directory+"/"+entry;
+    const stat=fs.stat(path);
+
+    if(fs.isDir(stat.mode)) {
+      directories.push(path);
+      collectSaveFiles(fs,path,files,directories);
+    } else if(fs.isFile(stat.mode)) {
+      files.push({
+        path,
+        data:bytesToBase64(fs.readFile(path))
+      });
+    }
+  }
+}
+
+async function exportCupheadSave() {
+  const fs=getUnityFS();
+
+  if(!fs) {
+    throw new Error(
+      "Unity's filesystem is not exposed by this loader. The save cannot be exported through /idbfs."
+    );
+  }
+
+  log("Synchronizing Cuphead save filesystem...");
+  await syncUnityFilesystem(fs,false);
+
+  if(!fs.analyzePath(SAVE_DIRECTORY).exists) {
+    throw new Error(
+      "Cuphead's /idbfs directory was not found. This build may store saves somewhere else."
+    );
+  }
+
+  const files=[];
+  const directories=[];
+
+  collectSaveFiles(fs,SAVE_DIRECTORY,files,directories);
+
+  if(files.length===0) {
+    throw new Error("No save files were found in /idbfs. No backup was created.");
+  }
+
+  const backup={
+    format:"cuphead-save-backup",
+    version:1,
+    created:new Date().toISOString(),
+    directories,
+    files
+  };
+
+  const blob=new Blob([JSON.stringify(backup)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+
+  link.href=url;
+  link.download="Cuphead-Save-"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+
+  log(`Save exported successfully. ${files.length} file(s).`);
+}
+
+function ensureDirectory(fs,path) {
+  const parts=path.split("/").filter(Boolean);
+  let current="";
+
+  for(const part of parts) {
+    current+="/"+part;
+    if(!fs.analyzePath(current).exists)fs.mkdir(current);
+  }
+}
+
+function removeDirectoryContents(fs,directory) {
+  for(const entry of fs.readdir(directory)) {
+    if(entry==="."||entry==="..")continue;
+
+    const path=directory+"/"+entry;
+    const stat=fs.stat(path);
+
+    if(fs.isDir(stat.mode)) {
+      removeDirectoryContents(fs,path);
+      fs.rmdir(path);
+    } else {
+      fs.unlink(path);
+    }
+  }
+}
+
+async function importCupheadSave(backup) {
+  const fs=getUnityFS();
+
+  if(!fs) {
+    throw new Error("Unity's filesystem is not exposed by this loader.");
+  }
+
+  if(
+    !backup||
+    backup.format!=="cuphead-save-backup"||
+    backup.version!==1||
+    !Array.isArray(backup.files)||
+    !Array.isArray(backup.directories)
+  ) {
+    throw new Error("This is not a valid Cuphead save backup.");
+  }
+
+  if(backup.files.length===0) {
+    throw new Error("The selected backup contains no save files.");
+  }
+
+  for(const item of backup.files) {
+    if(
+      typeof item.path!=="string"||
+      !item.path.startsWith(SAVE_DIRECTORY+"/")||
+      item.path.split("/").includes("..")||
+      typeof item.data!=="string"
+    ) {
+      throw new Error("The backup contains an invalid file path.");
+    }
+  }
+
+  for(const directory of backup.directories) {
+    if(
+      typeof directory!=="string"||
+      (directory!==SAVE_DIRECTORY&&!directory.startsWith(SAVE_DIRECTORY+"/"))||
+      directory.split("/").includes("..")
+    ) {
+      throw new Error("The backup contains an invalid directory.");
+    }
+  }
+
+  log("Preparing to restore Cuphead save...");
+
+  if(!fs.analyzePath(SAVE_DIRECTORY).exists)fs.mkdir(SAVE_DIRECTORY);
+
+  removeDirectoryContents(fs,SAVE_DIRECTORY);
+
+  for(const directory of backup.directories) {
+    ensureDirectory(fs,directory);
+  }
+
+  for(const item of backup.files) {
+    const parent=item.path.substring(0,item.path.lastIndexOf("/"));
+    ensureDirectory(fs,parent);
+    fs.writeFile(item.path,base64ToBytes(item.data));
+  }
+
+  await syncUnityFilesystem(fs,false);
+
+  log(`Save restored successfully. ${backup.files.length} file(s).`);
+
+  alert(
+    "Cuphead save restored successfully!\n\n"+
+    "The game will now reload to apply the restored progress."
+  );
+
+  location.reload();
+}
+
+saveButton.addEventListener("click",async()=>{
+  saveButton.disabled=true;
+
+  try {
+    await exportCupheadSave();
+    alert("Cuphead save backup downloaded successfully!");
+  } catch(error) {
+    console.error(error);
+    log("Save failed: "+error.message);
+    alert("Save failed:\n\n"+error.message);
+  } finally {
+    saveButton.disabled=false;
+  }
+});
+
+loadButton.addEventListener("click",()=>saveFileInput.click());
+
+saveFileInput.addEventListener("change",async()=>{
+  const file=saveFileInput.files?.[0];
+  if(!file)return;
+
+  loadButton.disabled=true;
+
+  try {
+    const backup=JSON.parse(await file.text());
+
+    if(!confirm(
+      "Restore this Cuphead save?\n\nYour current saved progress will be replaced."
+    ))return;
+
+    await importCupheadSave(backup);
+  } catch(error) {
+    console.error(error);
+    log("Load failed: "+error.message);
+    alert("Load failed:\n\n"+error.message);
+  } finally {
+    loadButton.disabled=false;
+    saveFileInput.value="";
+  }
+});
+
+/* ============================================================
+   START UNITY
+============================================================ */
+
+async function startUnity() {
+  setStatus("Initializing Unity...");
+
+  if(
+    typeof UnityLoader==="undefined"||
+    typeof UnityLoader.instantiate!=="function"
+  ) {
+    throw new Error("UnityLoader.js did not load correctly.");
+  }
+
+  installRequestRedirects();
+
+  log("Starting Unity with preloaded assets.");
+
+  unityInstance=UnityLoader.instantiate(
+    "gameContainer",
+    "Build/CupheadPort.json"
+  );
+
+  log("Unity instantiate() called.");
+  loadingScreen.style.display="none";
+
+  return unityInstance;
+}
+
+/* ============================================================
+   MAIN
+============================================================ */
+
+async function main() {
+  try {
+    setStatus("Initializing asset cache...");
+    await initializeCache();
+
+    log(
+      `Adaptive downloader initialized. Starting concurrency: ${scheduler.limit}, maximum: ${scheduler.maximum}.`
+    );
+
+    /*
+      All split assets now begin together. Their workers share
+      the same scheduler, so they cannot each create 32 requests.
+    */
+    const splitResults=await Promise.all(
+      ASSETS.map(asset=>loadSplitAsset(asset))
+    );
+
+    /*
+      Small Unity assets are also prepared concurrently.
+    */
+    await Promise.all(
+      SINGLE_ASSETS.map(asset=>loadSingleAsset(asset))
+    );
+
+    setStatus("All assets downloaded and assembled.");
+
+    if(loadedBytes<totalBytes) {
+      loadedBytes=totalBytes;
+      progressInner.style.width="100%";
+    }
+
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    await startUnity();
+
+  } catch(error) {
+    console.error(error);
+    setStatus("Failed to start Cuphead: "+error.message);
+    log(error.stack||error.message);
+    loadingScreen.style.display="flex";
+  }
+}
+
+/* ============================================================
+   CLEANUP
+============================================================ */
+
+window.addEventListener("beforeunload",()=>{
+  for(const url of Object.values(objectURLs)) {
+    URL.revokeObjectURL(url);
+  }
+});
+
+main();
+
+})();
+</script>
 </body>
 </html>

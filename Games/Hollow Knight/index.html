@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,153 +20,81 @@ body{display:flex;align-items:center;justify-content:center}
     background:radial-gradient(ellipse at 50% 100%,rgba(100,0,0,.24),transparent 65%),#000;
     transition:opacity .5s
 }
-
 #loadingScreen::before{
     content:"";position:absolute;inset:0;
     pointer-events:none;
     background:radial-gradient(ellipse at center,transparent 20%,rgba(0,0,0,.8) 100%)
 }
-
 .loader-content{
-    position:relative;
-    width:min(650px,90%);
-    text-align:center
+    position:relative;width:min(650px,90%);text-align:center
 }
-
 #status{font-size:14px;color:#ddd;margin-bottom:12px}
-
-#overallBar{
-    height:5px;width:100%;
-    background:#222;overflow:hidden;border-radius:5px
-}
-
+#overallBar{height:5px;width:100%;background:#222;overflow:hidden;border-radius:5px}
 #overallProgress{
-    width:0%;height:100%;
-    background:#bd1717;box-shadow:0 0 15px #b00000;
-    transition:width .2s ease
+    width:0%;height:100%;background:#bd1717;
+    box-shadow:0 0 15px #b00000;transition:width .2s ease
 }
-
 .progress-row{
     display:flex;justify-content:space-between;
-    font-size:11px;color:#888;
-    margin-top:24px;margin-bottom:8px
+    font-size:11px;color:#888;margin-top:24px;margin-bottom:8px
 }
-
-.small-bar{
-    width:100%;height:3px;
-    background:#191919;border-radius:3px;overflow:hidden
-}
-
-.small-progress{
-    height:100%;width:0%;
-    background:#a51616;transition:width .15s
-}
-
-#percentage{
-    margin-top:18px;font-size:13px;
-    color:#aaa;letter-spacing:2px
-}
-
-#details{
-    margin-top:20px;color:#777;
-    font-size:11px;line-height:1.8;
-    overflow-wrap:anywhere
-}
-
+.small-bar{width:100%;height:3px;background:#191919;border-radius:3px;overflow:hidden}
+.small-progress{height:100%;width:0%;background:#a51616;transition:width .15s}
+#percentage{margin-top:18px;font-size:13px;color:#aaa;letter-spacing:2px}
+#details{margin-top:20px;color:#777;font-size:11px;line-height:1.8;overflow-wrap:anywhere}
 #downloadConsole{
-    width:100%;
-    height:160px;
-    margin-top:16px;
-    padding:10px;
-    overflow-y:auto;
-    background:rgba(10,10,10,.95);
-    border:1px solid #292929;
-    border-radius:4px;
-    color:#aaa;
-    font-family:Consolas,monospace;
-    font-size:10px;
-    line-height:1.6;
-    text-align:left;
-    white-space:pre-wrap;
-    overflow-wrap:anywhere;
-    scrollbar-width:thin;
-    scrollbar-color:#555 #111
+    width:100%;height:160px;margin-top:16px;padding:10px;overflow-y:auto;
+    background:rgba(10,10,10,.95);border:1px solid #292929;border-radius:4px;
+    color:#aaa;font-family:Consolas,monospace;font-size:10px;line-height:1.6;
+    text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;
+    scrollbar-width:thin;scrollbar-color:#555 #111
 }
-
 .console-entry{margin-bottom:2px}
 .console-success{color:#65c98a}
 .console-warning{color:#e8bd62}
 .console-error{color:#ff5555}
 .console-info{color:#aaa}
-
 #loadingError{
-    display:none;margin-top:15px;
-    color:#ff5555;font-size:12px;
-    line-height:1.7;white-space:pre-wrap;
-    overflow-wrap:anywhere;
+    display:none;margin-top:15px;color:#ff5555;font-size:12px;
+    line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;
     max-height:150px;overflow-y:auto
 }
-
 #retryButton{
-    display:none;margin-top:20px;
-    border:1px solid #941818;
-    background:#210707;color:white;
-    padding:12px 28px;cursor:pointer;
-    letter-spacing:2px
+    display:none;margin-top:20px;border:1px solid #941818;
+    background:#210707;color:white;padding:12px 28px;
+    cursor:pointer;letter-spacing:2px
 }
-
 #retryButton:hover{background:#481010}
-
 #unity-container{
-    display:none;width:100%;height:100%;
-    flex-direction:column;align-items:center;
-    justify-content:center;background:#000
+    display:none;width:100%;height:100%;flex-direction:column;
+    align-items:center;justify-content:center;background:#000
 }
-
 #unity-canvas{
-    display:block;
-    width:min(100vw,160vh);
-    height:min(62.5vw,100vh);
-    max-width:100%;
-    max-height:calc(100% - 45px);
+    display:block;width:min(100vw,160vh);height:min(62.5vw,100vh);
+    max-width:100%;max-height:calc(100% - 45px);
     aspect-ratio:16/10;background:#000
 }
-
 #unity-footer{
-    width:min(960px,100%);
-    height:38px;flex-shrink:0;
-    display:flex;align-items:center;
-    justify-content:space-between;
+    width:min(960px,100%);height:38px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:space-between;
     padding:0 10px;color:#777;font-size:12px
 }
-
 #fullscreenButton{
-    background:#171717;border:1px solid #333;
-    color:white;padding:7px 15px;cursor:pointer
+    background:#171717;border:1px solid #333;color:white;
+    padding:7px 15px;cursor:pointer
 }
-
 #fullscreenButton:hover,.saveButton:hover{background:#333}
-
 .saveButton{
-    background:#171717;border:1px solid #333;
-    color:white;padding:7px 12px;
-    cursor:pointer;font-size:12px
+    background:#171717;border:1px solid #333;color:white;
+    padding:7px 12px;cursor:pointer;font-size:12px
 }
-
 #saveStatus{color:#aaa;font-size:11px;margin-left:8px}
-
 #resolutionScale{
-    background:#171717;border:1px solid #333;
-    color:white;padding:7px 8px;
-    font-size:12px;max-width:125px
+    background:#171717;border:1px solid #333;color:white;
+    padding:7px 8px;font-size:12px;max-width:125px
 }
-
 @media(max-width:600px){
-    #unity-canvas{
-        width:100vw;height:auto;
-        max-height:calc(100vh - 38px)
-    }
-
+    #unity-canvas{width:100vw;height:auto;max-height:calc(100vh - 38px)}
     #downloadConsole{height:125px}
 }
 </style>
@@ -177,7 +104,6 @@ body{display:flex;align-items:center;justify-content:center}
 
 <div id="loadingScreen">
     <div class="loader-content">
-
         <div id="status">Preparing game...</div>
 
         <div id="overallBar">
@@ -190,7 +116,6 @@ body{display:flex;align-items:center;justify-content:center}
             <span>GAME DATA</span>
             <span id="dataCount">0 / 44</span>
         </div>
-
         <div class="small-bar">
             <div class="small-progress" id="dataProgress"></div>
         </div>
@@ -199,7 +124,6 @@ body{display:flex;align-items:center;justify-content:center}
             <span>WEBASSEMBLY</span>
             <span id="wasmCount">0 / 3</span>
         </div>
-
         <div class="small-bar">
             <div class="small-progress" id="wasmProgress"></div>
         </div>
@@ -213,47 +137,37 @@ body{display:flex;align-items:center;justify-content:center}
         </div>
 
         <div id="loadingError"></div>
-
         <button id="retryButton" onclick="startGame()">RETRY</button>
-
     </div>
 </div>
 
 <div id="unity-container">
-
     <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
 
     <div id="unity-footer">
-
         <span>
             Hollow Knight
             <span id="saveStatus" aria-live="polite"></span>
         </span>
 
         <div style="display:flex;gap:7px;align-items:center">
-
             <select id="resolutionScale" class="saveButton"
-                aria-label="Graphics resolution"
-                title="Graphics resolution">
-
+                aria-label="Graphics resolution" title="Graphics resolution">
                 <option value="1">Graphics: 1.00x</option>
                 <option value="0.85">Graphics: 0.85x</option>
                 <option value="0.70">Graphics: 0.70x</option>
                 <option value="0.60" selected>Graphics: 0.60x</option>
                 <option value="0.50">Graphics: 0.50x</option>
                 <option value="0.45">Graphics: 0.45x</option>
-
             </select>
 
             <button class="saveButton" id="saveButton" type="button">SAVE FILE</button>
             <button class="saveButton" id="loadButton" type="button">LOAD FILE</button>
             <button id="fullscreenButton">FULLSCREEN</button>
-
         </div>
 
         <input id="saveFileInput" type="file"
             accept=".hksave,.json,application/json" hidden>
-
     </div>
 </div>
 
@@ -265,7 +179,6 @@ body{display:flex;align-items:center;justify-content:center}
 ============================================================ */
 
 const CONFIG = {
-
     baseURLs: [
         "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
         "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
@@ -280,7 +193,6 @@ const CONFIG = {
     ],
 
     buildURL: "Build/",
-
     loader: "hk.loader.js",
 
     dataPrefix: "hk.data",
@@ -296,17 +208,22 @@ const CONFIG = {
     productName: "Hollow Knight",
     productVersion: "1.5.12620",
 
-    cacheVersion: "hk-proxy-validated-v11",
+    // New cache version for this downloader.
+    cacheVersion: "hk-adaptive-global-v12",
 
     storageDirectory: "HollowKnightCache",
     databaseName: "HollowKnightFileCache",
 
-    chunkRetries: 2,
+    chunkRetries: 9,
 
-    // Increased parallel downloading.
-    maxParallelChunks: 32,
+    // Actual simultaneous network request limits are controlled below.
+    downloadConcurrency: {
+        initial: 6,
+        minimum: 3,
+        maximum: 12,
+        increaseEvery: 6
+    },
 
-    // Smaller UI updates reduce rendering overhead.
     progressUpdateInterval: 100,
 
     expectedPartSizes: {
@@ -314,7 +231,6 @@ const CONFIG = {
         wasm: []
     }
 };
-
 
 /* ============================================================
    ELEMENTS
@@ -340,7 +256,6 @@ const wasmCount = $("wasmCount");
 
 const errorElement = $("loadingError");
 const retryButton = $("retryButton");
-
 const downloadConsole = $("downloadConsole");
 
 let completedData = 0;
@@ -358,797 +273,793 @@ let loaderBlobURL = null;
 
 let lastProgressUpdate = 0;
 
-
 /* ============================================================
    DOWNLOAD CONSOLE
 ============================================================ */
 
 const MAX_CONSOLE_LINES = 300;
 
-function consoleLog(message, type = "info") {
+function consoleLog(message,type="info") {
+    const time=new Date().toLocaleTimeString();
+    const entry=document.createElement("div");
 
-    const time = new Date().toLocaleTimeString();
-
-    const entry = document.createElement("div");
-
-    entry.className = "console-entry console-" + type;
-
-    entry.textContent = `[${time}] ${message}`;
+    entry.className="console-entry console-"+type;
+    entry.textContent=`[${time}] ${message}`;
 
     downloadConsole.appendChild(entry);
 
-    while (downloadConsole.children.length > MAX_CONSOLE_LINES) {
+    while(downloadConsole.children.length>MAX_CONSOLE_LINES) {
         downloadConsole.removeChild(downloadConsole.firstChild);
     }
 
-    downloadConsole.scrollTop = downloadConsole.scrollHeight;
-
-    console.log("[Hollow Knight]", message);
+    downloadConsole.scrollTop=downloadConsole.scrollHeight;
+    console.log("[Hollow Knight]",message);
 }
 
 function consoleClear() {
-    downloadConsole.innerHTML = "";
-    consoleLog("Download console initialized.", "info");
+    downloadConsole.innerHTML="";
+    consoleLog("Download console initialized.","info");
 }
-
 
 /* ============================================================
-   MIRROR LOADING
+   GLOBAL ADAPTIVE DOWNLOAD SCHEDULER
 ============================================================ */
 
-function getOrderedMirrors(excluded = []) {
+class DownloadScheduler {
+    constructor(settings) {
+        this.limit=settings.initial;
+        this.minimum=settings.minimum;
+        this.maximum=settings.maximum;
+        this.increaseEvery=settings.increaseEvery;
 
-    return [
-        activeBaseURL,
-        ...CONFIG.baseURLs.filter(url => url !== activeBaseURL)
-    ].filter((url, index, all) =>
-        !excluded.includes(url) && all.indexOf(url) === index
-    );
-}
-
-
-async function fetchFromMirror(relativePath, baseURL, options = {}) {
-
-    const url = new URL(relativePath, baseURL).href;
-
-    const response = await fetch(url, {
-        ...options,
-        cache: "no-store",
-        redirect: "follow"
-    });
-
-    if (!response.ok) {
-        throw new Error("HTTP " + response.status);
+        this.active=0;
+        this.waiters=[];
+        this.successes=0;
+        this.failures=0;
+        this.fastSamples=0;
+        this.slowSamples=0;
     }
 
-    if (response.type === "opaque") {
+    acquire() {
+        if(this.active<this.limit) {
+            this.active++;
+            return Promise.resolve();
+        }
+
+        return new Promise(resolve=>{
+            this.waiters.push(resolve);
+        });
+    }
+
+    release() {
+        const next=this.waiters.shift();
+
+        if(next) {
+            next();
+        } else {
+            this.active--;
+        }
+    }
+
+    drain() {
+        while(this.waiters.length&&this.active<this.limit) {
+            this.active++;
+            this.waiters.shift()();
+        }
+    }
+
+    recordSuccess(milliseconds) {
+        this.successes++;
+
+        if(milliseconds<8000) {
+            this.fastSamples++;
+            this.slowSamples=0;
+        } else if(milliseconds>25000) {
+            this.slowSamples++;
+            this.fastSamples=0;
+        } else {
+            this.fastSamples=0;
+            this.slowSamples=0;
+        }
+
+        if(
+            this.successes%this.increaseEvery===0&&
+            this.fastSamples>=this.increaseEvery
+        ) {
+            const old=this.limit;
+            this.limit=Math.min(this.maximum,this.limit+1);
+            this.fastSamples=0;
+
+            if(this.limit!==old) {
+                consoleLog(
+                    "Download performance is healthy. Global concurrency increased to "+this.limit+".",
+                    "success"
+                );
+            }
+        }
+
+        if(this.slowSamples>=3&&this.limit>this.minimum) {
+            this.limit=Math.max(this.minimum,this.limit-1);
+            this.slowSamples=0;
+
+            consoleLog(
+                "Downloads are taking longer. Global concurrency reduced to "+this.limit+".",
+                "warning"
+            );
+        }
+
+        this.drain();
+    }
+
+    recordFailure() {
+        this.failures++;
+        this.fastSamples=0;
+
+        if(this.limit>this.minimum) {
+            this.limit=Math.max(this.minimum,this.limit-1);
+
+            consoleLog(
+                "A download failed. Global concurrency reduced to "+this.limit+".",
+                "warning"
+            );
+        }
+
+        this.drain();
+    }
+
+    async run(task) {
+        await this.acquire();
+        const started=performance.now();
+
+        try {
+            const result=await task();
+            this.recordSuccess(performance.now()-started);
+            return result;
+        } catch(error) {
+            this.recordFailure();
+            throw error;
+        } finally {
+            this.release();
+        }
+    }
+}
+
+const downloadScheduler=new DownloadScheduler(
+    CONFIG.downloadConcurrency
+);
+
+/* ============================================================
+   MIRROR HEALTH
+============================================================ */
+
+const mirrorHealth=new Map();
+
+function getMirrorHealth(url) {
+    if(!mirrorHealth.has(url)) {
+        mirrorHealth.set(url,{
+            failures:0,
+            successes:0,
+            averageTime:0,
+            blocked:false
+        });
+    }
+
+    return mirrorHealth.get(url);
+}
+
+function getOrderedMirrors(excluded=[]) {
+    const mirrors=[
+        activeBaseURL,
+        ...CONFIG.baseURLs.filter(url=>url!==activeBaseURL)
+    ].filter((url,index,all)=>
+        !excluded.includes(url)&&all.indexOf(url)===index
+    );
+
+    return mirrors.sort((a,b)=>{
+        const A=getMirrorHealth(a);
+        const B=getMirrorHealth(b);
+
+        if(A.blocked!==B.blocked)return A.blocked?1:-1;
+
+        const scoreA=A.averageTime+(A.failures*12000);
+        const scoreB=B.averageTime+(B.failures*12000);
+
+        return scoreA-scoreB;
+    });
+}
+
+function recordMirrorSuccess(url,milliseconds) {
+    const health=getMirrorHealth(url);
+
+    health.successes++;
+    health.averageTime=health.averageTime===0
+        ? milliseconds
+        : health.averageTime*.7+milliseconds*.3;
+}
+
+function recordMirrorFailure(url,error) {
+    const health=getMirrorHealth(url);
+    health.failures++;
+
+    const message=String(error.message||error);
+
+    if(/HTTP 403|HTTP 404|HTTP 410/.test(message)) {
+        health.blocked=true;
+    }
+}
+
+/* ============================================================
+   MIRROR FETCHING
+============================================================ */
+
+async function fetchFromMirror(relativePath,baseURL,options={}) {
+    const url=new URL(relativePath,baseURL).href;
+
+    const response=await fetch(url,{
+        ...options,
+        cache:"no-store",
+        redirect:"follow"
+    });
+
+    if(!response.ok) {
+        throw new Error("HTTP "+response.status);
+    }
+
+    if(response.type==="opaque") {
         throw new Error("Opaque response cannot be validated");
     }
 
     return response;
 }
 
+async function fetchAsset(relativePath,options={}) {
+    const failures=[];
 
-async function fetchAsset(relativePath, options = {}) {
-
-    const failures = [];
-
-    for (const baseURL of getOrderedMirrors()) {
-
+    for(const baseURL of getOrderedMirrors()) {
         try {
-
-            const response = await fetchFromMirror(
-                relativePath,
-                baseURL,
-                options
+            const response=await downloadScheduler.run(
+                ()=>fetchFromMirror(relativePath,baseURL,options)
             );
 
-            activeBaseURL = baseURL;
+            activeBaseURL=baseURL;
 
-            const baseElement = $("assetBase");
-
-            if (baseElement) {
-                baseElement.href = baseURL;
-            }
+            const baseElement=$("assetBase");
+            if(baseElement)baseElement.href=baseURL;
 
             consoleLog(
-                "Retrieved " + relativePath + " from " +
-                new URL(baseURL).hostname,
+                "Retrieved "+relativePath+" from "+new URL(baseURL).hostname,
                 "success"
             );
 
             return response;
 
-        } catch (error) {
+        } catch(error) {
+            recordMirrorFailure(baseURL,error);
 
             failures.push(
-                new URL(relativePath, baseURL).hostname +
-                ": " + error.message
+                new URL(relativePath,baseURL).hostname+": "+error.message
             );
 
             consoleLog(
-                "Mirror failed: " +
-                new URL(baseURL).hostname +
-                " (" + error.message + ")",
+                "Mirror failed: "+new URL(baseURL).hostname+
+                " ("+error.message+")",
                 "warning"
             );
         }
     }
 
-    // Last-resort GitHub API endpoint for smaller files.
-
+    // Last-resort GitHub API fallback for smaller files.
     try {
-
-        const apiURL =
-            "https://api.github.com/repos/AMoldyWaffle/Hollow-Knight/contents/" +
-            relativePath.split("/").map(encodeURIComponent).join("/") +
+        const apiURL=
+            "https://api.github.com/repos/AMoldyWaffle/Hollow-Knight/contents/"+
+            relativePath.split("/").map(encodeURIComponent).join("/")+
             "?ref=main";
 
-        const response = await fetch(apiURL, {
-            cache: "no-store"
-        });
+        const response=await downloadScheduler.run(
+            ()=>fetch(apiURL,{cache:"no-store"})
+        );
 
-        if (response.ok) {
+        if(response.ok) {
+            const payload=await response.json();
 
-            const payload = await response.json();
-
-            if (
-                payload &&
-                payload.encoding === "base64" &&
+            if(
+                payload&&
+                payload.encoding==="base64"&&
                 payload.content
             ) {
+                const binary=atob(payload.content.replace(/\s/g,""));
+                const bytes=new Uint8Array(binary.length);
 
-                const binary = atob(
-                    payload.content.replace(/\s/g, "")
-                );
-
-                const bytes = new Uint8Array(binary.length);
-
-                for (let i = 0; i < binary.length; i++) {
-                    bytes[i] = binary.charCodeAt(i);
+                for(let i=0;i<binary.length;i++) {
+                    bytes[i]=binary.charCodeAt(i);
                 }
 
                 consoleLog(
-                    "Retrieved " + relativePath + " through GitHub API.",
+                    "Retrieved "+relativePath+" through GitHub API.",
                     "success"
                 );
 
-                return new Response(bytes, {
-                    status: 200,
-                    headers: {
-                        "Content-Type": "application/octet-stream"
-                    }
+                return new Response(bytes,{
+                    status:200,
+                    headers:{"Content-Type":"application/octet-stream"}
                 });
             }
         }
-
-    } catch (error) {
-
-        failures.push("API fallback: " + error.message);
+    } catch(error) {
+        failures.push("API fallback: "+error.message);
     }
 
     throw new Error(
-        "Unable to retrieve asset: " + relativePath + "\n" +
+        "Unable to retrieve asset: "+relativePath+"\n"+
         failures.join("\n")
     );
 }
 
+/* ============================================================
+   VALIDATED CHUNK DOWNLOAD
+============================================================ */
 
-/*
- * Downloads a chunk from one mirror, validates it, and retries
- * other mirrors if it appears incomplete.
- */
+async function fetchValidatedPart(prefix,index) {
+    const partName=
+        prefix+"."+String(index).padStart(3,"0");
 
-async function fetchValidatedPart(prefix, index) {
+    const relativePath=CONFIG.buildURL+partName;
 
-    const partName =
-        prefix + "." + String(index).padStart(3, "0");
+    const kind=prefix===CONFIG.dataPrefix?"data":"wasm";
+    const expectedSizes=CONFIG.expectedPartSizes[kind]||[];
+    const expectedSize=expectedSizes[index]||null;
 
-    const relativePath = CONFIG.buildURL + partName;
+    const failures=[];
+    const excluded=[];
 
-    const kind =
-        prefix === CONFIG.dataPrefix ? "data" : "wasm";
+    consoleLog("Queued "+partName,"info");
 
-    const expectedSizes =
-        CONFIG.expectedPartSizes[kind] || [];
+    for(
+        let attempt=0;
+        attempt<CONFIG.chunkRetries+1;
+        attempt++
+    ) {
+        const mirrors=getOrderedMirrors(excluded);
 
-    const expectedSize = expectedSizes[index] || null;
+        if(!mirrors.length)break;
 
-    const failures = [];
-
-    const mirrors = getOrderedMirrors();
-
-    const maxAttempts = Math.min(
-        mirrors.length,
-        CONFIG.chunkRetries + 1
-    );
-
-    consoleLog(
-        "Starting " + partName,
-        "info"
-    );
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-
-        const mirror = mirrors[attempt];
+        const mirror=mirrors[0];
+        excluded.push(mirror);
 
         try {
+            statusText.textContent="Downloading "+prefix+"...";
 
-            statusText.textContent =
-                "Downloading " + prefix + "...";
-
-            details.textContent =
-                "Part " + (index + 1) + " of " +
-                (prefix === CONFIG.dataPrefix
+            details.textContent=
+                "Part "+(index+1)+" of "+
+                (prefix===CONFIG.dataPrefix
                     ? CONFIG.dataParts
-                    : CONFIG.wasmParts) +
-                " · Attempt " + (attempt + 1);
+                    : CONFIG.wasmParts)+
+                " · Attempt "+(attempt+1);
 
-            const startTime = performance.now();
+            const result=await downloadScheduler.run(async()=>{
+                const startTime=performance.now();
 
-            const response = await fetchFromMirror(
-                relativePath,
-                mirror
+                const response=await fetchFromMirror(
+                    relativePath,
+                    mirror
+                );
+
+                const blob=await response.blob();
+
+                const elapsed=Math.max(
+                    .001,
+                    (performance.now()-startTime)/1000
+                );
+
+                if(!blob.size) {
+                    throw new Error("Empty response");
+                }
+
+                const contentLength=response.headers.get("content-length");
+
+                if(
+                    contentLength&&
+                    !response.headers.get("content-encoding")&&
+                    Number(contentLength)!==blob.size
+                ) {
+                    throw new Error(
+                        "Content-Length mismatch: expected "+
+                        contentLength+", received "+blob.size
+                    );
+                }
+
+                if(expectedSize&&blob.size!==expectedSize) {
+                    throw new Error(
+                        "Incorrect chunk size: expected "+
+                        expectedSize+", received "+blob.size
+                    );
+                }
+
+                return {blob,elapsed};
+            });
+
+            activeBaseURL=mirror;
+
+            const baseElement=$("assetBase");
+            if(baseElement)baseElement.href=mirror;
+
+            recordMirrorSuccess(
+                mirror,
+                result.elapsed*1000
             );
 
-            const blob = await response.blob();
-
-            const elapsed = Math.max(
-                0.001,
-                (performance.now() - startTime) / 1000
-            );
-
-            if (!blob.size) {
-                throw new Error("Empty response");
-            }
-
-            const contentLength =
-                response.headers.get("content-length");
-
-            if (
-                contentLength &&
-                !response.headers.get("content-encoding") &&
-                Number(contentLength) !== blob.size
-            ) {
-
-                throw new Error(
-                    "Content-Length mismatch: expected " +
-                    contentLength + ", received " + blob.size
-                );
-            }
-
-            if (expectedSize && blob.size !== expectedSize) {
-
-                throw new Error(
-                    "Incorrect chunk size: expected " +
-                    expectedSize + ", received " + blob.size
-                );
-            }
-
-            activeBaseURL = mirror;
-
-            const baseElement = $("assetBase");
-
-            if (baseElement) {
-                baseElement.href = mirror;
-            }
-
-            const speed = blob.size / elapsed / 1048576;
+            const speed=result.blob.size/result.elapsed/1048576;
 
             consoleLog(
-                partName + " downloaded (" +
-                (blob.size / 1048576).toFixed(2) +
-                " MB, " + speed.toFixed(2) +
-                " MB/s) from " +
-                new URL(mirror).hostname,
+                partName+" downloaded ("+
+                (result.blob.size/1048576).toFixed(2)+
+                " MB, "+speed.toFixed(2)+
+                " MB/s) from "+new URL(mirror).hostname,
                 "success"
             );
 
-            return blob;
+            return result.blob;
 
-        } catch (error) {
+        } catch(error) {
+            recordMirrorFailure(mirror,error);
 
             failures.push(
-                mirror.split("/")[2] + ": " + error.message
+                new URL(mirror).hostname+": "+error.message
             );
 
             consoleLog(
-                partName + " failed on " +
-                mirror.split("/")[2] +
-                ": " + error.message,
+                partName+" failed on "+new URL(mirror).hostname+
+                ": "+error.message,
                 "warning"
             );
         }
     }
 
-    consoleLog(
-        "All mirrors failed for " + partName,
-        "error"
-    );
+    consoleLog("All mirrors failed for "+partName,"error");
 
     throw new Error(
-        "All mirrors failed for " + partName + "\n" +
+        "All mirrors failed for "+partName+"\n"+
         failures.join("\n")
     );
 }
-
-
-/* ============================================================
-   PARALLEL WORKER
-============================================================ */
-
-async function mapWithConcurrency(items, concurrency, worker) {
-
-    const results = new Array(items.length);
-
-    let nextIndex = 0;
-
-    async function runWorker() {
-
-        while (true) {
-
-            const index = nextIndex++;
-
-            if (index >= items.length) {
-                return;
-            }
-
-            results[index] = await worker(
-                items[index],
-                index
-            );
-        }
-    }
-
-    const workers = Array.from(
-        {
-            length: Math.min(concurrency, items.length)
-        },
-        () => runWorker()
-    );
-
-    await Promise.all(workers);
-
-    return results;
-}
-
 
 /* ============================================================
    PROGRESS
 ============================================================ */
 
 function setOverall(value) {
-
-    value = Math.max(0, Math.min(100, value));
-
-    overallProgress.style.width = value + "%";
-
-    percentage.textContent = Math.floor(value) + "%";
+    value=Math.max(0,Math.min(100,value));
+    overallProgress.style.width=value+"%";
+    percentage.textContent=Math.floor(value)+"%";
 }
 
+function updateProgress(force=false) {
+    const now=performance.now();
 
-function updateProgress(force = false) {
+    if(
+        !force&&
+        now-lastProgressUpdate<CONFIG.progressUpdateInterval
+    )return;
 
-    const now = performance.now();
+    lastProgressUpdate=now;
 
-    if (
-        !force &&
-        now - lastProgressUpdate < CONFIG.progressUpdateInterval
-    ) {
-        return;
-    }
+    dataProgress.style.width=
+        completedData/CONFIG.dataParts*100+"%";
 
-    lastProgressUpdate = now;
+    wasmProgress.style.width=
+        completedWasm/CONFIG.wasmParts*100+"%";
 
-    dataProgress.style.width =
-        completedData / CONFIG.dataParts * 100 + "%";
+    dataCount.textContent=
+        completedData+" / "+CONFIG.dataParts;
 
-    wasmProgress.style.width =
-        completedWasm / CONFIG.wasmParts * 100 + "%";
+    wasmCount.textContent=
+        completedWasm+" / "+CONFIG.wasmParts;
 
-    dataCount.textContent =
-        completedData + " / " + CONFIG.dataParts;
-
-    wasmCount.textContent =
-        completedWasm + " / " + CONFIG.wasmParts;
-
-    const total = CONFIG.dataParts + CONFIG.wasmParts;
+    const total=CONFIG.dataParts+CONFIG.wasmParts;
 
     setOverall(
-        (completedData + completedWasm) / total * 70
+        (completedData+completedWasm)/total*70
     );
 }
 
-
-function updatePartProgress(prefix, completed) {
-
-    if (prefix === CONFIG.dataPrefix) {
-        completedData = completed;
+function updatePartProgress(prefix,completed) {
+    if(prefix===CONFIG.dataPrefix) {
+        completedData=completed;
     } else {
-        completedWasm = completed;
+        completedWasm=completed;
     }
 
     updateProgress();
 }
 
-
 function yieldUI() {
-    return new Promise(resolve => requestAnimationFrame(resolve));
+    return new Promise(resolve=>requestAnimationFrame(resolve));
 }
-
 
 /* ============================================================
    INDEXEDDB
 ============================================================ */
 
 function openDatabase() {
-
-    return new Promise((resolve, reject) => {
-
-        if (!window.indexedDB) {
+    return new Promise((resolve,reject)=>{
+        if(!window.indexedDB) {
             reject(new Error("IndexedDB is unavailable."));
             return;
         }
 
-        const request = indexedDB.open(
-            CONFIG.databaseName,
-            1
-        );
+        const request=indexedDB.open(CONFIG.databaseName,1);
 
-        request.onupgradeneeded = () => {
+        request.onupgradeneeded=()=>{
+            const db=request.result;
 
-            const db = request.result;
-
-            if (!db.objectStoreNames.contains("files")) {
+            if(!db.objectStoreNames.contains("files")) {
                 db.createObjectStore("files");
             }
         };
 
-        request.onsuccess = () => resolve(request.result);
+        request.onsuccess=()=>resolve(request.result);
+        request.onerror=()=>reject(request.error);
 
-        request.onerror = () => reject(request.error);
-
-        request.onblocked = () => reject(
+        request.onblocked=()=>reject(
             new Error("IndexedDB is blocked by another connection.")
         );
     });
 }
 
-
 function idbGet(key) {
+    return new Promise((resolve,reject)=>{
+        const transaction=database.transaction("files","readonly");
+        const request=transaction.objectStore("files").get(key);
 
-    return new Promise((resolve, reject) => {
-
-        const transaction =
-            database.transaction("files", "readonly");
-
-        const request =
-            transaction.objectStore("files").get(key);
-
-        request.onsuccess = () => resolve(request.result);
-
-        request.onerror = () => reject(request.error);
+        request.onsuccess=()=>resolve(request.result);
+        request.onerror=()=>reject(request.error);
     });
 }
 
+function idbPut(key,value) {
+    return new Promise((resolve,reject)=>{
+        const transaction=database.transaction("files","readwrite");
 
-function idbPut(key, value) {
+        transaction.objectStore("files").put(value,key);
 
-    return new Promise((resolve, reject) => {
-
-        const transaction =
-            database.transaction("files", "readwrite");
-
-        transaction.objectStore("files").put(value, key);
-
-        transaction.oncomplete = resolve;
-
-        transaction.onerror = () => reject(transaction.error);
-
-        transaction.onabort = () => reject(transaction.error);
+        transaction.oncomplete=resolve;
+        transaction.onerror=()=>reject(transaction.error);
+        transaction.onabort=()=>reject(transaction.error);
     });
 }
-
 
 function idbDelete(key) {
-
-    return new Promise((resolve, reject) => {
-
-        const transaction =
-            database.transaction("files", "readwrite");
+    return new Promise((resolve,reject)=>{
+        const transaction=database.transaction("files","readwrite");
 
         transaction.objectStore("files").delete(key);
 
-        transaction.oncomplete = resolve;
-
-        transaction.onerror = () => reject(transaction.error);
+        transaction.oncomplete=resolve;
+        transaction.onerror=()=>reject(transaction.error);
     });
 }
 
-
 /* ============================================================
-   STORAGE
+   STORAGE INITIALIZATION
 ============================================================ */
 
 async function initializeStorage() {
+    statusText.textContent="Initializing storage...";
+    details.textContent="Checking available browser storage.";
 
-    statusText.textContent = "Initializing storage...";
-
-    details.textContent = "Checking available browser storage.";
-
-    consoleLog(
-        "Checking browser storage systems...",
-        "info"
-    );
+    consoleLog("Checking browser storage systems...","info");
 
     try {
-
-        if (
-            navigator.storage &&
-            typeof navigator.storage.getDirectory === "function"
+        if(
+            navigator.storage&&
+            typeof navigator.storage.getDirectory==="function"
         ) {
-
-            if (navigator.storage.persist) {
+            if(navigator.storage.persist) {
                 try {
                     await navigator.storage.persist();
-                } catch (_) {}
+                } catch(_) {}
             }
 
-            const root =
-                await navigator.storage.getDirectory();
+            const root=await navigator.storage.getDirectory();
 
-            storageRoot = await root.getDirectoryHandle(
+            storageRoot=await root.getDirectoryHandle(
                 CONFIG.storageDirectory,
-                { create: true }
+                {create:true}
             );
 
-            storageMode = "opfs";
+            storageMode="opfs";
 
-            details.textContent = "Using disk-backed storage.";
+            details.textContent="Using disk-backed storage.";
 
-            consoleLog(
-                "OPFS storage initialized.",
-                "success"
-            );
-
+            consoleLog("OPFS storage initialized.","success");
             return;
         }
-
-    } catch (error) {
-
-        console.warn("OPFS unavailable:", error);
+    } catch(error) {
+        console.warn("OPFS unavailable:",error);
 
         consoleLog(
-            "OPFS unavailable: " + error.message,
+            "OPFS unavailable: "+error.message,
             "warning"
         );
     }
 
     try {
+        database=await openDatabase();
+        storageMode="indexeddb";
 
-        database = await openDatabase();
+        details.textContent="Using IndexedDB storage.";
 
-        storageMode = "indexeddb";
-
-        details.textContent = "Using IndexedDB storage.";
-
-        consoleLog(
-            "IndexedDB storage initialized.",
-            "success"
-        );
-
+        consoleLog("IndexedDB storage initialized.","success");
         return;
-
-    } catch (error) {
-
+    } catch(error) {
         consoleLog(
-            "IndexedDB initialization failed: " + error.message,
+            "IndexedDB initialization failed: "+error.message,
             "error"
         );
 
         throw new Error(
-            "No usable browser storage system is available.\n\n" +
-            "Storage error: " + error.message
+            "No usable browser storage system is available.\n\n"+
+            "Storage error: "+error.message
         );
     }
 }
-
 
 /* ============================================================
    OPFS CACHE
 ============================================================ */
 
 async function getOPFSCachedFile(filename) {
-
     try {
+        const fileHandle=await storageRoot.getFileHandle(filename);
+        const markerHandle=await storageRoot.getFileHandle(filename+".complete");
 
-        const fileHandle =
-            await storageRoot.getFileHandle(filename);
+        const file=await fileHandle.getFile();
+        const marker=await markerHandle.getFile();
+        const markerText=await marker.text();
 
-        const markerHandle =
-            await storageRoot.getFileHandle(filename + ".complete");
-
-        const file = await fileHandle.getFile();
-
-        const marker = await markerHandle.getFile();
-
-        const markerText = await marker.text();
-
-        if (
-            file.size > 0 &&
-            markerText === CONFIG.cacheVersion + ":" + file.size
+        if(
+            file.size>0&&
+            markerText===CONFIG.cacheVersion+":"+file.size
         ) {
-
             consoleLog(
-                "Cache hit: " + filename +
-                " (" + (file.size / 1048576).toFixed(2) + " MB)",
+                "Cache hit: "+filename+" ("+
+                (file.size/1048576).toFixed(2)+" MB)",
                 "success"
             );
 
             return file;
         }
+    } catch(_) {}
 
-    } catch (_) {}
-
-    consoleLog(
-        "Cache miss: " + filename,
-        "info"
-    );
-
+    consoleLog("Cache miss: "+filename,"info");
     return null;
 }
 
-
-async function markOPFSComplete(filename, size) {
-
-    const handle = await storageRoot.getFileHandle(
-        filename + ".complete",
-        { create: true }
+async function markOPFSComplete(filename,size) {
+    const handle=await storageRoot.getFileHandle(
+        filename+".complete",
+        {create:true}
     );
 
-    const writer = await handle.createWritable();
+    const writer=await handle.createWritable();
 
     try {
-
-        await writer.write(
-            CONFIG.cacheVersion + ":" + size
-        );
-
+        await writer.write(CONFIG.cacheVersion+":"+size);
         await writer.close();
-
-    } catch (error) {
-
+    } catch(error) {
         try {
             await writer.abort();
-        } catch (_) {}
+        } catch(_) {}
 
         throw error;
     }
 }
-
 
 /* ============================================================
    INDEXEDDB CACHE
 ============================================================ */
 
 async function getIDBCachedFile(filename) {
-
     try {
-
-        const cached = await idbGet(
-            CONFIG.cacheVersion + ":" + filename
+        const cached=await idbGet(
+            CONFIG.cacheVersion+":"+filename
         );
 
-        if (
-            cached &&
-            cached.blob instanceof Blob &&
-            cached.blob.size > 0 &&
-            cached.size === cached.blob.size &&
-            cached.version === CONFIG.cacheVersion
+        if(
+            cached&&
+            cached.blob instanceof Blob&&
+            cached.blob.size>0&&
+            cached.size===cached.blob.size&&
+            cached.version===CONFIG.cacheVersion
         ) {
-
             consoleLog(
-                "Cache hit: " + filename +
-                " (" + (cached.blob.size / 1048576).toFixed(2) + " MB)",
+                "Cache hit: "+filename+" ("+
+                (cached.blob.size/1048576).toFixed(2)+" MB)",
                 "success"
             );
 
             return cached.blob;
         }
+    } catch(_) {}
 
-    } catch (_) {}
-
-    consoleLog(
-        "Cache miss: " + filename,
-        "info"
-    );
-
+    consoleLog("Cache miss: "+filename,"info");
     return null;
 }
-
 
 /* ============================================================
    OPFS MERGER
 ============================================================ */
 
-async function mergeOPFS(prefix, partCount, progressCallback) {
+async function mergeOPFS(prefix,partCount,progressCallback) {
+    const cached=await getOPFSCachedFile(prefix);
 
-    const cached = await getOPFSCachedFile(prefix);
-
-    if (cached) {
+    if(cached) {
         progressCallback(partCount);
         return cached;
     }
 
     try {
-        await storageRoot.removeEntry(prefix + ".complete");
-    } catch (_) {}
+        await storageRoot.removeEntry(prefix+".complete");
+    } catch(_) {}
 
-    const outputHandle = await storageRoot.getFileHandle(
+    const outputHandle=await storageRoot.getFileHandle(
         prefix,
-        { create: true }
+        {create:true}
     );
 
-    const writer = await outputHandle.createWritable({
-        keepExistingData: false
+    const writer=await outputHandle.createWritable({
+        keepExistingData:false
     });
 
-    let totalBytes = 0;
-    let completed = 0;
+    let totalBytes=0;
+    let completed=0;
 
     try {
-
-        const batchSize = Math.min(
-            CONFIG.maxParallelChunks,
-            32
-        );
+        /*
+          The scheduler, not this batch size, determines how many
+          network requests can actually be active across both files.
+        */
+        const batchSize=12;
 
         consoleLog(
-            "Starting " + prefix +
-            " download with " + batchSize +
-            " parallel workers.",
+            "Starting "+prefix+
+            " with shared adaptive download scheduling.",
             "info"
         );
 
-        for (
-            let batchStart = 0;
-            batchStart < partCount;
-            batchStart += batchSize
+        for(
+            let batchStart=0;
+            batchStart<partCount;
+            batchStart+=batchSize
         ) {
-
-            const indices = Array.from(
+            const indices=Array.from(
                 {
-                    length: Math.min(
+                    length:Math.min(
                         batchSize,
-                        partCount - batchStart
+                        partCount-batchStart
                     )
                 },
-                (_, offset) => batchStart + offset
+                (_,offset)=>batchStart+offset
             );
 
-            const blobs = await mapWithConcurrency(
-                indices,
-                batchSize,
-                async index => {
-                    return await fetchValidatedPart(prefix, index);
-                }
+            const blobs=await Promise.all(
+                indices.map(index=>
+                    fetchValidatedPart(prefix,index)
+                )
             );
 
-            for (const blob of blobs) {
-
+            for(const blob of blobs) {
                 await writer.write(blob);
 
-                totalBytes += blob.size;
-
+                totalBytes+=blob.size;
                 completed++;
 
                 progressCallback(completed);
-
             }
 
             consoleLog(
-                prefix + " assembly progress: " +
-                completed + "/" + partCount + " parts.",
+                prefix+" assembly progress: "+
+                completed+"/"+partCount+" parts.",
                 "info"
             );
 
@@ -1157,48 +1068,42 @@ async function mergeOPFS(prefix, partCount, progressCallback) {
 
         await writer.close();
 
-        const mergedFile = await outputHandle.getFile();
+        const mergedFile=await outputHandle.getFile();
 
-        if (
-            mergedFile.size === 0 ||
-            mergedFile.size !== totalBytes
+        if(
+            mergedFile.size===0||
+            mergedFile.size!==totalBytes
         ) {
-
             throw new Error(
-                "Merged file size validation failed for " + prefix
+                "Merged file size validation failed for "+prefix
             );
         }
 
-        await markOPFSComplete(
-            prefix,
-            mergedFile.size
-        );
+        await markOPFSComplete(prefix,mergedFile.size);
 
         consoleLog(
-            prefix + " assembled successfully (" +
-            (mergedFile.size / 1048576).toFixed(2) +
-            " MB).",
+            prefix+" assembled successfully ("+
+            (mergedFile.size/1048576).toFixed(2)+" MB).",
             "success"
         );
 
         return mergedFile;
 
-    } catch (error) {
-
+    } catch(error) {
         try {
             await writer.abort();
-        } catch (_) {}
+        } catch(_) {}
 
         try {
             await storageRoot.removeEntry(prefix);
-        } catch (_) {}
+        } catch(_) {}
 
         try {
-            await storageRoot.removeEntry(prefix + ".complete");
-        } catch (_) {}
+            await storageRoot.removeEntry(prefix+".complete");
+        } catch(_) {}
 
         consoleLog(
-            "Assembly failed for " + prefix + ": " + error.message,
+            "Assembly failed for "+prefix+": "+error.message,
             "error"
         );
 
@@ -1206,166 +1111,138 @@ async function mergeOPFS(prefix, partCount, progressCallback) {
     }
 }
 
-
 /* ============================================================
    INDEXEDDB MERGER
 ============================================================ */
 
-async function mergeIndexedDB(prefix, partCount, progressCallback) {
+async function mergeIndexedDB(prefix,partCount,progressCallback) {
+    const cached=await getIDBCachedFile(prefix);
 
-    const cached = await getIDBCachedFile(prefix);
-
-    if (cached) {
+    if(cached) {
         progressCallback(partCount);
         return cached;
     }
 
-    let completed = 0;
+    let completed=0;
 
-    const indices = Array.from(
-        { length: partCount },
-        (_, index) => index
+    const indices=Array.from(
+        {length:partCount},
+        (_,index)=>index
     );
 
-    // Download workers do not wait for individual cache writes.
-    // This allows network workers to keep downloading.
+    const pendingCacheWrites=[];
 
-    const pendingCacheWrites = [];
+    /*
+      Both data and WASM can call this simultaneously. All network
+      requests still pass through the same global scheduler.
+    */
+    const parts=await Promise.all(
+        indices.map(async index=>{
+            const partName=
+                prefix+"."+String(index).padStart(3,"0");
 
-    const parts = await mapWithConcurrency(
-        indices,
-        CONFIG.maxParallelChunks,
-        async index => {
+            const partKey=
+                CONFIG.cacheVersion+":part:"+partName;
 
-            const partName =
-                prefix + "." + String(index).padStart(3, "0");
-
-            const partKey =
-                CONFIG.cacheVersion + ":part:" + partName;
-
-            let partBlob = null;
+            let partBlob=null;
 
             try {
+                const saved=await idbGet(partKey);
 
-                const saved = await idbGet(partKey);
-
-                if (
-                    saved &&
-                    saved.blob instanceof Blob &&
-                    saved.blob.size > 0 &&
-                    saved.size === saved.blob.size &&
-                    saved.version === CONFIG.cacheVersion
+                if(
+                    saved&&
+                    saved.blob instanceof Blob&&
+                    saved.blob.size>0&&
+                    saved.size===saved.blob.size&&
+                    saved.version===CONFIG.cacheVersion
                 ) {
-
-                    partBlob = saved.blob;
+                    partBlob=saved.blob;
 
                     consoleLog(
-                        "Part cache hit: " + partName,
+                        "Part cache hit: "+partName,
                         "success"
                     );
                 }
+            } catch(_) {}
 
-            } catch (_) {}
+            if(!partBlob) {
+                partBlob=await fetchValidatedPart(prefix,index);
 
-            if (!partBlob) {
-
-                partBlob = await fetchValidatedPart(
-                    prefix,
-                    index
-                );
-
-                const writePromise = idbPut(
-                    partKey,
-                    {
-                        blob: partBlob,
-                        size: partBlob.size,
-                        version: CONFIG.cacheVersion
-                    }
-                ).catch(error => {
-
+                const writePromise=idbPut(partKey,{
+                    blob:partBlob,
+                    size:partBlob.size,
+                    version:CONFIG.cacheVersion
+                }).catch(error=>{
                     consoleLog(
-                        "Could not cache " + partName +
-                        ": " + error.message,
+                        "Could not cache "+partName+": "+error.message,
                         "warning"
                     );
-
                 });
 
                 pendingCacheWrites.push(writePromise);
             }
 
             completed++;
-
             progressCallback(completed);
 
             return partBlob;
-        }
+        })
     );
 
-    statusText.textContent = "Combining " + prefix + "...";
-
-    details.textContent = "Verifying downloaded pieces.";
+    statusText.textContent="Combining "+prefix+"...";
+    details.textContent="Verifying downloaded pieces.";
 
     consoleLog(
-        "All " + prefix + " parts downloaded. Combining...",
+        "All "+prefix+" parts downloaded. Combining...",
         "info"
     );
 
-    const totalBytes = parts.reduce(
-        (sum, blob) => sum + blob.size,
+    const totalBytes=parts.reduce(
+        (sum,blob)=>sum+blob.size,
         0
     );
 
-    const mergedBlob = new Blob(
-        parts,
-        {
-            type: prefix === CONFIG.wasmPrefix
-                ? "application/wasm"
-                : "application/octet-stream"
-        }
-    );
+    const mergedBlob=new Blob(parts,{
+        type:prefix===CONFIG.wasmPrefix
+            ?"application/wasm"
+            :"application/octet-stream"
+    });
 
-    if (
-        mergedBlob.size === 0 ||
-        mergedBlob.size !== totalBytes
+    if(
+        mergedBlob.size===0||
+        mergedBlob.size!==totalBytes
     ) {
-
         throw new Error(
-            "IndexedDB merge validation failed: " + prefix
+            "IndexedDB merge validation failed: "+prefix
         );
     }
 
-    // Wait for background cache writes before completing.
     await Promise.all(pendingCacheWrites);
 
     await idbPut(
-        CONFIG.cacheVersion + ":" + prefix,
+        CONFIG.cacheVersion+":"+prefix,
         {
-            blob: mergedBlob,
-            size: mergedBlob.size,
-            version: CONFIG.cacheVersion
+            blob:mergedBlob,
+            size:mergedBlob.size,
+            version:CONFIG.cacheVersion
         }
     );
 
     consoleLog(
-        prefix + " assembled and cached successfully (" +
-        (mergedBlob.size / 1048576).toFixed(2) +
-        " MB).",
+        prefix+" assembled and cached successfully ("+
+        (mergedBlob.size/1048576).toFixed(2)+" MB).",
         "success"
     );
 
     return mergedBlob;
 }
 
-
 /* ============================================================
    MERGE SELECTOR
 ============================================================ */
 
-async function mergeFile(prefix, partCount, progressCallback) {
-
-    if (storageMode === "opfs") {
-
+async function mergeFile(prefix,partCount,progressCallback) {
+    if(storageMode==="opfs") {
         return await mergeOPFS(
             prefix,
             partCount,
@@ -1373,8 +1250,7 @@ async function mergeFile(prefix, partCount, progressCallback) {
         );
     }
 
-    if (storageMode === "indexeddb") {
-
+    if(storageMode==="indexeddb") {
         return await mergeIndexedDB(
             prefix,
             partCount,
@@ -1385,29 +1261,31 @@ async function mergeFile(prefix, partCount, progressCallback) {
     throw new Error("Storage has not been initialized.");
 }
 
-
 /* ============================================================
    PREPARE FILES
 ============================================================ */
 
 async function prepareGameFiles() {
-
     await initializeStorage();
 
-    statusText.textContent =
-        "Preparing game files in parallel...";
+    statusText.textContent="Preparing game files in parallel...";
 
     consoleLog(
         "Beginning parallel data and WebAssembly downloads.",
         "info"
     );
 
-    const [dataFile, wasmFile] = await Promise.all([
+    consoleLog(
+        "Global adaptive concurrency: "+downloadScheduler.limit+
+        " initial, "+downloadScheduler.maximum+" maximum.",
+        "success"
+    );
 
+    const [dataFile,wasmFile]=await Promise.all([
         mergeFile(
             CONFIG.dataPrefix,
             CONFIG.dataParts,
-            completed => {
+            completed=>{
                 updatePartProgress(
                     CONFIG.dataPrefix,
                     completed
@@ -1418,178 +1296,139 @@ async function prepareGameFiles() {
         mergeFile(
             CONFIG.wasmPrefix,
             CONFIG.wasmParts,
-            completed => {
+            completed=>{
                 updatePartProgress(
                     CONFIG.wasmPrefix,
                     completed
                 );
             }
         )
-
     ]);
 
-    consoleLog(
-        "All game data files are ready.",
-        "success"
-    );
+    consoleLog("All game data files are ready.","success");
 
-    return {
-        dataFile,
-        wasmFile
-    };
+    return {dataFile,wasmFile};
 }
-
 
 /* ============================================================
    UNITY LOADER
 ============================================================ */
 
 async function loadUnityLoader() {
+    if(typeof createUnityInstance==="function")return;
 
-    if (typeof createUnityInstance === "function") {
-        return;
-    }
+    statusText.textContent="Loading Unity engine...";
 
-    statusText.textContent = "Loading Unity engine...";
+    consoleLog("Downloading Unity loader...","info");
 
-    consoleLog(
-        "Downloading Unity loader...",
-        "info"
+    const response=await fetchAsset(
+        CONFIG.buildURL+CONFIG.loader
     );
 
-    const response = await fetchAsset(
-        CONFIG.buildURL + CONFIG.loader
-    );
+    const blob=await response.blob();
 
-    const blob = await response.blob();
-
-    if (!blob.size) {
+    if(!blob.size) {
         throw new Error("Unity loader download was empty.");
     }
 
-    loaderBlobURL = URL.createObjectURL(
-        new Blob(
-            [blob],
-            { type: "text/javascript" }
-        )
+    loaderBlobURL=URL.createObjectURL(
+        new Blob([blob],{type:"text/javascript"})
     );
 
-    const script = document.createElement("script");
+    const script=document.createElement("script");
 
-    script.src = loaderBlobURL;
-    script.async = true;
+    script.src=loaderBlobURL;
+    script.async=true;
 
-    await new Promise((resolve, reject) => {
+    await new Promise((resolve,reject)=>{
+        script.onload=resolve;
 
-        script.onload = resolve;
-
-        script.onerror = () => reject(
+        script.onerror=()=>reject(
             new Error("Could not execute the Unity loader.")
         );
 
         document.head.appendChild(script);
     });
 
-    if (typeof createUnityInstance !== "function") {
-
+    if(typeof createUnityInstance!=="function") {
         throw new Error(
             "Unity loader loaded, but createUnityInstance is missing."
         );
     }
 
-    consoleLog(
-        "Unity loader initialized.",
-        "success"
-    );
+    consoleLog("Unity loader initialized.","success");
 }
-
 
 /* ============================================================
    PORTABLE SAVE / RESTORE
 ============================================================ */
 
-const SAVE_FORMAT = "hollow-knight-browser-save-v1";
+const SAVE_FORMAT="hollow-knight-browser-save-v1";
 
-const saveStatus = $("saveStatus");
-const saveFileInput = $("saveFileInput");
-const resolutionScale = $("resolutionScale");
+const saveStatus=$("saveStatus");
+const saveFileInput=$("saveFileInput");
+const resolutionScale=$("resolutionScale");
 
-const HK_SCALE_KEY = "hollowKnightGraphicsScale";
+const HK_SCALE_KEY="hollowKnightGraphicsScale";
 
 try {
+    const savedScale=localStorage.getItem(HK_SCALE_KEY);
 
-    const savedScale = localStorage.getItem(HK_SCALE_KEY);
-
-    if (
-        savedScale &&
+    if(
+        savedScale&&
         Array.from(resolutionScale.options).some(
-            option => option.value === savedScale
+            option=>option.value===savedScale
         )
     ) {
-        resolutionScale.value = savedScale;
+        resolutionScale.value=savedScale;
     }
+} catch(_) {}
 
-} catch (_) {}
-
-
-resolutionScale.addEventListener("change", () => {
-
+resolutionScale.addEventListener("change",()=>{
     try {
         localStorage.setItem(
             HK_SCALE_KEY,
             resolutionScale.value
         );
-    } catch (_) {}
+    } catch(_) {}
 
     setSaveStatus(
-        "Graphics: " +
-        Number(resolutionScale.value).toFixed(2) +
+        "Graphics: "+
+        Number(resolutionScale.value).toFixed(2)+
         "x — reload to apply"
     );
 });
 
-
 function setSaveStatus(message) {
-
-    if (saveStatus) {
-        saveStatus.textContent = message;
-    }
+    if(saveStatus)saveStatus.textContent=message;
 }
 
-
 function bytesToBase64(bytes) {
+    let binary="";
+    const step=0x8000;
 
-    let binary = "";
-
-    const step = 0x8000;
-
-    for (let i = 0; i < bytes.length; i += step) {
-
-        binary += String.fromCharCode(
-            ...bytes.subarray(i, i + step)
+    for(let i=0;i<bytes.length;i+=step) {
+        binary+=String.fromCharCode(
+            ...bytes.subarray(i,i+step)
         );
     }
 
     return btoa(binary);
 }
 
-
 function encodeSaveValue(value) {
-
-    if (value instanceof ArrayBuffer) {
-
+    if(value instanceof ArrayBuffer) {
         return {
-            __hkType: "ArrayBuffer",
-            data: bytesToBase64(new Uint8Array(value))
+            __hkType:"ArrayBuffer",
+            data:bytesToBase64(new Uint8Array(value))
         };
     }
 
-    if (ArrayBuffer.isView(value)) {
-
+    if(ArrayBuffer.isView(value)) {
         return {
-            __hkType: "TypedArray",
-            name: value.constructor.name,
-            data: bytesToBase64(
+            __hkType:"TypedArray",
+            name:value.constructor.name,
+            data:bytesToBase64(
                 new Uint8Array(
                     value.buffer,
                     value.byteOffset,
@@ -1599,24 +1438,22 @@ function encodeSaveValue(value) {
         };
     }
 
-    if (value instanceof Date) {
-
+    if(value instanceof Date) {
         return {
-            __hkType: "Date",
-            value: value.toISOString()
+            __hkType:"Date",
+            value:value.toISOString()
         };
     }
 
-    if (Array.isArray(value)) {
+    if(Array.isArray(value)) {
         return value.map(encodeSaveValue);
     }
 
-    if (value && typeof value === "object") {
+    if(value&&typeof value==="object") {
+        const out={};
 
-        const out = {};
-
-        for (const [key, item] of Object.entries(value)) {
-            out[key] = encodeSaveValue(item);
+        for(const [key,item] of Object.entries(value)) {
+            out[key]=encodeSaveValue(item);
         }
 
         return out;
@@ -1625,41 +1462,36 @@ function encodeSaveValue(value) {
     return value;
 }
 
-
 async function encodeSaveValueAsync(value) {
-
-    if (value instanceof Blob) {
-
+    if(value instanceof Blob) {
         return {
-            __hkType: "Blob",
-            type: value.type,
-            data: bytesToBase64(
+            __hkType:"Blob",
+            type:value.type,
+            data:bytesToBase64(
                 new Uint8Array(await value.arrayBuffer())
             )
         };
     }
 
-    if (
-        value instanceof ArrayBuffer ||
-        ArrayBuffer.isView(value) ||
+    if(
+        value instanceof ArrayBuffer||
+        ArrayBuffer.isView(value)||
         value instanceof Date
     ) {
         return encodeSaveValue(value);
     }
 
-    if (Array.isArray(value)) {
-
+    if(Array.isArray(value)) {
         return await Promise.all(
             value.map(encodeSaveValueAsync)
         );
     }
 
-    if (value && typeof value === "object") {
+    if(value&&typeof value==="object") {
+        const out={};
 
-        const out = {};
-
-        for (const [key, item] of Object.entries(value)) {
-            out[key] = await encodeSaveValueAsync(item);
+        for(const [key,item] of Object.entries(value)) {
+            out[key]=await encodeSaveValueAsync(item);
         }
 
         return out;
@@ -1668,52 +1500,43 @@ async function encodeSaveValueAsync(value) {
     return value;
 }
 
-
 function base64ToBytes(value) {
+    const binary=atob(value);
+    const bytes=new Uint8Array(binary.length);
 
-    const binary = atob(value);
-
-    const bytes = new Uint8Array(binary.length);
-
-    for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
+    for(let i=0;i<binary.length;i++) {
+        bytes[i]=binary.charCodeAt(i);
     }
 
     return bytes;
 }
 
-
 function decodeSaveValue(value) {
-
-    if (Array.isArray(value)) {
+    if(Array.isArray(value)) {
         return value.map(decodeSaveValue);
     }
 
-    if (!value || typeof value !== "object") {
-        return value;
-    }
+    if(!value||typeof value!=="object")return value;
 
-    if (value.__hkType === "ArrayBuffer") {
+    if(value.__hkType==="ArrayBuffer") {
         return base64ToBytes(value.data).buffer;
     }
 
-    if (value.__hkType === "Blob") {
-
+    if(value.__hkType==="Blob") {
         return new Blob(
             [base64ToBytes(value.data)],
-            { type: value.type || "" }
+            {type:value.type||""}
         );
     }
 
-    if (value.__hkType === "Date") {
+    if(value.__hkType==="Date") {
         return new Date(value.value);
     }
 
-    if (value.__hkType === "TypedArray") {
+    if(value.__hkType==="TypedArray") {
+        const bytes=base64ToBytes(value.data);
 
-        const bytes = base64ToBytes(value.data);
-
-        const constructors = {
+        const constructors={
             Int8Array,
             Uint8Array,
             Uint8ClampedArray,
@@ -1727,178 +1550,140 @@ function decodeSaveValue(value) {
             BigUint64Array
         };
 
-        const Ctor =
-            constructors[value.name] || Uint8Array;
+        const Ctor=constructors[value.name]||Uint8Array;
 
-        const copy = bytes.buffer.slice(
+        const copy=bytes.buffer.slice(
             bytes.byteOffset,
-            bytes.byteOffset + bytes.byteLength
+            bytes.byteOffset+bytes.byteLength
         );
 
         return new Ctor(copy);
     }
 
-    const out = {};
+    const out={};
 
-    for (const [key, item] of Object.entries(value)) {
-        out[key] = decodeSaveValue(item);
+    for(const [key,item] of Object.entries(value)) {
+        out[key]=decodeSaveValue(item);
     }
 
     return out;
 }
 
-
 function requestToPromise(request) {
+    return new Promise((resolve,reject)=>{
+        request.onsuccess=()=>resolve(request.result);
 
-    return new Promise((resolve, reject) => {
-
-        request.onsuccess = () => resolve(request.result);
-
-        request.onerror = () => reject(
-            request.error || new Error("Storage request failed")
+        request.onerror=()=>reject(
+            request.error||new Error("Storage request failed")
         );
     });
 }
-
 
 function transactionDone(transaction) {
+    return new Promise((resolve,reject)=>{
+        transaction.oncomplete=resolve;
 
-    return new Promise((resolve, reject) => {
-
-        transaction.oncomplete = resolve;
-
-        transaction.onerror = () => reject(
-            transaction.error ||
-            new Error("Storage transaction failed")
+        transaction.onerror=()=>reject(
+            transaction.error||new Error("Storage transaction failed")
         );
 
-        transaction.onabort = () => reject(
-            transaction.error ||
-            new Error("Storage transaction cancelled")
+        transaction.onabort=()=>reject(
+            transaction.error||new Error("Storage transaction cancelled")
         );
     });
 }
 
-
 async function flushUnityStorage() {
+    const instance=window.unityInstance;
 
-    const instance = window.unityInstance;
-
-    const module = instance &&
-        (instance.Module || instance.module) ||
+    const module=instance&&
+        (instance.Module||instance.module)||
         window.Module;
 
-    if (
-        module &&
-        module.FS &&
-        typeof module.FS.syncfs === "function"
+    if(
+        module&&
+        module.FS&&
+        typeof module.FS.syncfs==="function"
     ) {
+        await new Promise((resolve,reject)=>{
+            let finished=false;
 
-        await new Promise((resolve, reject) => {
-
-            let finished = false;
-
-            const finish = error => {
-
-                if (finished) return;
-
-                finished = true;
+            const finish=error=>{
+                if(finished)return;
+                finished=true;
 
                 clearTimeout(timer);
 
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve();
-                }
+                if(error)reject(error);
+                else resolve();
             };
 
-            const timer = setTimeout(
-                () => finish(
-                    new Error(
-                        "Timed out while syncing game save storage."
-                    )
+            const timer=setTimeout(
+                ()=>finish(
+                    new Error("Timed out while syncing game save storage.")
                 ),
                 10000
             );
 
             try {
-
-                module.FS.syncfs(false, error => {
-                    finish(error || null);
+                module.FS.syncfs(false,error=>{
+                    finish(error||null);
                 });
-
-            } catch (error) {
-
+            } catch(error) {
                 finish(error);
             }
         });
     }
 }
 
-
 async function readGameDatabases() {
-
-    if (!indexedDB.databases) {
-
+    if(!indexedDB.databases) {
         throw new Error(
             "This browser cannot list local game storage."
         );
     }
 
-    const infos = await indexedDB.databases();
+    const infos=await indexedDB.databases();
 
-    const targets = infos.filter(info =>
-        info.name &&
-        /unity|idbfs|hollow.?knight/i.test(info.name) &&
-        info.name !== CONFIG.databaseName
+    const targets=infos.filter(info=>
+        info.name&&
+        /unity|idbfs|hollow.?knight/i.test(info.name)&&
+        info.name!==CONFIG.databaseName
     );
 
-    const databases = [];
+    const databases=[];
 
-    for (const info of targets) {
+    for(const info of targets) {
+        const db=await new Promise((resolve,reject)=>{
+            const request=indexedDB.open(info.name);
 
-        const db = await new Promise((resolve, reject) => {
-
-            const request = indexedDB.open(info.name);
-
-            request.onsuccess = () => resolve(request.result);
-
-            request.onerror = () => reject(request.error);
+            request.onsuccess=()=>resolve(request.result);
+            request.onerror=()=>reject(request.error);
         });
 
-        const stores = [];
+        const stores=[];
 
-        for (const storeName of Array.from(db.objectStoreNames)) {
+        for(const storeName of Array.from(db.objectStoreNames)) {
+            const tx=db.transaction(storeName,"readonly");
+            const done=transactionDone(tx);
+            const store=tx.objectStore(storeName);
 
-            const tx = db.transaction(storeName, "readonly");
+            const keys=await requestToPromise(store.getAllKeys());
+            const values=await requestToPromise(store.getAll());
 
-            const done = transactionDone(tx);
+            const records=[];
 
-            const store = tx.objectStore(storeName);
-
-            const keys = await requestToPromise(
-                store.getAllKeys()
-            );
-
-            const values = await requestToPromise(
-                store.getAll()
-            );
-
-            const records = [];
-
-            for (let i = 0; i < values.length; i++) {
-
+            for(let i=0;i<values.length;i++) {
                 records.push({
-                    key: await encodeSaveValueAsync(keys[i]),
-                    value: await encodeSaveValueAsync(values[i])
+                    key:await encodeSaveValueAsync(keys[i]),
+                    value:await encodeSaveValueAsync(values[i])
                 });
             }
 
             stores.push({
-                name: storeName,
-                keyPath: store.keyPath,
-                autoIncrement: store.autoIncrement,
+                name:storeName,
+                keyPath:store.keyPath,
+                autoIncrement:store.autoIncrement,
                 records
             });
 
@@ -1906,8 +1691,8 @@ async function readGameDatabases() {
         }
 
         databases.push({
-            name: db.name,
-            version: db.version,
+            name:db.name,
+            version:db.version,
             stores
         });
 
@@ -1917,159 +1702,124 @@ async function readGameDatabases() {
     return databases;
 }
 
-
 async function createSaveSnapshot() {
-
     await flushUnityStorage();
 
-    const databases = await readGameDatabases();
+    const databases=await readGameDatabases();
+    const local={};
 
-    const local = {};
-
-    for (let i = 0; i < localStorage.length; i++) {
-
-        const key = localStorage.key(i);
-
-        local[key] = localStorage.getItem(key);
+    for(let i=0;i<localStorage.length;i++) {
+        const key=localStorage.key(i);
+        local[key]=localStorage.getItem(key);
     }
 
-    if (
-        !databases.length &&
-        !Object.keys(local).length
-    ) {
-
+    if(!databases.length&&!Object.keys(local).length) {
         throw new Error(
             "No browser save data was found yet. Play until the game creates a save."
         );
     }
 
     return {
-        format: SAVE_FORMAT,
-        createdAt: new Date().toISOString(),
-        game: "Hollow Knight",
+        format:SAVE_FORMAT,
+        createdAt:new Date().toISOString(),
+        game:"Hollow Knight",
         databases,
-        localStorage: local
+        localStorage:local
     };
 }
 
-
 async function exportSaveFile() {
+    const button=$("saveButton");
 
-    const button = $("saveButton");
-
-    button.disabled = true;
-
+    button.disabled=true;
     setSaveStatus("Preparing save...");
 
     try {
+        const snapshot=await createSaveSnapshot();
 
-        const snapshot = await createSaveSnapshot();
-
-        const blob = new Blob(
+        const blob=new Blob(
             [JSON.stringify(snapshot)],
-            { type: "application/json" }
+            {type:"application/json"}
         );
 
-        const url = URL.createObjectURL(blob);
+        const url=URL.createObjectURL(blob);
+        const link=document.createElement("a");
 
-        const link = document.createElement("a");
+        link.href=url;
 
-        link.href = url;
-
-        link.download =
-            "Hollow-Knight-Save-" +
-            new Date().toISOString().replace(/[:.]/g, "-") +
+        link.download=
+            "Hollow-Knight-Save-"+
+            new Date().toISOString().replace(/[:.]/g,"-")+
             ".hksave";
 
         document.body.appendChild(link);
-
         link.click();
-
         link.remove();
 
-        setTimeout(
-            () => URL.revokeObjectURL(url),
-            30000
-        );
+        setTimeout(()=>URL.revokeObjectURL(url),30000);
 
         setSaveStatus("Save file downloaded");
 
-    } catch (error) {
-
-        console.error("Save export failed:", error);
+    } catch(error) {
+        console.error("Save export failed:",error);
 
         setSaveStatus("Save failed — see console");
 
-        alert(
-            "Could not export the save: " + error.message
-        );
+        alert("Could not export the save: "+error.message);
 
     } finally {
-
-        button.disabled = false;
+        button.disabled=false;
     }
 }
 
-
 async function writeDatabaseSnapshot(snapshot) {
-
-    if (
-        !snapshot ||
-        typeof snapshot.name !== "string" ||
+    if(
+        !snapshot||
+        typeof snapshot.name!=="string"||
         !Array.isArray(snapshot.stores)
     ) {
-
         throw new Error(
             "The save contains an invalid database snapshot."
         );
     }
 
-    let db = await new Promise((resolve, reject) => {
+    let db=await new Promise((resolve,reject)=>{
+        const request=indexedDB.open(snapshot.name);
 
-        const request = indexedDB.open(snapshot.name);
-
-        request.onsuccess = () => resolve(request.result);
-
-        request.onerror = () => reject(request.error);
+        request.onsuccess=()=>resolve(request.result);
+        request.onerror=()=>reject(request.error);
     });
 
-    const missing = snapshot.stores.filter(store =>
+    const missing=snapshot.stores.filter(store=>
         !db.objectStoreNames.contains(store.name)
     );
 
-    if (missing.length) {
-
-        const nextVersion = db.version + 1;
-
+    if(missing.length) {
+        const nextVersion=db.version+1;
         db.close();
 
-        db = await new Promise((resolve, reject) => {
-
-            const request = indexedDB.open(
+        db=await new Promise((resolve,reject)=>{
+            const request=indexedDB.open(
                 snapshot.name,
                 nextVersion
             );
 
-            request.onupgradeneeded = () => {
+            request.onupgradeneeded=()=>{
+                const upgradeDb=request.result;
 
-                const upgradeDb = request.result;
-
-                for (const storeInfo of missing) {
-
-                    if (
+                for(const storeInfo of missing) {
+                    if(
                         upgradeDb.objectStoreNames.contains(
                             storeInfo.name
                         )
-                    ) {
-                        continue;
-                    }
+                    )continue;
 
-                    const options = {
-                        autoIncrement: !!storeInfo.autoIncrement
+                    const options={
+                        autoIncrement:!!storeInfo.autoIncrement
                     };
 
-                    if (storeInfo.keyPath !== null) {
-                        options.keyPath = storeInfo.keyPath;
+                    if(storeInfo.keyPath!==null) {
+                        options.keyPath=storeInfo.keyPath;
                     }
 
                     upgradeDb.createObjectStore(
@@ -2079,53 +1829,40 @@ async function writeDatabaseSnapshot(snapshot) {
                 }
             };
 
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess=()=>resolve(request.result);
+            request.onerror=()=>reject(request.error);
 
-            request.onerror = () => reject(request.error);
-
-            request.onblocked = () => reject(
-                new Error(
-                    "Database upgrade is blocked by another tab."
-                )
+            request.onblocked=()=>reject(
+                new Error("Database upgrade is blocked by another tab.")
             );
         });
     }
 
     try {
-
-        for (const storeInfo of snapshot.stores) {
-
-            if (
-                !Array.isArray(storeInfo.records) ||
+        for(const storeInfo of snapshot.stores) {
+            if(
+                !Array.isArray(storeInfo.records)||
                 !db.objectStoreNames.contains(storeInfo.name)
             ) {
-
                 throw new Error(
                     "The saved storage layout is incomplete."
                 );
             }
 
-            const preparedRecords =
-                storeInfo.records.map(record => ({
-                    key: decodeSaveValue(record.key),
-                    value: decodeSaveValue(record.value)
-                }));
+            const preparedRecords=storeInfo.records.map(record=>({
+                key:decodeSaveValue(record.key),
+                value:decodeSaveValue(record.value)
+            }));
 
-            const tx = db.transaction(
-                storeInfo.name,
-                "readwrite"
-            );
-
-            const done = transactionDone(tx);
-
-            const store = tx.objectStore(storeInfo.name);
+            const tx=db.transaction(storeInfo.name,"readwrite");
+            const done=transactionDone(tx);
+            const store=tx.objectStore(storeInfo.name);
 
             store.clear();
 
-            for (const record of preparedRecords) {
-
-                if (store.keyPath === null) {
-                    store.put(record.value, record.key);
+            for(const record of preparedRecords) {
+                if(store.keyPath===null) {
+                    store.put(record.value,record.key);
                 } else {
                     store.put(record.value);
                 }
@@ -2133,504 +1870,393 @@ async function writeDatabaseSnapshot(snapshot) {
 
             await done;
         }
-
     } finally {
-
         db.close();
     }
 }
 
-
 async function importSaveFile(file) {
-
-    if (!file) return;
+    if(!file)return;
 
     setSaveStatus("Restoring save...");
 
     try {
+        const snapshot=JSON.parse(await file.text());
 
-        const snapshot = JSON.parse(
-            await file.text()
-        );
-
-        if (
-            !snapshot ||
-            snapshot.format !== SAVE_FORMAT ||
-            !Array.isArray(snapshot.databases) ||
-            !snapshot.localStorage ||
-            typeof snapshot.localStorage !== "object" ||
+        if(
+            !snapshot||
+            snapshot.format!==SAVE_FORMAT||
+            !Array.isArray(snapshot.databases)||
+            !snapshot.localStorage||
+            typeof snapshot.localStorage!=="object"||
             Array.isArray(snapshot.localStorage)
         ) {
-
             throw new Error(
                 "That file is not a compatible Hollow Knight save."
             );
         }
 
-        for (const db of snapshot.databases) {
-
-            if (
-                !db ||
-                typeof db.name !== "string" ||
+        for(const db of snapshot.databases) {
+            if(
+                !db||
+                typeof db.name!=="string"||
                 !Array.isArray(db.stores)
             ) {
-
                 throw new Error(
                     "The save contains an invalid database entry."
                 );
             }
 
-            for (const store of db.stores) {
-
-                if (
-                    !store ||
-                    typeof store.name !== "string" ||
+            for(const store of db.stores) {
+                if(
+                    !store||
+                    typeof store.name!=="string"||
                     !Array.isArray(store.records)
                 ) {
-
                     throw new Error(
                         "The save contains an invalid object store."
                     );
                 }
 
-                for (const record of store.records) {
-
+                for(const record of store.records) {
                     decodeSaveValue(record.key);
                     decodeSaveValue(record.value);
                 }
             }
         }
 
-        if (!confirm(
+        if(!confirm(
             "Restore this save and restart the game? Your current browser save data will be replaced."
         )) {
-
             setSaveStatus("Restore cancelled");
-
             return;
         }
 
         await flushUnityStorage();
 
-        if (
-            window.unityInstance &&
-            typeof window.unityInstance.Quit === "function"
+        if(
+            window.unityInstance&&
+            typeof window.unityInstance.Quit==="function"
         ) {
-
             try {
-
                 await window.unityInstance.Quit();
-
-            } catch (error) {
-
+            } catch(error) {
                 console.warn(
                     "Unity shutdown warning before restore:",
                     error
                 );
             }
 
-            window.unityInstance = null;
+            window.unityInstance=null;
         }
 
-        for (const db of snapshot.databases) {
+        for(const db of snapshot.databases) {
             await writeDatabaseSnapshot(db);
         }
 
-        if (
-            snapshot.localStorage &&
-            typeof snapshot.localStorage === "object"
+        if(
+            snapshot.localStorage&&
+            typeof snapshot.localStorage==="object"
         ) {
-
-            for (
-                const [key, value] of
-                Object.entries(snapshot.localStorage)
-            ) {
-
-                localStorage.setItem(key, value);
+            for(const [key,value] of Object.entries(snapshot.localStorage)) {
+                localStorage.setItem(key,value);
             }
         }
 
-        setSaveStatus(
-            "Save restored — restarting..."
-        );
+        setSaveStatus("Save restored — restarting...");
 
-        setTimeout(
-            () => location.reload(),
-            500
-        );
+        setTimeout(()=>location.reload(),500);
 
-    } catch (error) {
-
-        console.error("Save restore failed:", error);
+    } catch(error) {
+        console.error("Save restore failed:",error);
 
         setSaveStatus("Restore failed — see console");
 
-        alert(
-            "Could not restore the save: " + error.message
-        );
+        alert("Could not restore the save: "+error.message);
 
     } finally {
-
-        saveFileInput.value = "";
+        saveFileInput.value="";
     }
 }
 
-
-$("saveButton").addEventListener(
-    "click",
-    exportSaveFile
-);
+$("saveButton").addEventListener("click",exportSaveFile);
 
 $("loadButton").addEventListener(
     "click",
-    () => saveFileInput.click()
+    ()=>saveFileInput.click()
 );
 
-saveFileInput.addEventListener(
-    "change",
-    () => importSaveFile(saveFileInput.files[0])
-);
-
+saveFileInput.addEventListener("change",()=>{
+    importSaveFile(saveFileInput.files[0]);
+});
 
 /* ============================================================
    START GAME
 ============================================================ */
 
 async function startGame() {
+    if(starting)return;
 
-    if (starting) return;
-
-    starting = true;
+    starting=true;
 
     consoleClear();
 
     consoleLog(
-        "Initializing Hollow Knight downloader...",
+        "Initializing Hollow Knight adaptive downloader...",
         "info"
     );
 
-    consoleLog(
-        "Parallel download workers: " +
-        CONFIG.maxParallelChunks,
-        "success"
-    );
-
     try {
+        errorElement.style.display="none";
+        retryButton.style.display="none";
+        unityContainer.style.display="none";
 
-        errorElement.style.display = "none";
-
-        retryButton.style.display = "none";
-
-        unityContainer.style.display = "none";
-
-        completedData = 0;
-        completedWasm = 0;
+        completedData=0;
+        completedWasm=0;
 
         updateProgress(true);
 
-        statusText.textContent =
-            "Preparing Hollow Knight...";
+        statusText.textContent="Preparing Hollow Knight...";
+        details.textContent="Initializing storage.";
 
-        details.textContent =
-            "Initializing storage.";
-
-        const [files, frameworkBlob] = await Promise.all([
-
+        /*
+          Data, WASM and framework all start together.
+          Their requests share the same scheduler.
+        */
+        const [files,frameworkBlob]=await Promise.all([
             prepareGameFiles(),
 
-            (async () => {
-
+            (async()=>{
                 consoleLog(
                     "Downloading Unity framework...",
                     "info"
                 );
 
-                const response = await fetchAsset(
-                    CONFIG.buildURL + CONFIG.framework
+                const response=await fetchAsset(
+                    CONFIG.buildURL+CONFIG.framework
                 );
 
-                const blob = await response.blob();
+                const blob=await response.blob();
 
-                if (!blob.size) {
+                if(!blob.size) {
                     throw new Error(
                         "Unity framework download was empty."
                     );
                 }
 
                 consoleLog(
-                    "Unity framework downloaded (" +
-                    (blob.size / 1048576).toFixed(2) +
-                    " MB).",
+                    "Unity framework downloaded ("+
+                    (blob.size/1048576).toFixed(2)+" MB).",
                     "success"
                 );
 
                 return blob;
-
             })(),
 
             loadUnityLoader()
-
-        ]).then(results => [
+        ]).then(results=>[
             results[0],
             results[1]
         ]);
 
-        statusText.textContent =
-            "Preparing Unity engine...";
-
-        details.textContent =
-            "Creating game file URLs.";
+        statusText.textContent="Preparing Unity engine...";
+        details.textContent="Creating game file URLs.";
 
         setOverall(70);
 
-        const dataURL = URL.createObjectURL(
-            files.dataFile
-        );
+        const dataURL=URL.createObjectURL(files.dataFile);
 
-        const wasmBlob = new Blob(
+        const wasmBlob=new Blob(
             [files.wasmFile],
-            { type: "application/wasm" }
+            {type:"application/wasm"}
         );
 
-        const wasmURL = URL.createObjectURL(
-            wasmBlob
-        );
+        const wasmURL=URL.createObjectURL(wasmBlob);
 
-        window.hollowKnightBlobURLs = [
-            dataURL,
-            wasmURL
-        ];
+        window.hollowKnightBlobURLs=[dataURL,wasmURL];
 
-        frameworkBlobURL = URL.createObjectURL(
+        frameworkBlobURL=URL.createObjectURL(
             new Blob(
                 [frameworkBlob],
-                { type: "text/javascript" }
+                {type:"text/javascript"}
             )
         );
 
-        const config = {
+        const config={
+            dataUrl:dataURL,
+            frameworkUrl:frameworkBlobURL,
+            codeUrl:wasmURL,
 
-            dataUrl: dataURL,
-
-            frameworkUrl: frameworkBlobURL,
-
-            codeUrl: wasmURL,
-
-            streamingAssetsUrl: new URL(
-                CONFIG.streamingAssets + "/",
+            streamingAssetsUrl:new URL(
+                CONFIG.streamingAssets+"/",
                 activeBaseURL
             ).href,
 
-            companyName: CONFIG.companyName,
+            companyName:CONFIG.companyName,
+            productName:CONFIG.productName,
+            productVersion:CONFIG.productVersion,
 
-            productName: CONFIG.productName,
-
-            productVersion: CONFIG.productVersion,
-
-            webglContextAttributes: {
-
-                alpha: false,
-                antialias: false,
-                depth: true,
-                stencil: false,
-                premultipliedAlpha: false,
-                preserveDrawingBuffer: false,
-                powerPreference: "high-performance",
-                failIfMajorPerformanceCaveat: false
+            webglContextAttributes:{
+                alpha:false,
+                antialias:false,
+                depth:true,
+                stencil:false,
+                premultipliedAlpha:false,
+                preserveDrawingBuffer:false,
+                powerPreference:"high-performance",
+                failIfMajorPerformanceCaveat:false
             },
 
             devicePixelRatio:
-                Number(resolutionScale.value) *
-                Math.min(window.devicePixelRatio || 1, 1.5),
+                Number(resolutionScale.value)*
+                Math.min(window.devicePixelRatio||1,1.5),
 
-            matchWebGLToCanvasSize: true
+            matchWebGLToCanvasSize:true
         };
 
-        statusText.textContent =
-            "Starting Hollow Knight...";
-
-        details.textContent =
-            "Initializing game engine.";
+        statusText.textContent="Starting Hollow Knight...";
+        details.textContent="Initializing game engine.";
 
         consoleLog(
             "All downloads complete. Starting Unity.",
             "success"
         );
 
-        unityContainer.style.display = "flex";
+        unityContainer.style.display="flex";
+        canvas.style.visibility="hidden";
 
-        canvas.style.visibility = "hidden";
-
-        const unityInstance = await createUnityInstance(
+        const unityInstance=await createUnityInstance(
             canvas,
             config,
-            progress => {
+            progress=>{
+                setOverall(70+progress*30);
 
-                setOverall(70 + progress * 30);
-
-                statusText.textContent =
-                    "Loading Hollow Knight...";
-
-                details.textContent =
-                    "Initializing game engine.";
+                statusText.textContent="Loading Hollow Knight...";
+                details.textContent="Initializing game engine.";
             }
         );
 
-        window.unityInstance = unityInstance;
+        window.unityInstance=unityInstance;
 
-        canvas.style.visibility = "visible";
+        canvas.style.visibility="visible";
 
         setOverall(100);
 
-        statusText.textContent =
-            "Hollow Knight ready";
-
-        details.textContent =
-            "Enjoy your game.";
+        statusText.textContent="Hollow Knight ready";
+        details.textContent="Enjoy your game.";
 
         consoleLog(
             "Hollow Knight started successfully.",
             "success"
         );
 
-        loadingScreen.style.opacity = "0";
+        loadingScreen.style.opacity="0";
 
-        setTimeout(() => {
+        setTimeout(()=>{
+            loadingScreen.style.display="none";
+        },500);
 
-            loadingScreen.style.display = "none";
-
-        }, 500);
-
-        $("fullscreenButton").onclick = () => {
+        $("fullscreenButton").onclick=()=>{
             unityInstance.SetFullscreen(1);
         };
 
-    } catch (error) {
-
-        const message = String(
-            error && error.message
-                ? error.message
-                : "Unknown loading error"
+    } catch(error) {
+        const message=String(
+            error&&error.message
+                ?error.message
+                :"Unknown loading error"
         ).replace(
             /https?:\/\/[^\s]+/gi,
             "[source hidden]"
         );
 
-        console.error(
-            "Hollow Knight loading error:",
-            message
-        );
+        console.error("Hollow Knight loading error:",message);
 
         consoleLog(
-            "GAME LOADING FAILED: " + message,
+            "GAME LOADING FAILED: "+message,
             "error"
         );
 
-        unityContainer.style.display = "none";
+        unityContainer.style.display="none";
 
-        statusText.textContent =
-            "Unable to load Hollow Knight";
+        statusText.textContent="Unable to load Hollow Knight";
 
-        errorElement.style.display = "block";
+        errorElement.style.display="block";
+        errorElement.textContent=message;
 
-        errorElement.textContent = message;
+        retryButton.style.display="inline-block";
 
-        retryButton.style.display = "inline-block";
-
-        details.textContent =
+        details.textContent=
             "An error occurred. See the error message above.";
 
     } finally {
-
-        starting = false;
+        starting=false;
     }
 }
 
-
 /* ============================================================
-   ERROR HANDLING
+   ERROR HANDLING AND CLEANUP
 ============================================================ */
 
-window.addEventListener("beforeunload", () => {
-
-    for (
-        const url of
-        window.hollowKnightBlobURLs || []
-    ) {
-
+window.addEventListener("beforeunload",()=>{
+    for(const url of window.hollowKnightBlobURLs||[]) {
         try {
             URL.revokeObjectURL(url);
-        } catch (_) {}
+        } catch(_) {}
     }
 
-    if (frameworkBlobURL) {
-
+    if(frameworkBlobURL) {
         try {
             URL.revokeObjectURL(frameworkBlobURL);
-        } catch (_) {}
+        } catch(_) {}
     }
 
-    if (loaderBlobURL) {
-
+    if(loaderBlobURL) {
         try {
             URL.revokeObjectURL(loaderBlobURL);
-        } catch (_) {}
+        } catch(_) {}
     }
 });
 
-
-window.addEventListener("error", event => {
-
-    const message = String(
-        event.message || "Unknown page error"
+window.addEventListener("error",event=>{
+    const message=String(
+        event.message||"Unknown page error"
     ).replace(
         /https?:\/\/[^\s]+/gi,
         "[source hidden]"
     );
 
-    console.error("Page error:", message);
+    console.error("Page error:",message);
 
-    if (downloadConsole) {
-        consoleLog(
-            "PAGE ERROR: " + message,
-            "error"
-        );
+    if(downloadConsole) {
+        consoleLog("PAGE ERROR: "+message,"error");
     }
 });
 
+window.addEventListener("unhandledrejection",event=>{
+    const reason=event.reason;
 
-window.addEventListener("unhandledrejection", event => {
-
-    const reason = event.reason;
-
-    const message = String(
-        reason && reason.message
-            ? reason.message
-            : reason || "Unknown error"
+    const message=String(
+        reason&&reason.message
+            ?reason.message
+            :reason||"Unknown error"
     ).replace(
         /https?:\/\/[^\s]+/gi,
         "[source hidden]"
     );
 
-    console.error(
-        "Unhandled promise rejection:",
-        message
-    );
+    console.error("Unhandled promise rejection:",message);
 
-    if (downloadConsole) {
-        consoleLog(
-            "UNHANDLED PROMISE: " + message,
-            "error"
-        );
+    if(downloadConsole) {
+        consoleLog("UNHANDLED PROMISE: "+message,"error");
     }
 });
-
 
 /* ============================================================
    INITIALIZE
 ============================================================ */
 
-window.addEventListener("load", startGame);
+window.addEventListener("load",startGame);
 
 </script>
 </body>
