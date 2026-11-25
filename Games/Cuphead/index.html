@@ -114,10 +114,6 @@
       white-space: pre-wrap;
     }
 
-    /* ============================================================
-       SAVE / LOAD BUTTONS
-       ============================================================ */
-
     #saveControls {
       position: fixed;
       top: 12px;
@@ -171,16 +167,9 @@
 
   <div id="gameContainer"></div>
 
-  <!-- SAVE / LOAD CONTROLS -->
-
   <div id="saveControls">
-    <button id="saveButton" type="button">
-      Save
-    </button>
-
-    <button id="loadButton" type="button">
-      Load
-    </button>
+    <button id="saveButton" type="button">Save</button>
+    <button id="loadButton" type="button">Load</button>
 
     <input
       id="saveFileInput"
@@ -188,8 +177,6 @@
       accept=".json,application/json"
     >
   </div>
-
-  <!-- Unity's original loader remains unchanged. -->
 
   <script src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Cuphead@main/Build/UnityLoader.js"></script>
 
@@ -212,7 +199,8 @@
 
     const CACHE_NAME = "cuphead-cache-v1";
 
-    const PART_CONCURRENCY = 8;
+    // Increased from 8 to 32.
+    const PART_CONCURRENCY = 32;
 
     const ASSETS = [
       {
@@ -281,7 +269,10 @@
     let cache = null;
     let unityInstance = null;
 
-    // One shared limit is used even while multiple large assets are prepared.
+    // ============================================================
+    // DOWNLOAD SLOT MANAGER
+    // ============================================================
+
     let activePartDownloads = 0;
     const partDownloadWaiters = [];
 
@@ -291,7 +282,9 @@
         return;
       }
 
-      await new Promise(resolve => partDownloadWaiters.push(resolve));
+      await new Promise(resolve => {
+        partDownloadWaiters.push(resolve);
+      });
     }
 
     function releasePartSlot() {
@@ -340,25 +333,40 @@
       log(message);
     }
 
+    // ============================================================
+    // OPTIMIZED PROGRESS UPDATES
+    // ============================================================
+
+    let progressUpdatePending = false;
+
     function updateProgress(bytes = 0) {
       loadedBytes += bytes;
 
-      const percentage = Math.min(
-        100,
-        (loadedBytes / totalBytes) * 100
-      );
+      if (progressUpdatePending) return;
 
-      progressInner.style.width =
-        percentage.toFixed(2) + "%";
+      progressUpdatePending = true;
 
-      const mbDone =
-        (loadedBytes / 1048576).toFixed(1);
+      setTimeout(() => {
+        progressUpdatePending = false;
 
-      const mbTotal =
-        (totalBytes / 1048576).toFixed(1);
+        const percentage = Math.min(
+          100,
+          (loadedBytes / totalBytes) * 100
+        );
 
-      loadingStatus.textContent =
-        `Downloading assets: ${mbDone} MB / ${mbTotal} MB`;
+        progressInner.style.width =
+          percentage.toFixed(2) + "%";
+
+        const mbDone =
+          (loadedBytes / 1048576).toFixed(1);
+
+        const mbTotal =
+          (totalBytes / 1048576).toFixed(1);
+
+        loadingStatus.textContent =
+          `Downloading assets: ${mbDone} MB / ${mbTotal} MB`;
+
+      }, 100);
     }
 
     // ============================================================
@@ -383,6 +391,7 @@
         cache = await caches.open(CACHE_NAME);
 
         log("Persistent asset cache initialized.");
+
       } catch (error) {
         cache = null;
 
@@ -420,6 +429,7 @@
         log(`Using cached asset: ${filename}`);
 
         return blob;
+
       } catch (error) {
         log(
           `Cache read failed for ${filename}: ` +
@@ -440,6 +450,7 @@
         );
 
         log(`Cached asset: ${filename}`);
+
       } catch (error) {
         log(
           `Could not cache ${filename}: ` +
@@ -479,6 +490,7 @@
           const response = await fetchResponse(url);
 
           return await response.blob();
+
         } catch (error) {
           lastError = error;
 
@@ -536,27 +548,37 @@
     }
 
     // ============================================================
-    // STREAMED PART DOWNLOAD
+    // OPTIMIZED PART DOWNLOAD
     // ============================================================
 
     async function fetchPart(url, partKey) {
+
+      // Check cached part first.
       if (cache && partKey) {
         try {
-          const cachedResponse = await cache.match(partKey);
+          const cachedResponse =
+            await cache.match(partKey);
 
           if (cachedResponse) {
-            const cachedBlob = await cachedResponse.blob();
+            const cachedBlob =
+              await cachedResponse.blob();
 
             if (cachedBlob.size > 0) {
               updateProgress(cachedBlob.size);
+
               log("Using cached part: " + partKey);
+
               return cachedBlob;
             }
 
             await cache.delete(partKey);
           }
+
         } catch (error) {
-          log("Part cache read failed: " + error.message);
+          log(
+            "Part cache read failed: " +
+            error.message
+          );
         }
       }
 
@@ -574,23 +596,34 @@
           let received = 0;
 
           try {
-            const response = await fetchResponse(source);
+            const response =
+              await fetchResponse(source);
+
             let blob;
 
             if (!response.body) {
               blob = await response.blob();
+
               updateProgress(blob.size);
+
             } else {
-              const reader = response.body.getReader();
+              const reader =
+                response.body.getReader();
+
               const chunks = [];
 
               while (true) {
                 const result = await reader.read();
+
                 if (result.done) break;
 
                 chunks.push(result.value);
+
                 received += result.value.byteLength;
-                updateProgress(result.value.byteLength);
+
+                updateProgress(
+                  result.value.byteLength
+                );
               }
 
               blob = new Blob(chunks, {
@@ -599,21 +632,32 @@
             }
 
             if (!blob.size) {
-              throw new Error("Downloaded part was empty.");
+              throw new Error(
+                "Downloaded part was empty."
+              );
             }
 
+            // Cache without blocking the download worker.
             if (cache && partKey) {
-              try {
-                await cache.put(partKey, new Response(blob));
-              } catch (error) {
-                log("Could not cache part: " + error.message);
-              }
+              cache.put(
+                partKey,
+                new Response(blob)
+              ).catch(error => {
+                log(
+                  "Could not cache part: " +
+                  error.message
+                );
+              });
             }
 
             return blob;
 
           } catch (error) {
-            loadedBytes = Math.max(0, loadedBytes - received);
+            loadedBytes = Math.max(
+              0,
+              loadedBytes - received
+            );
+
             lastError = error;
 
             log(
@@ -623,14 +667,16 @@
           }
         }
 
-        throw lastError || new Error("All part sources failed.");
+        throw lastError ||
+          new Error("All part sources failed.");
+
       } finally {
         releasePartSlot();
       }
     }
 
     // ============================================================
-    // LIMITED-CONCURRENCY PART ASSEMBLY
+    // HIGH-CONCURRENCY PART ASSEMBLY
     // ============================================================
 
     async function downloadParts(asset) {
@@ -710,9 +756,6 @@
         );
 
         blob = await downloadParts(asset);
-
-        // Individual parts are cached by downloadParts(). Avoid storing
-        // another full-size copy of the multi-gigabyte data asset.
       }
 
       if (blob.size !== asset.size) {
@@ -884,6 +927,7 @@
 
     function bytesToBase64(bytes) {
       let binary = "";
+
       const chunkSize = 0x8000;
 
       for (
@@ -904,7 +948,9 @@
 
     function base64ToBytes(base64) {
       const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
+
+      const bytes =
+        new Uint8Array(binary.length);
 
       for (let i = 0; i < binary.length; i++) {
         bytes[i] = binary.charCodeAt(i);
@@ -966,7 +1012,6 @@
 
       log("Synchronizing Cuphead save filesystem...");
 
-      // Flush current in-memory files to persistent storage.
       await syncUnityFilesystem(fs, false);
 
       if (!fs.analyzePath(SAVE_DIRECTORY).exists) {
@@ -1007,6 +1052,7 @@
       );
 
       const url = URL.createObjectURL(blob);
+
       const link = document.createElement("a");
 
       link.href = url;
@@ -1017,7 +1063,9 @@
         ".json";
 
       document.body.appendChild(link);
+
       link.click();
+
       link.remove();
 
       setTimeout(() => {
@@ -1030,7 +1078,9 @@
     }
 
     function ensureDirectory(fs, path) {
-      const parts = path.split("/").filter(Boolean);
+      const parts =
+        path.split("/").filter(Boolean);
+
       let current = "";
 
       for (const part of parts) {
@@ -1049,6 +1099,7 @@
         }
 
         const path = directory + "/" + entry;
+
         const stat = fs.stat(path);
 
         if (fs.isDir(stat.mode)) {
@@ -1087,7 +1138,6 @@
         );
       }
 
-      // Validate all paths before changing existing saves.
       for (const item of backup.files) {
         if (
           typeof item.path !== "string" ||
@@ -1122,7 +1172,6 @@
         fs.mkdir(SAVE_DIRECTORY);
       }
 
-      // Replace the existing persistent save contents.
       removeDirectoryContents(fs, SAVE_DIRECTORY);
 
       for (const directory of backup.directories) {
@@ -1144,7 +1193,6 @@
         );
       }
 
-      // Write the restored files into IndexedDB.
       await syncUnityFilesystem(fs, false);
 
       log(
@@ -1160,7 +1208,7 @@
     }
 
     // ============================================================
-    // SAVE BUTTON EVENTS
+    // SAVE BUTTON
     // ============================================================
 
     saveButton.addEventListener("click", async () => {
@@ -1188,7 +1236,7 @@
     });
 
     // ============================================================
-    // LOAD BUTTON EVENTS
+    // LOAD BUTTON
     // ============================================================
 
     loadButton.addEventListener("click", () => {
@@ -1204,6 +1252,7 @@
 
       try {
         const contents = await file.text();
+
         const backup = JSON.parse(contents);
 
         if (!confirm(
@@ -1272,8 +1321,6 @@
 
         await initializeCache();
 
-        // Keep large assets sequential to avoid assembling multiple
-        // multi-gigabyte Blob objects in memory at the same time.
         for (const asset of ASSETS) {
           await loadSplitAsset(asset);
         }
