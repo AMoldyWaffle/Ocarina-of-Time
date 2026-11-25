@@ -664,8 +664,29 @@
       return parts;
     }
 
-    async function fetchPart(path) {
+    async function fetchPart(path, cache) {
       const url = new URL(path, GAME_BASE).href;
+
+      // Save each part separately so an interrupted launch can reuse finished
+      // downloads instead of starting the entire large asset over.
+      try {
+        const cachedResponse = await cache.match(url);
+
+        if (cachedResponse) {
+          const cachedBlob = await cachedResponse.blob();
+
+          if (cachedBlob.size > 0) {
+            loadedBytes += cachedBlob.size;
+            updateDownloadProgress();
+            console.log("[Cache] Reusing part:", path);
+            return cachedBlob;
+          }
+
+          await cache.delete(url);
+        }
+      } catch (error) {
+        console.warn("[Cache] Could not read part:", path, error);
+      }
 
       await acquireDownloadSlot();
 
@@ -678,30 +699,40 @@
           );
         }
 
+        let blob;
+
         if (!response.body) {
-          const blob = await response.blob();
+          blob = await response.blob();
           loadedBytes += blob.size;
           updateDownloadProgress();
-          return blob;
+        } else {
+          // Keep streamed chunks as Blob parts; avoid a second full-buffer copy.
+          const reader = response.body.getReader();
+          const chunks = [];
+
+          while (true) {
+            const result = await reader.read();
+            if (result.done) break;
+
+            chunks.push(result.value);
+            loadedBytes += result.value.byteLength;
+            updateDownloadProgress();
+          }
+
+          blob = new Blob(chunks);
         }
 
-        // Keep the streamed chunks as Blob parts. This avoids the old extra
-        // Uint8Array allocation and full-buffer copy after every download.
-        const reader = response.body.getReader();
-        const chunks = [];
-        let partBytes = 0;
-
-        while (true) {
-          const result = await reader.read();
-          if (result.done) break;
-
-          chunks.push(result.value);
-          partBytes += result.value.byteLength;
-          loadedBytes += result.value.byteLength;
-          updateDownloadProgress();
+        if (!blob.size) {
+          throw new Error("Downloaded part was empty: " + path);
         }
 
-        return new Blob(chunks);
+        try {
+          await cache.put(url, new Response(blob));
+        } catch (error) {
+          console.warn("[Cache] Could not save part:", path, error);
+        }
+
+        return blob;
       } finally {
         releaseDownloadSlot();
       }
@@ -724,17 +755,15 @@
       // The shared download limiter caps total simultaneous requests across
       // the data, WASM, and bundle downloads.
       const partBlobs = await Promise.all(
-        fileParts.map(path => fetchPart(path))
+        fileParts.map(path => fetchPart(path, cache))
       );
 
       const mergedBlob = new Blob(partBlobs, {
         type: "application/octet-stream"
       });
 
-      // Store the completed merged file. Future launches can skip all of its
-      // individual network requests and only create a local object URL.
-      await cache.put(cacheKey, new Response(mergedBlob));
-
+      // Individual parts are cached above. Avoid storing another full copy
+      // of this very large asset in Cache Storage.
       return URL.createObjectURL(mergedBlob);
     }
 
