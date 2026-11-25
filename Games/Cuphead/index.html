@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -181,6 +182,15 @@ const PART_CONCURRENCY = 8;
 const UNITY_STARTUP_TIMEOUT = 600000;
 
 /*
+    Persistent cache for assembled Unity assets.
+
+    Change the version suffix if the underlying game assets
+    are replaced with different files.
+*/
+
+const CUPHEAD_CACHE_NAME = "cuphead-cache-v1";
+
+/*
     Actual part counts from the GitHub Build folder.
 */
 
@@ -330,30 +340,45 @@ function checkEnvironment() {
 }
 
 /* =========================================================
-   CACHE CLEANUP
+   CACHE HELPERS
 ========================================================= */
+
+function getCacheKey(filename) {
+    /*
+        Use a same-origin cache key rather than a CDN URL.
+        This also keeps the cache independent of CDN routing.
+    */
+
+    return new URL(
+        "/__cuphead_cache__/" + encodeURIComponent(filename),
+        location.href
+    ).href;
+}
 
 async function cleanupCupheadCache() {
     setStatus("Checking existing Cuphead cache...");
 
     if (!("caches" in window)) {
-        log("Cache Storage unavailable; browser HTTP cache will be used.");
+        log(
+            "Cache Storage unavailable; browser HTTP cache will be used."
+        );
         return;
     }
 
     try {
-        const keys = await caches.keys();
-        const cupheadCaches = keys.filter(key =>
-            key.toLowerCase().includes("cuphead")
+        const cache = await caches.open(CUPHEAD_CACHE_NAME);
+        const keys = await cache.keys();
+
+        log(
+            "Cuphead cache ready. Cached assembled assets: " +
+            keys.length
         );
 
-        if (cupheadCaches.length) {
-            log("Preserving existing Cuphead caches: " + cupheadCaches.join(", "));
-        } else {
-            log("No dedicated Cuphead cache exists yet.");
-        }
     } catch (error) {
-        log("Cache inspection warning: " + error.message);
+        log(
+            "Cache unavailable: " +
+            error.message
+        );
     }
 }
 
@@ -438,7 +463,9 @@ async function fetchWithFallback(urls, expectedSize) {
             return blob;
 
         } catch (error) {
-            errors.push(url + " -> " + error.message);
+            errors.push(
+                url + " -> " + error.message
+            );
 
             log(
                 "Download source failed: " +
@@ -463,7 +490,11 @@ async function downloadPart(asset, partNumber) {
             ? asset.lastPartSize
             : NORMAL_PART_SIZE;
 
-    // Try the CDN edge first; fall back to GitHub Raw if it fails.
+    /*
+        Try the CDN edge first.
+        Fall back to GitHub Raw if it fails.
+    */
+
     const urls = [
         getPartURL(asset.name, partNumber, "cdn"),
         getPartURL(asset.name, partNumber, "raw")
@@ -492,11 +523,83 @@ async function downloadPart(asset, partNumber) {
 }
 
 /* =========================================================
-   ASSET ASSEMBLY
+   ASSET ASSEMBLY WITH PERSISTENT CACHE
 ========================================================= */
 
 async function assembleAsset(asset) {
-    setStatus("Downloading " + asset.name + "...");
+    let cache = null;
+
+    const cacheKey = getCacheKey(asset.name);
+
+    /*
+        First check whether the complete assembled asset
+        already exists in Cache Storage.
+    */
+
+    if ("caches" in window) {
+        try {
+            cache = await caches.open(
+                CUPHEAD_CACHE_NAME
+            );
+
+            const cachedResponse = await cache.match(
+                cacheKey
+            );
+
+            if (cachedResponse) {
+                const cachedBlob =
+                    await cachedResponse.blob();
+
+                if (cachedBlob.size > 0) {
+                    log(
+                        "Using cached asset: " +
+                        asset.name +
+                        " (" +
+                        cachedBlob.size +
+                        " bytes)"
+                    );
+
+                    blobUrls[asset.name] =
+                        URL.createObjectURL(cachedBlob);
+
+                    completedParts += asset.count;
+
+                    setProgress(
+                        (completedParts / totalParts) * 75
+                    );
+
+                    setStatus(
+                        "Using cached asset: " +
+                        asset.name
+                    );
+
+                    return;
+                }
+
+                log(
+                    "Cached asset was empty; downloading again."
+                );
+            }
+
+        } catch (error) {
+            log(
+                "Cache read failed for " +
+                asset.name +
+                ": " +
+                error.message
+            );
+        }
+    }
+
+    /*
+        Cache miss: download the individual parts.
+    */
+
+    setStatus(
+        "Downloading " +
+        asset.name +
+        "..."
+    );
 
     log(
         "Beginning " +
@@ -534,8 +637,16 @@ async function assembleAsset(asset) {
         }
     }
 
-    const workerCount = Math.min(PART_CONCURRENCY, asset.count);
-    log("Downloading with " + workerCount + " parallel part requests.");
+    const workerCount = Math.min(
+        PART_CONCURRENCY,
+        asset.count
+    );
+
+    log(
+        "Downloading with " +
+        workerCount +
+        " parallel part requests."
+    );
 
     const workers = [];
 
@@ -544,6 +655,10 @@ async function assembleAsset(asset) {
     }
 
     await Promise.all(workers);
+
+    /*
+        Verify that every part was received.
+    */
 
     for (let i = 0; i < parts.length; i++) {
         if (!parts[i]) {
@@ -555,6 +670,10 @@ async function assembleAsset(asset) {
             );
         }
     }
+
+    /*
+        Calculate the final assembled size.
+    */
 
     let totalSize = 0;
 
@@ -587,14 +706,54 @@ async function assembleAsset(asset) {
     }
 
     /*
-        Release references to individual part Blobs.
+        Create the URL Unity will use.
+    */
+
+    const blobURL = URL.createObjectURL(
+        combinedBlob
+    );
+
+    blobUrls[asset.name] = blobURL;
+
+    /*
+        Store the assembled asset for future launches.
+
+        Cache failures are non-fatal. The game can still
+        launch using the in-memory Blob URL.
+    */
+
+    if (cache) {
+        try {
+            await cache.put(
+                cacheKey,
+                new Response(combinedBlob, {
+                    headers: {
+                        "Content-Type":
+                            "application/octet-stream"
+                    }
+                })
+            );
+
+            log(
+                "Cached assembled asset: " +
+                asset.name
+            );
+
+        } catch (error) {
+            log(
+                "Could not cache " +
+                asset.name +
+                ": " +
+                error.message
+            );
+        }
+    }
+
+    /*
+        Release the array of individual part references.
     */
 
     parts.length = 0;
-
-    const blobURL = URL.createObjectURL(combinedBlob);
-
-    blobUrls[asset.name] = blobURL;
 
     log(
         "Assembly complete: " +
@@ -616,17 +775,20 @@ async function assembleAsset(asset) {
     This SHA identifies Build/CupheadPort.asm.framework.unityweb
     on the repository's main branch.
 */
+
 const GITHUB_BLOB_FALLBACKS = {
     "CupheadPort.asm.framework.unityweb":
         "07a9d2aef6919ee72f1d940a0879a2afe702dd43"
 };
 
 async function downloadFromGitHubBlobAPI(filename) {
-    const blobSha = GITHUB_BLOB_FALLBACKS[filename];
+    const blobSha =
+        GITHUB_BLOB_FALLBACKS[filename];
 
     if (!blobSha) {
         throw new Error(
-            "No GitHub Blob API fallback is configured for " + filename
+            "No GitHub Blob API fallback is configured for " +
+            filename
         );
     }
 
@@ -634,7 +796,10 @@ async function downloadFromGitHubBlobAPI(filename) {
         "https://api.github.com/repos/AMoldyWaffle/Cuphead/git/blobs/" +
         blobSha;
 
-    log("Trying GitHub Blob API: " + apiURL);
+    log(
+        "Trying GitHub Blob API: " +
+        apiURL
+    );
 
     const response = await fetch(apiURL, {
         method: "GET",
@@ -646,12 +811,18 @@ async function downloadFromGitHubBlobAPI(filename) {
     });
 
     if (!response.ok) {
-        throw new Error("GitHub Blob API returned HTTP " + response.status);
+        throw new Error(
+            "GitHub Blob API returned HTTP " +
+            response.status
+        );
     }
 
     const result = await response.json();
 
-    if (result.encoding !== "base64" || !result.content) {
+    if (
+        result.encoding !== "base64" ||
+        !result.content
+    ) {
         throw new Error(
             "GitHub Blob API returned an unexpected response format."
         );
@@ -665,7 +836,10 @@ async function downloadFromGitHubBlobAPI(filename) {
         bytes[i] = binary.charCodeAt(i);
     }
 
-    if (result.size && bytes.byteLength !== result.size) {
+    if (
+        result.size &&
+        bytes.byteLength !== result.size
+    ) {
         throw new Error(
             "GitHub Blob API size mismatch. Expected " +
             result.size +
@@ -690,7 +864,11 @@ async function downloadFromGitHubBlobAPI(filename) {
 
 async function downloadNormalAssets() {
     for (const filename of NORMAL_ASSETS) {
-        setStatus("Checking " + filename + "...");
+        setStatus(
+            "Checking " +
+            filename +
+            "..."
+        );
 
         const urls = [
             getNormalURL(filename, "cdn"),
@@ -700,8 +878,14 @@ async function downloadNormalAssets() {
         let blob;
 
         try {
-            // Keep the existing CDN -> GitHub Raw order unchanged.
-            blob = await fetchWithFallback(urls, null);
+            /*
+                Keep the existing CDN -> GitHub Raw order.
+            */
+
+            blob = await fetchWithFallback(
+                urls,
+                null
+            );
 
         } catch (primaryError) {
             log(
@@ -711,15 +895,17 @@ async function downloadNormalAssets() {
             );
 
             try {
-                blob = await downloadFromGitHubBlobAPI(filename);
+                blob = await downloadFromGitHubBlobAPI(
+                    filename
+                );
 
             } catch (apiError) {
                 throw new Error(
                     "All download sources failed for " +
                     filename +
-                    ":\\n" +
+                    ":\n" +
                     primaryError.message +
-                    "\\nGitHub Blob API -> " +
+                    "\nGitHub Blob API -> " +
                     apiError.message
                 );
             }
@@ -787,6 +973,7 @@ function installAssetInterceptor() {
                     "XHR NETWORK ERROR: " +
                     (xhr.__cupheadURL || "unknown URL")
                 );
+
             } else if (xhr.status >= 400) {
                 log(
                     "XHR HTTP " +
@@ -797,7 +984,10 @@ function installAssetInterceptor() {
             }
         });
 
-        return originalSend.apply(this, arguments);
+        return originalSend.apply(
+            this,
+            arguments
+        );
     };
 
     log("Unity asset interception installed.");
@@ -853,7 +1043,9 @@ async function loadUnityConfig() {
 
     const rewrittenConfig = new Blob(
         [JSON.stringify(config)],
-        { type: "application/json" }
+        {
+            type: "application/json"
+        }
     );
 
     const configURL =
@@ -886,7 +1078,9 @@ async function loadUnityLoader() {
     const scriptText = await loaderBlob.text();
 
     if (scriptText.length < 10000) {
-        throw new Error("UnityLoader.js is incomplete.");
+        throw new Error(
+            "UnityLoader.js is incomplete."
+        );
     }
 
     const script = document.createElement("script");
@@ -914,23 +1108,28 @@ function startUnity(configURL) {
     installAssetInterceptor();
 
     if (typeof UnityLoader === "undefined") {
-        throw new Error("UnityLoader is unavailable.");
+        throw new Error(
+            "UnityLoader is unavailable."
+        );
     }
 
     unityStarted = true;
 
     log("Calling UnityLoader.instantiate...");
-    log("Unity startup watchdog begins now; asset downloading is not covered by this timer.");
+
+    log(
+        "Unity startup watchdog begins now; asset downloading is not covered by this timer."
+    );
 
     unityStartupTimer = setTimeout(function() {
         if (!unityReady && !startupFailed) {
             fail(
                 "No Unity completion callback after " +
                 (UNITY_STARTUP_TIMEOUT / 1000) +
-                " seconds of Unity startup.\\n\\n" +
+                " seconds of Unity startup.\n\n" +
                 "Last progress: " +
                 percentElement.textContent +
-                "\\nUnity started: " +
+                "\nUnity started: " +
                 unityStarted
             );
         }
@@ -940,13 +1139,18 @@ function startUnity(configURL) {
         "gameContainer",
         configURL,
         {
-            onProgress: function(unityInstance, progress) {
+            onProgress: function(
+                unityInstance,
+                progress
+            ) {
                 if (startupFailed) return;
 
-                const percent = Math.floor(progress * 100);
+                const percent = Math.floor(
+                    progress * 100
+                );
 
                 /*
-                    Asset downloads already occupy 0-75%.
+                    Asset downloads occupy 0-75%.
                     Unity loading occupies 75-100%.
                 */
 
@@ -1001,10 +1205,16 @@ function startUnity(configURL) {
 window.addEventListener("error", function(event) {
     const message =
         event.message ||
-        (event.error && event.error.message) ||
+        (
+            event.error &&
+            event.error.message
+        ) ||
         "Unknown JavaScript error";
 
-    log("JavaScript error: " + message);
+    log(
+        "JavaScript error: " +
+        message
+    );
 
     if (
         message.includes("WebAssembly") ||
@@ -1028,7 +1238,10 @@ window.addEventListener(
                 ? reason.message
                 : String(reason);
 
-        log("Unhandled promise rejection: " + message);
+        log(
+            "Unhandled promise rejection: " +
+            message
+        );
     }
 );
 
@@ -1051,8 +1264,10 @@ async function main() {
         await loadUnityLoader();
 
         /*
-            Assemble the three split assets using the
-            actual .part1, .part2, .part3 naming.
+            Assemble the three split assets.
+
+            Cached complete assets are reused when available.
+            Otherwise, the numbered parts are downloaded.
         */
 
         for (const asset of ASSET_PARTS) {
@@ -1094,6 +1309,7 @@ window.addEventListener("beforeunload", function() {
     for (const key of Object.keys(blobUrls)) {
         try {
             URL.revokeObjectURL(blobUrls[key]);
+
         } catch (error) {
             // Ignore cleanup errors during page exit.
         }
