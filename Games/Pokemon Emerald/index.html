@@ -86,7 +86,6 @@ html, body {
   }
 }
 
-/* Floating corner controls */
 #controls {
   position: fixed;
   z-index: 20;
@@ -266,7 +265,6 @@ button:disabled {
     consoleBox.classList.add("visible");
   }
 
-  // Console toggle
   document.getElementById("consoleToggle").addEventListener("click", () => {
     consoleBox.classList.toggle("visible");
   });
@@ -276,7 +274,6 @@ button:disabled {
     loadButton.disabled = false;
   }
 
-  // Download save state to computer
   function downloadState(data, name) {
     const blob = new Blob([data], {
       type: "application/octet-stream"
@@ -295,7 +292,6 @@ button:disabled {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
-  // Save button
   saveButton.addEventListener("click", () => {
     if (!emu || !gameStarted || savePending) return;
 
@@ -317,14 +313,12 @@ button:disabled {
     }
   });
 
-  // Load button
   loadButton.addEventListener("click", () => {
     if (!gameStarted) return;
 
     stateFile.click();
   });
 
-  // Load selected save state
   stateFile.addEventListener("change", async () => {
     const file = stateFile.files && stateFile.files[0];
 
@@ -361,7 +355,6 @@ button:disabled {
     }
   });
 
-  // Validate mGBA core report
   async function checkCoreReport() {
     log("Checking mGBA core report...");
 
@@ -399,7 +392,6 @@ button:disabled {
     log("mGBA core report validated.");
   }
 
-  // Capture errors from inside emulator iframe
   function attachFrameDiagnostics(frame) {
     if (!frame) return;
 
@@ -458,7 +450,6 @@ button:disabled {
 
   async function startLauncher() {
     try {
-      // Validate core files
       showLoading(
         "Loading Pokémon Emerald",
         "Checking emulator files..."
@@ -468,7 +459,6 @@ button:disabled {
 
       await checkCoreReport();
 
-      // Download Waffle loader
       showLoading(
         "Loading Pokémon Emerald",
         "Downloading emulator loader..."
@@ -505,7 +495,6 @@ button:disabled {
 
       log("Emulator loader ready.");
 
-      // Open emulator
       showLoading(
         "Starting emulator",
         "Preparing game screen..."
@@ -513,14 +502,11 @@ button:disabled {
 
       emu = await window.WafflesEmu.open(BASE, {
         container: emulatorContainer,
-
-        // Explicitly set the emulator data directory.
         dataBase: BASE
       });
 
       attachFrameDiagnostics(emu.frame);
 
-      // Listen for emulator events
       emu.on(message => {
         if (!message || !message.evt) return;
 
@@ -601,7 +587,6 @@ button:disabled {
         }
       });
 
-      // Wait for emulator handshake
       showLoading(
         "Starting emulator",
         "Waiting for emulator connection..."
@@ -621,7 +606,6 @@ button:disabled {
 
       log("Emulator is ready.");
 
-      // Download Pokémon Emerald ROM
       showLoading(
         "Downloading Pokémon Emerald",
         "This may take a moment..."
@@ -656,21 +640,34 @@ button:disabled {
         " MB."
       );
 
-      // Verify Game Boy Advance ROM
-      const romHeader = new Uint8Array(romBuffer, 0xAC, 4);
-      const expectedTitle = [0x45, 0x4D, 0x45, 0x52];
+      // Correct Pokémon Emerald game code: BPEE
+      const romBytes = new Uint8Array(romBuffer);
 
-      for (let i = 0; i < 4; i++) {
-        if (romHeader[i] !== expectedTitle[i]) {
-          throw new Error(
-            "The downloaded ROM does not appear to be Pokémon Emerald."
-          );
-        }
+      if (romBytes.length < 0xB0) {
+        throw new Error(
+          "The downloaded file is too small to be a valid GBA ROM."
+        );
       }
 
-      log("GBA ROM header validated.");
+      const gameCode = String.fromCharCode(
+        romBytes[0xAC],
+        romBytes[0xAD],
+        romBytes[0xAE],
+        romBytes[0xAF]
+      );
 
-      // Launch game
+      log("GBA game code: " + gameCode);
+
+      if (gameCode !== "BPEE") {
+        throw new Error(
+          "Unexpected GBA game code: " +
+          gameCode +
+          ". Expected BPEE for Pokémon Emerald."
+        );
+      }
+
+      log("Pokémon Emerald ROM verified.");
+
       showLoading(
         "Starting Pokémon Emerald",
         "Loading game..."

@@ -541,13 +541,10 @@ button:disabled {
 
       setStatus("Starting emulator");
 
-      emu = await window.WafflesEmu.open(BASE, {
-        container: emulatorContainer,
-
-        // Explicitly use the repository root for emulator data.
-        // The core files are stored in BASE + "cores/".
-        dataBase: BASE
-      });
+      const emu = await window.WafflesEmu.open(BASE, {
+  container: container,
+  dataBase: BASE
+});
 
       attachFrameDiagnostics(emu.frame);
 
