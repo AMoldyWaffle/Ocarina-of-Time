@@ -1145,7 +1145,7 @@
       "Build/w-pt.data.unityweb"
     ];
 
-    for (const path of files) {
+    await Promise.all(files.map(async path => {
       const url = BUILD_BASE_URL + path;
 
       setStatus("Preparing Unity engine files...");
@@ -1158,7 +1158,7 @@
       if (existing) {
         if (await hasGzipHeader(existing)) {
           log("Already cached and GZIP-validated: " + path, "success");
-          continue;
+          return;
         }
 
         log("Cached Unity file is invalid; replacing it: " + path, "warning");
@@ -1216,7 +1216,7 @@
       await cache.put(url, cachedResponse);
 
       log("Successfully cached: " + path, "success");
-    }
+    }));
   }
 
   /* =========================================================
