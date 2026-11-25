@@ -118,7 +118,6 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
   </div>
 </section>
 <footer>END OF LIGHT &nbsp;·&nbsp; EXPLORE THE UNKNOWN</footer>
-<script src="games-index.js"></script>
 <script>
 "use strict";
 
@@ -127,7 +126,6 @@ const REPO = "Ocarina-of-Time";
 const BRANCH = "main";
 const GAME_DIR = "Games";
 const PAGES_BASE = "https://amoldywaffle.github.io/Ocarina-of-Time/";
-const GAME_CATALOG = window.GAME_CATALOG || [];
 const RUNNER_MODE =
   location.protocol === "blob:" ||
   location.hostname === "codetester.io" ||
@@ -182,48 +180,91 @@ function log(level, args) {
   console[method]("[Launcher]", ...args);
 }
 
-async function markerExists(path) {
-  // Read marker files from the raw repository. GitHub Pages/Jekyll may omit
-  // extensionless files, so checking the Pages URL can incorrectly hide tags.
-  const markerUrl = "https://raw.githubusercontent.com/" +
-    OWNER + "/" + REPO + "/" + BRANCH + "/" + enc(path);
-  try {
-    const response = await fetch(markerUrl, {
-      method: "GET",
-      cache: "no-store"
-    });
-    return response.ok;
-  } catch (error) {
-    log("warn", ["Could not check marker file:", path, error.message || error]);
-    return false;
-  }
-}
-
 async function scan() {
   if (scanning) return;
   scanning = true;
   gamesNode.innerHTML = '<div class="empty">Loading library...</div>';
-  statusNode.textContent = "Checking game folders...";
+  statusNode.textContent = "Discovering games and checking marker files...";
   try {
-    games = await Promise.all(GAME_CATALOG.map(async game => {
-      const folder = game.path.slice(0, game.path.lastIndexOf("/"));
-      const [beta, isNew] = await Promise.all([
-        markerExists(folder + "/beta"),
-        markerExists(folder + "/newgame")
-      ]);
+    // Read the repository tree directly. This replaces the generated
+    // games-index.js catalog, so newly added game folders appear automatically.
+    const treeUrl = "https://api.github.com/repos/" + OWNER + "/" + REPO +
+      "/git/trees/" + BRANCH + "?recursive=1";
+    const response = await fetch(treeUrl, {
+      cache: "no-store",
+      headers: { "Accept": "application/vnd.github+json" }
+    });
+    if (!response.ok) {
+      throw new Error("GitHub tree scan failed: HTTP " + response.status);
+    }
+
+    const data = await response.json();
+    if (data.truncated) {
+      throw new Error("GitHub returned an incomplete repository listing.");
+    }
+
+    const entries = Array.isArray(data.tree) ? data.tree : [];
+    const paths = new Set(entries.map(entry => entry.path));
+    const folders = new Set();
+
+    // Every game lives in its own direct child folder under /Games.
+    // Prefer index.html, but also support games with a differently named launcher.
+    for (const entry of entries) {
+      if (entry.type !== "blob" || !entry.path.startsWith(GAME_DIR + "/")) continue;
+      const parts = entry.path.split("/");
+      if (parts.length !== 3 || !/\.html?$/i.test(parts[2])) continue;
+      folders.add(parts[1]);
+    }
+
+    const titleOverrides = {
+      "Hollow Knight Silk Song": "Hollow Knight: Silksong",
+      "Ocarina of Time": "Ocarina Of Time"
+    };
+
+    games = Array.from(folders).map(folderName => {
+      const folder = GAME_DIR + "/" + folderName;
+      const files = entries
+        .filter(entry => entry.type === "blob" && entry.path.startsWith(folder + "/"))
+        .map(entry => entry.path);
+
+      const htmlFiles = files.filter(path =>
+        path.slice(folder.length + 1).indexOf("/") === -1 && /\.html?$/i.test(path)
+      );
+      const gamePath =
+        (htmlFiles.find(path => path.toLowerCase() === folder.toLowerCase() + "/index.html")) ||
+        htmlFiles.sort((a, b) => a.localeCompare(b))[0];
+
+      if (!gamePath) return null;
+
+      const cover = files
+        .filter(path => /^image\/(?:jpe?g|png|webp|gif|avif)$/i.test(
+          "image/" + (path.split(".").pop() || "")
+        ) && path.startsWith(folder + "/Cover/"))
+        .sort((a, b) => a.localeCompare(b))[0] || "";
+
+      const beta = paths.has(folder + "/beta") || paths.has(folder + "/beta.txt");
+      const isNew = paths.has(folder + "/newgame") || paths.has(folder + "/newgame.txt");
+
       return {
-        ...game,
-        url: pagesUrl(game.path),
+        name: folderName,
+        title: titleOverrides[folderName] || folderName,
+        path: gamePath,
+        cover,
+        url: pagesUrl(gamePath),
         beta,
         isNew
       };
-    }));
-    games.sort((a, b) => a.name.localeCompare(b.name));
+    }).filter(Boolean);
+
+    games.sort((a, b) => a.title.localeCompare(b.title));
     render();
-    log("info", ["Scanned marker files beside", games.length, "game HTML files"]);
+    log("info", [
+      "Discovered", games.length, "game launchers directly from the repository tree.",
+      "Checked beta/beta.txt and newgame/newgame.txt markers."
+    ]);
   } catch (error) {
-    statusNode.textContent = "Could not scan game folders: " + error.message;
-    gamesNode.innerHTML = '<div class="empty">Game folders could not be checked. Try rescan.</div>';
+    statusNode.textContent = "Could not scan the game repository: " + error.message;
+    gamesNode.innerHTML = '<div class="empty">Game folders could not be discovered. Try rescan.</div>';
     log("error", ["Game scan failed:", error.message]);
   } finally {
     scanning = false;
