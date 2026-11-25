@@ -513,6 +513,53 @@ async function markOPFSComplete(filename, size) {
     }
 }
 
+/* RESUMABLE OPFS PART CACHE */
+
+async function getOPFSCachedPart(filename) {
+    try {
+        const fileHandle = await storageRoot.getFileHandle(filename);
+        const markerHandle = await storageRoot.getFileHandle(filename + ".complete");
+        const file = await fileHandle.getFile();
+        const markerText = await (await markerHandle.getFile()).text();
+
+        if (
+            file.size > 0 &&
+            markerText === CONFIG.cacheVersion + ":" + file.size
+        ) {
+            return file;
+        }
+    } catch (_) {}
+
+    return null;
+}
+
+async function saveOPFSCachedPart(filename, blob) {
+    const fileHandle = await storageRoot.getFileHandle(
+        filename,
+        { create: true }
+    );
+
+    const writer = await fileHandle.createWritable({
+        keepExistingData: false
+    });
+
+    try {
+        await writer.write(blob);
+        await writer.close();
+        await markOPFSComplete(filename, blob.size);
+    } catch (error) {
+        try { await writer.abort(); } catch (_) {}
+        try { await storageRoot.removeEntry(filename); } catch (_) {}
+        try { await storageRoot.removeEntry(filename + ".complete"); } catch (_) {}
+        throw error;
+    }
+}
+
+async function removeOPFSCachedPart(filename) {
+    try { await storageRoot.removeEntry(filename); } catch (_) {}
+    try { await storageRoot.removeEntry(filename + ".complete"); } catch (_) {}
+}
+
 /* INDEXEDDB CACHE */
 
 async function getIDBCachedFile(filename) {
@@ -572,7 +619,19 @@ async function mergeOPFS(prefix, partCount, progressCallback) {
                 indices,
                 batchSize,
                 async index => {
-                    return await fetchValidatedPart(prefix, index);
+                    const partName =
+                        prefix + ".part." + String(index).padStart(3, "0");
+
+                    let partBlob = await getOPFSCachedPart(partName);
+
+                    if (partBlob) {
+                        console.log("Reusing OPFS part:", partName);
+                        return partBlob;
+                    }
+
+                    partBlob = await fetchValidatedPart(prefix, index);
+                    await saveOPFSCachedPart(partName, partBlob);
+                    return partBlob;
                 }
             );
 
@@ -600,6 +659,15 @@ async function mergeOPFS(prefix, partCount, progressCallback) {
         }
 
         await markOPFSComplete(prefix, mergedFile.size);
+
+        // The verified merged file is now the durable cache. Remove temporary
+        // part files to avoid keeping a second full copy of the game on disk.
+        for (let index = 0; index < partCount; index++) {
+            const partName =
+                prefix + ".part." + String(index).padStart(3, "0");
+            await removeOPFSCachedPart(partName);
+        }
+
         return mergedFile;
 
     } catch (error) {
