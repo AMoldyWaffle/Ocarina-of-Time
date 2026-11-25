@@ -63,7 +63,7 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
 #gameframe{width:100%;height:auto;min-height:0;flex:1 1 auto;border:1px solid rgba(145,133,255,.35);border-radius:9px;background:#000;display:block;max-width:1800px;margin:0 auto;box-shadow:0 0 35px rgba(91,73,178,.12)}
 #consolebox{flex:0 0 auto;width:100%;max-width:1800px;margin:0 auto;border:1px solid rgba(119,116,163,.25);background:rgba(9,9,19,.95);border-radius:8px;overflow:hidden}
 #consolehead{display:flex;align-items:center;gap:8px;padding:6px 10px;color:#c9c5ed;font-size:11px;letter-spacing:1px}#consolehead strong{flex:1}
-#consolelog{height:min(17vh,145px);min-height:65px;overflow:auto;padding:8px 10px;color:#b9e5b9;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+#consolelog{height:clamp(100px,27vh,310px);min-height:85px;overflow:auto;padding:9px 11px;color:#b9e5b9;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}#consolehead button{padding:5px 9px;font-size:10px}#consolehead .console-hint{color:#7781a8;font-size:9px;letter-spacing:.5px}#consolebox{box-shadow:0 0 22px rgba(0,0,0,.22)}
 #consolebox.collapsed #consolelog{display:none}
 @media(max-width:650px){#player{padding:6px;gap:6px}#playerbar{gap:6px}#playerbar button{padding:8px 10px;font-size:11px}#gameframe{border-radius:6px}}
 .log-error{color:#ff8888}.log-warn{color:#ffd27d}
@@ -108,11 +108,11 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
   <div id="playerbar">
     <button id="back">← &nbsp; BACK TO COLLECTION</button>
     <div id="playing">No game selected</div>
-    <button id="clearlog">CLEAR CONSOLE</button>
+    <button id="copylog">COPY LOG</button>\n    <button id="clearlog">CLEAR CONSOLE</button>
   </div>
   <iframe id="gameframe" title="Game" allow="autoplay; fullscreen; gamepad; clipboard-write" allowfullscreen></iframe>
   <div id="consolebox" class="collapsed">
-    <div id="consolehead"><strong>LAUNCH TELEMETRY</strong><button id="toggleconsole">SHOW CONSOLE</button></div>
+    <div id="consolehead"><strong>LAUNCH TELEMETRY</strong><span class="console-hint" id="consolehint">GAME + EMULATOR DIAGNOSTICS</span><button id="toggleconsole">SHOW CONSOLE</button></div>
     <div id="consolelog"></div>
   </div>
 </section>
@@ -147,7 +147,7 @@ const consoleNode = $("consolelog");
 let games = [];
 let scanning = false;
 let consoleVisible = false;
-let currentGame = null;
+let currentGame = null;\nlet startupWatchdog = null;\nlet launchStartedAt = 0;\nlet diagnosticsAttachedTo = null;
 
 function enc(path) {
   return path.split("/").map(encodeURIComponent).join("/");
@@ -157,14 +157,201 @@ function pagesUrl(path) {
   return PAGES_BASE + enc(path);
 }
 
+function formatLogValue(value) {
+  if (value instanceof Error) return value.stack || (value.name + ": " + value.message);
+  if (typeof value === "string") return value;
+  if (value === undefined) return "undefined";
+  try {
+    const seen = new WeakSet();
+    const json = JSON.stringify(value, (key, item) => {
+      if (item && typeof item === "object") {
+        if (seen.has(item)) return "[Circular]";
+        seen.add(item);
+      }
+      if (typeof item === "bigint") return item.toString() + "n";
+      return item;
+    });
+    return json === undefined ? String(value) : json;
+  } catch (_) {
+    try { return String(value); } catch (_) { return "[Unprintable value]"; }
+  }
+}
+
 function log(level, args) {
   const line = document.createElement("div");
   line.className = level === "error" ? "log-error" : level === "warn" ? "log-warn" : "";
-  line.textContent = "[" + new Date().toLocaleTimeString() + "] [" + level.toUpperCase() + "] " + args.map(String).join(" ");
+  line.textContent = "[" + new Date().toLocaleTimeString() + "] [" + level.toUpperCase() + "] " +
+    args.map(formatLogValue).join(" ");
   consoleNode.appendChild(line);
+  // Bound the console so a noisy emulator cannot consume unbounded page memory.
+  while (consoleNode.childElementCount > 1500) consoleNode.firstElementChild.remove();
   consoleNode.scrollTop = consoleNode.scrollHeight;
   const method = level === "error" ? "error" : level === "warn" ? "warn" : "log";
   console[method]("[Launcher]", ...args);
+}
+
+function stopStartupWatchdog() {
+  if (startupWatchdog !== null) {
+    clearInterval(startupWatchdog);
+    startupWatchdog = null;
+  }
+}
+
+function attachGameDiagnostics(game) {
+  try {
+    const win = frame.contentWindow;
+    const doc = frame.contentDocument;
+    if (!win || !doc) {
+      log("warn", ["Game diagnostics could not access the iframe document."]);
+      return;
+    }
+    if (diagnosticsAttachedTo === win) return;
+    diagnosticsAttachedTo = win;
+
+    log("info", ["Game document loaded:", doc.title || game.title,
+      "| readyState:", doc.readyState, "| URL:", win.location.href]);
+
+    const childConsole = win.console;
+    for (const level of ["log", "info", "warn", "error", "debug"]) {
+      const original = childConsole[level] && childConsole[level].bind(childConsole);
+      if (!original) continue;
+      childConsole[level] = function (...args) {
+        try { original(...args); } catch (_) {}
+        log(level === "debug" ? "info" : level, ["[Game console]", ...args]);
+      };
+    }
+
+    win.addEventListener("error", event => {
+      const detail = event.error && event.error.stack
+        ? event.error.stack
+        : (event.message || "Unknown game script error");
+      log("error", ["[Game window error]", detail,
+        event.filename ? event.filename + ":" + event.lineno + ":" + event.colno : ""]);
+    });
+
+    win.addEventListener("unhandledrejection", event => {
+      log("error", ["[Unhandled promise rejection]", event.reason]);
+    });
+
+    doc.addEventListener("error", event => {
+      const target = event.target;
+      if (!target || target === win) return;
+      const source = target.src || target.href || target.currentSrc || target.tagName;
+      log("error", ["[Failed game resource]", source || "Unknown resource"]);
+    }, true);
+
+    if (typeof win.fetch === "function") {
+      const originalFetch = win.fetch.bind(win);
+      win.fetch = function (...args) {
+        const requestUrl = typeof args[0] === "string" ? args[0] :
+          (args[0] && args[0].url) || String(args[0]);
+        return originalFetch(...args).then(response => {
+          if (!response.ok) {
+            log("error", ["[Game fetch]", response.status, response.statusText, requestUrl]);
+          }
+          return response;
+        }, error => {
+          log("error", ["[Game fetch rejected]", requestUrl, error]);
+          throw error;
+        });
+      };
+    }
+
+    if (win.XMLHttpRequest) {
+      const NativeXHR = win.XMLHttpRequest;
+      function DiagnosticXHR() {
+        const xhr = new NativeXHR();
+        let requestUrl = "";
+        const originalOpen = xhr.open;
+        xhr.open = function (method, url, ...rest) {
+          requestUrl = String(url);
+          return originalOpen.call(xhr, method, url, ...rest);
+        };
+        xhr.addEventListener("loadend", () => {
+          if (xhr.status >= 400 || xhr.status === 0) {
+            log("error", ["[Game XHR]", "HTTP/status " + xhr.status, requestUrl]);
+          }
+        });
+        xhr.addEventListener("error", () => {
+          log("error", ["[Game XHR network error]", requestUrl]);
+        });
+        return xhr;
+      }
+      DiagnosticXHR.prototype = NativeXHR.prototype;
+      Object.setPrototypeOf(DiagnosticXHR, NativeXHR);
+      win.XMLHttpRequest = DiagnosticXHR;
+    }
+
+    try {
+      const resources = win.performance.getEntriesByType("resource");
+      const important = resources.filter(entry =>
+        /\.wasm(?:$|\?)|\.data(?:$|\?)|\.framework\.js|\.loader\.js|\.js(?:$|\?)/i.test(entry.name)
+      ).slice(-12);
+      if (important.length) {
+        log("info", ["Startup resources already loaded:", important.length]);
+        important.forEach(entry => log("info", ["[Resource]",
+          entry.name, Math.round(entry.duration) + "ms",
+          entry.transferSize ? entry.transferSize + " bytes" : "transfer size unavailable"]));
+      }
+    } catch (error) {
+      log("warn", ["Could not inspect game resource timings:", error]);
+    }
+
+    log("info", ["Game diagnostics attached. Runtime errors, rejected fetches, failed XHRs and missing resources will appear here."]);
+  } catch (error) {
+    log("warn", ["Could not attach game diagnostics:", error]);
+  }
+}
+
+function startStartupWatchdog(game) {
+  stopStartupWatchdog();
+  launchStartedAt = Date.now();
+  let lastSnapshot = "";
+  startupWatchdog = setInterval(() => {
+    if (!currentGame || currentGame !== game) {
+      stopStartupWatchdog();
+      return;
+    }
+
+    const elapsed = Math.round((Date.now() - launchStartedAt) / 1000);
+    try {
+      const win = frame.contentWindow;
+      const doc = frame.contentDocument;
+      if (!win || !doc) {
+        if (elapsed >= 15) log("warn", ["Still waiting for the game page to become accessible after", elapsed + "s."]);
+        return;
+      }
+
+      const bodyText = (doc.body && doc.body.innerText || "").replace(/\s+/g, " ").trim().slice(0, 240);
+      const canvases = doc.querySelectorAll("canvas").length;
+      const scripts = doc.scripts.length;
+      const childFrames = doc.querySelectorAll("iframe").length;
+      const wasm = win.performance.getEntriesByType("resource")
+        .filter(entry => /\.wasm(?:$|\?)/i.test(entry.name))
+        .map(entry => entry.name.split("/").pop().slice(0, 70));
+      const snapshot = [doc.readyState, canvases, scripts, childFrames, bodyText, wasm.join(",")].join("|");
+
+      if (elapsed >= 10 && snapshot !== lastSnapshot) {
+        log("info", ["[Startup check " + elapsed + "s]",
+          "document=" + doc.readyState,
+          "canvas=" + canvases,
+          "scripts=" + scripts,
+          "nestedFrames=" + childFrames,
+          "wasm=" + (wasm.join(", ") || "not observed"),
+          "pageText=" + (bodyText || "(empty)")]);
+        lastSnapshot = snapshot;
+      }
+
+      if (elapsed >= 30 && !win.__launcherSlowStartReported) {
+        win.__launcherSlowStartReported = true;
+        log("warn", ["[Startup watchdog] " + game.title + " has not reported a clear start after " + elapsed +
+          " seconds. The details above show whether its page, scripts, canvas and WASM files loaded."]);
+        log("warn", ["If it is stuck, look above for HTTP errors, failed resources, JavaScript exceptions or promise rejections."]);
+      }
+    } catch (error) {
+      log("warn", ["Startup check could not inspect the game:", error]);
+    }
+  }, 5000);
 }
 
 async function markerExists(path) {
@@ -293,8 +480,11 @@ function openPlayer(game) {
 }
 
 function back() {
+  stopStartupWatchdog();
   frame.onload = null;
+  frame.onerror = null;
   frame.src = "about:blank";
+  diagnosticsAttachedTo = null;
   currentGame = null;
   $("player").style.display = "none";
   $("library").style.display = "block";
@@ -326,19 +516,32 @@ function launch(game) {
   }
 
   openPlayer(game);
-  log("info", ["Using the dedicated proxy loader."]);
+  consoleVisible = true;
+  $("consolebox").classList.remove("collapsed");
+  $("toggleconsole").textContent = "HIDE CONSOLE";
+  $("consolehint").textContent = "WATCHING " + game.title.toUpperCase();
+
+  log("info", ["Direct game launch:", game.title]);
   log("info", ["Game URL:", game.url]);
+  log("info", ["Launcher will inspect the game iframe and report script, network and WebAssembly failures."]);
 
-  const loaderUrl = PROXY_LOADER_URL +
-    "?game=" + encodeURIComponent(game.url) +
-    "&title=" + encodeURIComponent(game.title);
+  startStartupWatchdog(game);
+  frame.onload = () => {
+    log("info", ["Iframe load event received after", Math.round((Date.now() - launchStartedAt) / 1000) + "s."]);
+    attachGameDiagnostics(game);
+  };
+  frame.onerror = event => {
+    log("error", ["Game iframe navigation failed.", event && event.message ? event.message : "Browser did not provide more details."]);
+  };
 
-  frame.onload = () => log("info", ["Proxy loader loaded."]);
-  frame.onerror = () => log("error", ["Proxy loader navigation failed."]);
-  frame.src = loaderUrl;
+  // The game pages live on the same GitHub Pages origin as this launcher.
+  // Loading them directly keeps the iframe inspectable so its runtime errors
+  // and failed asset requests can be forwarded to this console.
+  frame.src = game.url;
 }
 
 window.addEventListener("message", event => {
+  if (event.source !== frame.contentWindow) return;
   if (event.data && event.data.__gameConsole) {
     log(event.data.level || "log", event.data.args || []);
   }
@@ -348,6 +551,15 @@ $("search").addEventListener("input", render);
 $("back").onclick = back;
 $("rescan").onclick = scan;
 $("clearlog").onclick = () => { consoleNode.innerHTML = ""; };
+$("copylog").onclick = async () => {
+  const text = Array.from(consoleNode.children).map(line => line.textContent).join("\\n");
+  try {
+    await navigator.clipboard.writeText(text);
+    log("info", ["Console log copied to clipboard."]);
+  } catch (error) {
+    log("error", ["Could not copy console log:", error.message || error]);
+  }
+};
 $("toggleconsole").onclick = () => {
   consoleVisible = !consoleVisible;
   $("consolebox").classList.toggle("collapsed", !consoleVisible);
