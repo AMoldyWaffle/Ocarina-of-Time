@@ -176,7 +176,7 @@ const RAW_ROOT =
 
 const BUILD = "Build/";
 
-const PART_CONCURRENCY = 3;
+const PART_CONCURRENCY = 6;
 
 const UNITY_STARTUP_TIMEOUT = 600000;
 
@@ -533,13 +533,12 @@ async function assembleAsset(asset) {
         }
     }
 
+    const workerCount = Math.min(PART_CONCURRENCY, asset.count);
+    log("Downloading with " + workerCount + " parallel part requests.");
+
     const workers = [];
 
-    for (
-        let i = 0;
-        i < Math.min(PART_CONCURRENCY, asset.count);
-        i++
-    ) {
+    for (let i = 0; i < workerCount; i++) {
         workers.push(worker());
     }
 
