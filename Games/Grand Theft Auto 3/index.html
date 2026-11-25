@@ -126,8 +126,10 @@ var HOSTS=[
 'https://raw.githack.com/'+REPO+'/'+BRANCH+'/'
 ];
 
-var CHUNKS_PER_BATCH=3;
+var CHUNKS_PER_BATCH=4;
 var REQUEST_TIMEOUT=300000;
+var CHUNK_CACHE_NAME='gta3-chunk-cache-v1';
+var CHUNK_CACHE_MAX_AGE=24*60*60*1000;
 
 function status(message){
 Module.setStatus(message);
@@ -317,6 +319,32 @@ return bytes;
 async function fetchChunk(index){
 var file='re3.chunk.'+index+'.js';
 var errors=[];
+var cache=null;
+var cacheKey='https://gta3-cache.invalid/chunks/'+index;
+
+try{
+if('caches' in window){
+cache=await caches.open(CHUNK_CACHE_NAME);
+var cached=await cache.match(cacheKey);
+
+if(cached){
+var savedAt=Number(cached.headers.get('x-gta3-cached-at')||0);
+
+if(savedAt>0&&Date.now()-savedAt<CHUNK_CACHE_MAX_AGE){
+var cachedBytes=new Uint8Array(await cached.arrayBuffer());
+if(cachedBytes.length){
+status('Using cached GTA III data part '+(index+1)+'...');
+return cachedBytes;
+}
+}
+
+await cache.delete(cacheKey);
+}
+}
+}catch(cacheError){
+console.warn('[GTA III cache] Read failed:',cacheError);
+cache=null;
+}
 
 for(var i=0;i<HOSTS.length;i++){
 var source=null;
@@ -329,6 +357,16 @@ source=null;
 
 var bytes=decodeBase64(encoded);
 encoded=null;
+
+if(cache){
+try{
+await cache.put(cacheKey,new Response(bytes,{
+headers:{'x-gta3-cached-at':String(Date.now())}
+}));
+}catch(cacheError){
+console.warn('[GTA III cache] Could not save part:',cacheError);
+}
+}
 
 return bytes;
 
@@ -397,7 +435,7 @@ var completed=0;
 
 for(var batchStart=0;batchStart<count;){
 var remaining=count-batchStart;
-var batchSize=remaining<=3?1:CHUNKS_PER_BATCH;
+var batchSize=Math.min(remaining,CHUNKS_PER_BATCH);
 var batchEnd=Math.min(batchStart+batchSize,count);
 
 status(
