@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -251,6 +252,55 @@ select {
   background:#000;
   outline:none;
 }
+/* Once Unity is ready, the launcher is removed from view and only the game remains. */
+#gameArea.game-only {
+  display:block !important;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  width:100vw;
+  height:100dvh;
+  margin:0;
+  border:0;
+  border-radius:0;
+  overflow:hidden;
+  background:#000;
+}
+#gameArea.game-only .game-head {
+  position:absolute;
+  z-index:2;
+  top:0;
+  right:0;
+  left:0;
+  min-height:48px;
+  padding:7px 12px;
+  background:linear-gradient(#000b,transparent);
+  opacity:0;
+  transition:opacity .2s ease;
+}
+#gameArea.game-only:hover .game-head,
+#gameArea.game-only:focus-within .game-head {
+  opacity:1;
+}
+#gameArea.game-only .game-head span { display:none; }
+#gameArea.game-only #fullscreenButton {
+  margin-left:auto;
+  background:#172536dd;
+  border-color:#71869a;
+}
+#gameArea.game-only #gameCanvas {
+  width:100vw;
+  height:100dvh;
+  max-height:none;
+}
+#gameArea.game-only:fullscreen {
+  width:100vw;
+  height:100vh;
+}
+#gameArea.game-only:fullscreen #gameCanvas {
+  width:100vw;
+  height:100vh;
+}
 .footer {
   margin-top:22px;
   text-align:center;
@@ -328,9 +378,9 @@ select {
     <div class="settings">
       <label for="workers">Workers</label>
       <select id="workers">
-        <option value="1" selected>1 (stable)</option>
+        <option value="1">1 (stable)</option>
         <option value="2">2</option>
-        <option value="3">3</option>
+        <option value="3" selected>3 (recommended)</option>
         <option value="4">4</option>
       </select>
     </div>
@@ -363,6 +413,7 @@ select {
 </div>
 
 <script>
+
 "use strict";
 
 /* =========================================================
@@ -380,11 +431,12 @@ const APP = {
   cacheVersion: "hk_v6_20261125",
 
   mirrors: [
-    "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-    "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-    "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+    // This mirror had the best measured throughput in the supplied log.
     "https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-    "https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/"
+    "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+    "https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/",
+    "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+    "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/"
   ],
 
   streamingAssets:
@@ -792,16 +844,26 @@ async function clearCache() {
 ========================================================= */
 
 function nextMirrorOrder() {
-  const untested = mirrorStats.filter(m => !m.tested);
+  // Keep the configured first mirror as the initial choice. Once enough
+  // real downloads have completed, rank mirrors by measured throughput
+  // while penalizing failures.
+  const hasMeasurements = mirrorStats.some(m => m.tested && m.bytes > 0);
 
-  if (untested.length) {
-    return [...untested, ...mirrorStats.filter(m => m.tested)];
+  if (!hasMeasurements) {
+    return [...mirrorStats];
   }
 
   return [...mirrorStats].sort((a, b) => {
-    const scoreA = a.mbps / (1 + a.failures * 1.5);
-    const scoreB = b.mbps / (1 + b.failures * 1.5);
+    const scoreA = a.tested
+      ? a.mbps / (1 + a.failures * 1.5)
+      : 0;
+    const scoreB = b.tested
+      ? b.mbps / (1 + b.failures * 1.5)
+      : 0;
 
+    // Untested mirrors remain fallback choices behind measured mirrors.
+    if (!a.tested && b.tested) return 1;
+    if (a.tested && !b.tested) return -1;
     return scoreB - scoreA;
   });
 }
@@ -1026,33 +1088,61 @@ async function downloadOne(name) {
    DOWNLOAD QUEUE
 ========================================================= */
 
-async function runWorker(workerNumber) {
-  while (fileQueue.length > 0 && !cancelled) {
-    const name = fileQueue.shift();
+const MAX_WORKERS = 4;
+const WORKER_POLL_INTERVAL = 120;
 
-    if (!name) break;
+function waitForWorkerSlot() {
+  return new Promise(resolve => setTimeout(resolve, WORKER_POLL_INTERVAL));
+}
+
+async function runWorker(workerNumber) {
+  while (!cancelled) {
+    // Exit immediately when the queue is empty, including for workers
+    // waiting above the current worker limit. This prevents a 100% stall.
+    if (fileQueue.length === 0) break;
+
+    // All four worker loops exist from the beginning. The selected limit
+    // controls how many are allowed to take work, so increasing the setting
+    // during a download activates waiting workers immediately.
+    while (!cancelled && workerNumber > activeWorkers && fileQueue.length > 0) {
+      await waitForWorkerSlot();
+    }
+
+    if (cancelled || fileQueue.length === 0) break;
+
+    const name = fileQueue.shift();
+    if (!name) continue;
 
     log(`Worker ${workerNumber}: ${name}`);
 
-    await downloadOne(name);
+    try {
+      await downloadOne(name);
+    } catch (error) {
+      // Preserve the first failure and stop the other workers cleanly.
+      cancelled = true;
+      throw error;
+    }
   }
 }
 
 async function downloadAll() {
   fileQueue = [...FILES];
+  cancelled = false;
 
   const workers = Math.max(
     1,
-    Math.min(activeWorkers, FILES.length)
+    Math.min(MAX_WORKERS, activeWorkers)
   );
 
   log(`Starting ${FILES.length} files with ${workers} worker(s).`);
+  log("Worker limit can be changed while downloads are running.");
 
   setStatus("Downloading");
 
+  // Launch the maximum pool once; inactive workers wait for their slot.
   const promises = [];
 
-  for (let i = 0; i < workers; i++) {
+  for (let i = 0; i < MAX_WORKERS; i++) {
     promises.push(runWorker(i + 1));
   }
 
@@ -1215,6 +1305,14 @@ async function launchUnity(
 
         log("Unity launched successfully.", "success");
 
+        // Move the game out of the launcher before hiding the launcher shell.
+        // This leaves only the canvas and a small fullscreen control visible.
+        const gameArea = $("gameArea");
+        document.body.appendChild(gameArea);
+        gameArea.classList.add("game-only");
+        $("app").style.display = "none";
+        document.body.style.overflow = "hidden";
+
         setStatus("Game running", "good");
         updateCurrentFile("Hollow Knight is ready.");
 
@@ -1353,10 +1451,6 @@ $("retryButton").addEventListener("click", () => {
   startLauncher();
 });
 
-/* =========================================================
-   PERSISTENT WORKER SETTING
-========================================================= */
-
 const WORKER_SETTING_KEY = "hollowKnightLauncher.workers";
 
 function loadWorkerSetting() {
@@ -1371,19 +1465,21 @@ function loadWorkerSetting() {
       activeWorkers = Number(saved);
       log(`Restored saved worker setting: ${activeWorkers}.`, "success");
     } else {
-      activeWorkers = Number(select.value) || 1;
-      log(`No saved worker setting; using ${activeWorkers}.`);
+      // Three concurrent downloads is the default; users can raise it to 4.
+      select.value = "3";
+      activeWorkers = 3;
+      localStorage.setItem(WORKER_SETTING_KEY, "3");
+      log("No saved worker setting; defaulting to 3 workers.", "success");
     }
   } catch (error) {
-    activeWorkers = Number(select.value) || 1;
-    log(`Could not read saved worker setting: ${error.name}: ${error.message}`, "error");
+    activeWorkers = Number(select.value) || 3;
+    log(`Could not read/save worker setting: ${error.name}: ${error.message}`, "error");
     log(`Using ${activeWorkers} worker(s) for this session.`);
   }
 }
 
 $("workers").addEventListener("change", event => {
   const selected = Number(event.target.value);
-
   activeWorkers = Number.isFinite(selected) && selected >= 1
     ? Math.min(4, Math.max(1, Math.floor(selected)))
     : 1;
@@ -1398,7 +1494,11 @@ $("workers").addEventListener("change", event => {
     log("The selected value will apply until this page is closed.");
   }
 
-  log("The new setting applies to the next download attempt.");
+  if (running) {
+    log(`Active worker limit changed to ${activeWorkers}; the queue is adjusting now.`, "success");
+  } else {
+    log(`Next download will use up to ${activeWorkers} worker(s).`);
+  }
 });
 
 $("clearButton").addEventListener("click", async () => {
@@ -1446,14 +1546,21 @@ $("copyLog").addEventListener("click", async () => {
 
 $("fullscreenButton").addEventListener("click", async () => {
   try {
+    const gameArea = $("gameArea");
     if (!document.fullscreenElement) {
-      await $("gameArea").requestFullscreen();
+      await gameArea.requestFullscreen();
     } else {
       await document.exitFullscreen();
     }
   } catch (error) {
     log(`Fullscreen failed: ${error.message}`, "error");
   }
+});
+
+document.addEventListener("fullscreenchange", () => {
+  $("fullscreenButton").textContent = document.fullscreenElement
+    ? "Exit fullscreen"
+    : "Fullscreen";
 });
 
 window.addEventListener("beforeunload", () => {
