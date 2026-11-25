@@ -176,7 +176,7 @@ const RAW_ROOT =
 
 const BUILD = "Build/";
 
-const PART_CONCURRENCY = 6;
+const PART_CONCURRENCY = 8;
 
 const UNITY_STARTUP_TIMEOUT = 600000;
 
@@ -463,9 +463,10 @@ async function downloadPart(asset, partNumber) {
             ? asset.lastPartSize
             : NORMAL_PART_SIZE;
 
+    // Try the CDN edge first; fall back to GitHub Raw if it fails.
     const urls = [
-        getPartURL(asset.name, partNumber, "raw"),
-        getPartURL(asset.name, partNumber, "cdn")
+        getPartURL(asset.name, partNumber, "cdn"),
+        getPartURL(asset.name, partNumber, "raw")
     ];
 
     const blob = await fetchWithFallback(
@@ -613,8 +614,8 @@ async function downloadNormalAssets() {
         setStatus("Checking " + filename + "...");
 
         const urls = [
-            getNormalURL(filename, "raw"),
-            getNormalURL(filename, "cdn")
+            getNormalURL(filename, "cdn"),
+            getNormalURL(filename, "raw")
         ];
 
         const blob = await fetchWithFallback(
@@ -708,8 +709,8 @@ async function loadUnityConfig() {
     setStatus("Loading Unity configuration...");
 
     const urls = [
-        RAW_ROOT + BUILD + "CupheadPort.json",
-        CDN_ROOT + BUILD + "CupheadPort.json"
+        CDN_ROOT + BUILD + "CupheadPort.json",
+        RAW_ROOT + BUILD + "CupheadPort.json"
     ];
 
     const configBlob = await fetchWithFallback(
@@ -771,8 +772,8 @@ async function loadUnityLoader() {
     setStatus("Loading Unity engine...");
 
     const urls = [
-        RAW_ROOT + BUILD + "UnityLoader.js",
-        CDN_ROOT + BUILD + "UnityLoader.js"
+        CDN_ROOT + BUILD + "UnityLoader.js",
+        RAW_ROOT + BUILD + "UnityLoader.js"
     ];
 
     const loaderBlob = await fetchWithFallback(
