@@ -487,7 +487,13 @@ button:disabled {
         );
       }
 
-      const loaderCode = await loaderResponse.text();
+      let loaderCode = await loaderResponse.text();
+
+// Your repository stores emulator cores in /cores/, not /packs/.
+loaderCode = loaderCode.replace(
+  'base + "packs/"',
+  'base + "cores/"'
+);
 
       if (!loaderCode.includes("WafflesEmu")) {
         throw new Error("Invalid emulator loader.");
