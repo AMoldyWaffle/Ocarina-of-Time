@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#03040d">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Five Nights at Freddy's: Into the Pit</title>
+
+  <!--
+    Game asset source:
+    https://github.com/AMoldyWaffle/Into-The-Pit
+
+    IMPORTANT:
+    The repository must contain the Build/ and StreamingAssets/ folders
+    with the matching .part files before the game can launch.
+  -->
+  <base href="https://raw.githubusercontent.com/AMoldyWaffle/Into-The-Pit/main/">
+
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      color-scheme: dark;
+      --ink: #eef1ff;
+      --muted: #929bbd;
+      --purple: #a99aff;
+      --cyan: #91e3ef;
+      --line: rgba(164, 164, 232, .18);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #03040d;
+      color: var(--ink);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system,
+            "Segoe UI", sans-serif;
+    }
+
+    #spaceBackground {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 50% 110%, #171044 0%, #08091d 43%, #03040d 82%);
+    }
+
+    #spaceBackground::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background:
+        radial-gradient(ellipse at 23% 35%, rgba(74, 43, 157, .32), transparent 34%),
+        radial-gradient(ellipse at 78% 48%, rgba(10, 105, 137, .23), transparent 36%),
+        radial-gradient(ellipse at 48% 86%, rgba(106, 35, 112, .20), transparent 34%);
+      filter: blur(65px);
+      animation: nebulaDrift 30s ease-in-out infinite alternate;
+    }
+
+    #spaceBackground::after {
+      content: "";
+      position: absolute;
+      inset: -100%;
+      opacity: .58;
+      background-image:
+        radial-gradient(1px 1px at 10% 20%, #fff 99%, transparent),
+        radial-gradient(2px 2px at 30% 70%, #cbd9ff 99%, transparent),
+        radial-gradient(1px 1px at 50% 40%, #fff 99%, transparent),
+        radial-gradient(1px 1px at 70% 80%, #b8caff 99%, transparent),
+        radial-gradient(2px 2px at 90% 15%, #fff 99%, transparent),
+        radial-gradient(1px 1px at 80% 45%, #fff 99%, transparent);
+      background-size: 310px 280px;
+      animation: starDrift 110s linear infinite;
+    }
+
+    .shooting-star {
+      position: absolute;
+      width: 190px;
+      height: 2px;
+      opacity: 0;
+      background: linear-gradient(90deg, transparent, #a9d9ff, #fff);
+      filter: drop-shadow(0 0 7px #8ccaff);
+      transform: rotate(-35deg);
+      animation: shoot 12s linear infinite;
+    }
+
+    .shooting-star:nth-child(1) {
+      top: 16%; left: 82%; animation-delay: 1s;
+    }
+
+    .shooting-star:nth-child(2) {
+      top: 48%; left: 52%; animation-delay: 5s; animation-duration: 14s;
+    }
+
+    .shooting-star:nth-child(3) {
+      top: 72%; left: 96%; animation-delay: 8s; animation-duration: 13s;
+    }
+
+    @keyframes nebulaDrift {
+      0% { transform: translate(-3%, -2%) rotate(0) scale(1); }
+      100% { transform: translate(4%, 3%) rotate(12deg) scale(1.12); }
+    }
+
+    @keyframes starDrift {
+      from { transform: translateY(0); }
+      to { transform: translateY(280px); }
+    }
+
+    @keyframes shoot {
+      0%, 72% { opacity: 0; transform: translate(0, 0) rotate(-35deg); }
+      75% { opacity: 1; }
+      86% { opacity: 0; transform: translate(-460px, 280px) rotate(-35deg); }
+      100% { opacity: 0; }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes titleGlow {
+      0%, 100% {
+        text-shadow: 0 0 16px rgba(139, 122, 255, .35),
+                     0 0 38px rgba(113, 100, 255, .12);
+      }
+      50% {
+        text-shadow: 0 0 25px rgba(169, 156, 255, .7),
+                     0 0 60px rgba(113, 100, 255, .35);
+      }
+    }
+
+    @keyframes orbitSpin {
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    #loadingScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      transition: opacity .55s ease, visibility .55s ease;
+    }
+
+    #loadingScreen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .topline {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(18px, 4vw, 58px);
+      border-bottom: 1px solid rgba(155, 158, 220, .12);
+      background: rgba(4, 6, 19, .42);
+      color: #7e88ad;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .topline-mark {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #b8b4df;
+    }
+
+    .topline-mark::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan);
+    }
+
+    .hero {
+      position: relative;
+      width: min(100%, 850px);
+      padding: 35px 15px;
+      animation: fadeUp .9s ease both;
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      margin: 0 0 15px;
+      color: #a9a0df;
+      font-size: 10px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: #f5f3ff;
+      font-size: clamp(34px, 7vw, 76px);
+      font-weight: 850;
+      line-height: 1.08;
+      letter-spacing: clamp(3px, 1vw, 12px);
+      animation: titleGlow 5s ease-in-out infinite;
+    }
+
+    .hero-subtitle {
+      margin: 17px 0 0;
+      color: #9ba2c9;
+      font-size: 12px;
+      letter-spacing: 2.5px;
+    }
+
+    .hero-rule {
+      width: 72px;
+      height: 1px;
+      margin: 27px auto 0;
+      background: linear-gradient(90deg, transparent, #a99aff, transparent);
+      box-shadow: 0 0 12px #9185ff;
+    }
+
+    .orbit {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 270px;
+      height: 270px;
+      border: 1px solid rgba(145, 133, 255, .16);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: orbitSpin 46s linear infinite;
+      pointer-events: none;
+    }
+
+    .orbit::before, .orbit::after {
+      content: "";
+      position: absolute;
+      inset: 24px;
+      border: 1px solid rgba(145, 133, 255, .12);
+      border-radius: 50%;
+      transform: rotateX(65deg) rotate(35deg);
+    }
+
+    .orbit::after {
+      inset: 49px;
+      transform: rotateX(65deg) rotate(-35deg);
+    }
+
+    .orbit-dot {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #b4a7ff;
+      box-shadow: 0 0 13px #a99aff;
+    }
+
+    .loading-panel {
+      position: relative;
+      z-index: 2;
+      width: min(100%, 510px);
+      margin-top: 24px;
+      padding: 20px 22px 17px;
+      border: 1px solid rgba(145, 133, 255, .23);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(21, 24, 45, .82), rgba(8, 12, 28, .88));
+      box-shadow: 0 16px 50px rgba(0, 0, 0, .25),
+                  0 0 35px rgba(91, 73, 178, .10);
+      backdrop-filter: blur(12px);
+    }
+
+    #loadingStatus {
+      margin-bottom: 13px;
+      color: #d9d5ff;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 9px;
+      overflow: hidden;
+      border: 1px solid rgba(157, 148, 255, .25);
+      border-radius: 20px;
+      background: rgba(3, 5, 18, .9);
+      box-shadow: inset 0 1px 4px rgba(0, 0, 0, .55);
+    }
+
+    #progressFill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #6557c9, #a99aff, #91e3ef);
+      box-shadow: 0 0 13px rgba(169, 154, 255, .55);
+      transition: width .18s ease;
+    }
+
+    .loading-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 11px;
+      color: #858db5;
+      font-size: 10px;
+      letter-spacing: .8px;
+    }
+
+    #loadingDetail {
+      min-width: 0;
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+
+    #loadingPercent {
+      flex: 0 0 auto;
+      color: #c9c3ff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #loadingText {
+      min-height: 17px;
+      margin: 12px 0 0;
+      color: #747da5;
+      font-size: 10px;
+      letter-spacing: .5px;
+      overflow-wrap: anywhere;
+    }
+
+    #errorBox {
+      display: none;
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid rgba(255, 105, 125, .35);
+      border-radius: 8px;
+      background: rgba(80, 15, 30, .25);
+      color: #ffb5c0;
+      font-size: 11px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    #retryButton {
+      display: none;
+      margin: 13px auto 0;
+      padding: 9px 16px;
+      border: 1px solid rgba(178, 166, 255, .55);
+      border-radius: 8px;
+      background: rgba(58, 49, 105, .75);
+      color: #f4f2ff;
+      font: inherit;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+    }
+
+    #retryButton:hover {
+      background: rgba(80, 68, 145, .9);
+      box-shadow: 0 0 20px rgba(123, 105, 255, .2);
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 20px;
+      color: #626b96;
+      font-size: 9px;
+      letter-spacing: 3px;
+    }
+
+    #unity-container {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #unity-canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      background: #000;
+      outline: none;
+    }
+
+    @media (max-width: 650px) {
+      .topline { padding: 0 15px; font-size: 8px; letter-spacing: 1px; }
+      .hero { padding: 25px 5px; }
+      .orbit { width: 205px; height: 205px; }
+      .loading-panel { padding: 17px 15px; }
+      .hero-subtitle { font-size: 10px; letter-spacing: 1.5px; }
+      .footer { font-size: 8px; letter-spacing: 2px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="spaceBackground" aria-hidden="true">
+    <i class="shooting-star"></i>
+    <i class="shooting-star"></i>
+    <i class="shooting-star"></i>
+  </div>
+
+  <main id="loadingScreen">
+    <div class="topline">
+      <span class="topline-mark">AMW / DIGITAL ARCHIVE</span>
+      <span>INTO THE PIT · WEB EDITION</span>
+    </div>
+
+    <section class="hero">
+      <div class="orbit"><span class="orbit-dot"></span></div>
+
+      <div class="hero-copy">
+        <p class="eyebrow">A journey beyond the ordinary</p>
+        <h1>INTO THE PIT</h1>
+        <p class="hero-subtitle">FIVE NIGHTS AT FREDDY'S</p>
+        <div class="hero-rule"></div>
+      </div>
+
+      <div class="loading-panel">
+        <div id="loadingStatus">INITIALIZING GAME SYSTEMS</div>
+
+        <div class="progress-track">
+          <div id="progressFill"></div>
+        </div>
+
+        <div class="loading-meta">
+          <span id="loadingDetail">Preparing game assets...</span>
+          <span id="loadingPercent">0%</span>
+        </div>
+
+        <p id="loadingText">Connecting to the AMW archive...</p>
+        <div id="errorBox"></div>
+        <button id="retryButton" type="button" onclick="location.reload()">RETRY DOWNLOAD</button>
+      </div>
+    </section>
+
+    <div class="footer">AMW DIGITAL ARCHIVE &nbsp;·&nbsp; ENTER THE UNKNOWN</div>
+  </main>
+
+  <div id="unity-container">
+    <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
+  </div>
+
+  <script>
+    "use strict";
+
+    // All game files are expected to be committed to this repository.
+    const GAME_BASE =
+      "https://raw.githubusercontent.com/AMoldyWaffle/Into-The-Pit/main/";
+
+    const CACHE_NAME = "amw-into-the-pit-cache-v3";
+    const MAX_PARALLEL_DOWNLOADS = 12;
+
+    // Retained from the original launcher as the approximate full download size.
+    // The displayed percentage is capped during downloading and finishes during
+    // Unity initialization, so a small size difference cannot push it past 100%.
+    const ESTIMATED_TOTAL_BYTES = 645.25 * 1024 * 1024;
+
+    const PREBUNDLE_NAME =
+      "webglprefabs_assets_all_5ea291f575ddd5dc7ae765c62c8e6be3.bundle";
+
+    const loadingScreen = document.getElementById("loadingScreen");
+    const loadingStatus = document.getElementById("loadingStatus");
+    const loadingDetail = document.getElementById("loadingDetail");
+    const loadingPercent = document.getElementById("loadingPercent");
+    const loadingText = document.getElementById("loadingText");
+    const progressFill = document.getElementById("progressFill");
+    const errorBox = document.getElementById("errorBox");
+    const retryButton = document.getElementById("retryButton");
+    const unityContainer = document.getElementById("unity-container");
+    const canvas = document.getElementById("unity-canvas");
+
+    let loadedBytes = 0;
+    let lastProgressUpdate = 0;
+    let activeDownloads = 0;
+    const downloadWaiters = [];
+
+    function setProgress(percent, detail, status) {
+      const safePercent = Math.max(0, Math.min(100, percent));
+      progressFill.style.width = safePercent.toFixed(1) + "%";
+      loadingPercent.textContent = Math.floor(safePercent) + "%";
+
+      if (detail) loadingDetail.textContent = detail;
+      if (status) loadingStatus.textContent = status;
+    }
+
+    function updateDownloadProgress(force = false) {
+      const now = Date.now();
+      if (!force && now - lastProgressUpdate < 100) return;
+      lastProgressUpdate = now;
+
+      const mbDone = (loadedBytes / (1024 * 1024)).toFixed(1);
+      const mbTotal = (ESTIMATED_TOTAL_BYTES / (1024 * 1024)).toFixed(1);
+      const percent = Math.min(89, (loadedBytes / ESTIMATED_TOTAL_BYTES) * 90);
+
+      setProgress(
+        percent,
+        mbDone + " MB / ~" + mbTotal + " MB",
+        "DOWNLOADING GAME ASSETS"
+      );
+      loadingText.textContent = "Downloading and preparing game files...";
+    }
+
+    function showError(error) {
+      console.error("[Into The Pit Launcher]", error);
+
+      const message =
+        (error && error.message ? error.message : String(error)) +
+        " — Check that the required game files are committed to " +
+        "AMoldyWaffle/Into-The-Pit on the main branch.";
+
+      loadingStatus.textContent = "LAUNCH FAILED";
+      loadingText.textContent = "The game could not be initialized.";
+      errorBox.style.display = "block";
+      errorBox.textContent = message;
+      retryButton.style.display = "block";
+
+      // Keep diagnostics visible even if Unity has already hidden the launcher.
+      let overlay = document.getElementById("runtimeErrorOverlay");
+      if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "runtimeErrorOverlay";
+        overlay.style.cssText =
+          "position:fixed;z-index:99999;left:16px;right:16px;bottom:16px;" +
+          "max-height:40vh;overflow:auto;padding:14px 16px;" +
+          "border:1px solid #b85c70;border-radius:9px;" +
+          "background:rgba(20,5,14,.96);color:#ffd8df;" +
+          "font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;" +
+          "overflow-wrap:anywhere;box-shadow:0 8px 35px #000a;";
+        document.body.appendChild(overlay);
+      }
+      overlay.textContent = "INTO THE PIT — RUNTIME ERROR\\n" + message;
+    }
+
+    async function acquireDownloadSlot() {
+      if (activeDownloads >= MAX_PARALLEL_DOWNLOADS) {
+        await new Promise(resolve => downloadWaiters.push(resolve));
+      }
+      activeDownloads++;
+    }
+
+    function releaseDownloadSlot() {
+      activeDownloads--;
+      const next = downloadWaiters.shift();
+      if (next) next();
+    }
+
+    function getParts(file, start, end) {
+      const parts = [];
+      for (let i = start; i <= end; i++) {
+        parts.push(file + ".part" + i);
+      }
+      return parts;
+    }
+
+    async function fetchPart(path) {
+      const url = new URL(path, GAME_BASE).href;
+
+      await acquireDownloadSlot();
+
+      try {
+        const response = await fetch(url, { cache: "force-cache" });
+
+        if (!response.ok) {
+          throw new Error(
+            "Could not download " + path + " (HTTP " + response.status + ")."
+          );
+        }
+
+        if (!response.body) {
+          const blob = await response.blob();
+          loadedBytes += blob.size;
+          updateDownloadProgress();
+          return blob;
+        }
+
+        // Keep the streamed chunks as Blob parts. This avoids the old extra
+        // Uint8Array allocation and full-buffer copy after every download.
+        const reader = response.body.getReader();
+        const chunks = [];
+        let partBytes = 0;
+
+        while (true) {
+          const result = await reader.read();
+          if (result.done) break;
+
+          chunks.push(result.value);
+          partBytes += result.value.byteLength;
+          loadedBytes += result.value.byteLength;
+          updateDownloadProgress();
+        }
+
+        return new Blob(chunks);
+      } finally {
+        releaseDownloadSlot();
+      }
+    }
+
+    async function mergeFiles(fileParts, cacheKey) {
+      const cache = await caches.open(CACHE_NAME);
+      const cachedResponse = await cache.match(cacheKey);
+
+      if (cachedResponse) {
+        const cachedBlob = await cachedResponse.blob();
+        loadedBytes += cachedBlob.size;
+        updateDownloadProgress();
+        console.log("[Cache] Using cached asset:", cacheKey);
+        return URL.createObjectURL(cachedBlob);
+      }
+
+      console.log("[Download] Fetching:", cacheKey);
+
+      // The shared download limiter caps total simultaneous requests across
+      // the data, WASM, and bundle downloads.
+      const partBlobs = await Promise.all(
+        fileParts.map(path => fetchPart(path))
+      );
+
+      const mergedBlob = new Blob(partBlobs, {
+        type: "application/octet-stream"
+      });
+
+      // Store the completed merged file. Future launches can skip all of its
+      // individual network requests and only create a local object URL.
+      await cache.put(cacheKey, new Response(mergedBlob));
+
+      return URL.createObjectURL(mergedBlob);
+    }
+
+    async function startGame() {
+      try {
+        setProgress(0, "Checking browser cache...", "PREPARING GAME");
+
+        if (!("caches" in window)) {
+          throw new Error(
+            "This browser does not support the Cache API required by this launcher."
+          );
+        }
+
+        const [dataUrl, wasmUrl, prebundleUrl] = await Promise.all([
+          mergeFiles(
+            getParts("Build/INTOTHEPIT.data", 1, 26),
+            "INTOTHEPIT.data"
+          ),
+          mergeFiles(
+            getParts("Build/INTOTHEPIT.wasm", 1, 5),
+            "INTOTHEPIT.wasm"
+          ),
+          mergeFiles(
+            getParts(
+              "StreamingAssets/aa/WebGL/" + PREBUNDLE_NAME,
+              1,
+              3
+            ),
+            PREBUNDLE_NAME
+          )
+        ]);
+
+        setProgress(90, "Loading Unity engine...", "INITIALIZING UNITY");
+
+        // Unity requests this bundle by its normal StreamingAssets URL.
+        // Redirect only that request to the already-merged local object URL.
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          if (String(url).includes(PREBUNDLE_NAME)) {
+            url = prebundleUrl;
+          }
+          return originalOpen.call(this, method, url, ...rest);
+        };
+
+        // Unity's loader inserts frameworkUrl as a normal <script src>.
+        // raw.githubusercontent.com can return JavaScript with a MIME type
+        // that the browser refuses for script loading. Fetch it and provide a
+        // JavaScript Blob URL, just as we do for the loader itself.
+        const frameworkUrl = new URL(
+          "Build/INTOTHEPIT.framework.js",
+          GAME_BASE
+        ).href;
+
+        let frameworkResponse;
+        try {
+          frameworkResponse = await fetch(frameworkUrl, { cache: "no-store" });
+        } catch (error) {
+          throw new Error(
+            "Could not fetch the Unity framework from " + frameworkUrl +
+            ". Check raw GitHub access and CORS. " + error.message
+          );
+        }
+
+        if (!frameworkResponse.ok) {
+          throw new Error(
+            "Unity framework request failed with HTTP " +
+            frameworkResponse.status + " (" +
+            frameworkResponse.statusText + "). URL: " + frameworkUrl
+          );
+        }
+
+        const frameworkSource = await frameworkResponse.text();
+        if (
+          !frameworkSource ||
+          !frameworkSource.includes("unityFramework")
+        ) {
+          throw new Error(
+            "The Unity framework downloaded, but its contents appear invalid."
+          );
+        }
+
+        const frameworkBlobUrl = URL.createObjectURL(
+          new Blob([frameworkSource], { type: "text/javascript" })
+        );
+
+        const config = {
+          dataUrl: dataUrl,
+          frameworkUrl: frameworkBlobUrl,
+          codeUrl: wasmUrl,
+          streamingAssetsUrl: new URL("StreamingAssets/", GAME_BASE).href,
+          companyName: "Mega Cat Studios",
+          productName: "Five Nights at Freddy's Into the Pit",
+          productVersion: "Release 1.0.11.7",
+          showBanner: function(message, type) {
+            if (type === "error") {
+              showError(new Error("Unity reported: " + message));
+            } else {
+              console.warn("[Unity]", type || "info", message);
+            }
+          }
+        };
+
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          const meta = document.createElement("meta");
+          meta.name = "viewport";
+          meta.content =
+            "width=device-width, height=device-height, initial-scale=1.0, " +
+            "user-scalable=no, shrink-to-fit=yes";
+          document.head.appendChild(meta);
+        }
+
+        unityContainer.style.display = "block";
+
+        // raw.githubusercontent.com serves JavaScript as a plain-text file on
+        // some routes. Fetch it first, then execute it from a JavaScript Blob
+        // so the browser does not reject it because of the response MIME type.
+        const loaderUrl = new URL("Build/INTOTHEPIT.loader.js", GAME_BASE).href;
+
+        let loaderResponse;
+        try {
+          loaderResponse = await fetch(loaderUrl, { cache: "no-store" });
+        } catch (error) {
+          throw new Error(
+            "Could not reach the Unity loader at " + loaderUrl +
+            ". The host may be blocking the request. " + error.message
+          );
+        }
+
+        if (!loaderResponse.ok) {
+          throw new Error(
+            "Unity loader request failed with HTTP " + loaderResponse.status +
+            " (" + loaderResponse.statusText + "). URL: " + loaderUrl
+          );
+        }
+
+        const loaderSource = await loaderResponse.text();
+        if (!loaderSource || !loaderSource.includes("createUnityInstance")) {
+          throw new Error(
+            "The Unity loader downloaded, but its contents are empty or invalid."
+          );
+        }
+
+        const loaderBlobUrl = URL.createObjectURL(
+          new Blob([loaderSource], { type: "text/javascript" })
+        );
+
+        const script = document.createElement("script");
+        script.src = loaderBlobUrl;
+
+        script.onerror = () => {
+          URL.revokeObjectURL(loaderBlobUrl);
+          showError(
+            new Error(
+              "The Unity loader was fetched successfully, but the browser " +
+              "blocked its execution. Check the page's Content Security Policy."
+            )
+          );
+        };
+
+        script.onload = () => {
+          URL.revokeObjectURL(loaderBlobUrl);
+
+          if (typeof createUnityInstance !== "function") {
+            showError(new Error("Unity loader loaded, but createUnityInstance is missing."));
+            return;
+          }
+
+          createUnityInstance(canvas, config, progress => {
+            const overallProgress = 90 + (progress * 10);
+            setProgress(
+              overallProgress,
+              "Starting game engine...",
+              "INITIALIZING UNITY"
+            );
+          }).then(() => {
+            setProgress(100, "Ready", "GAME READY");
+            loadingText.textContent = "Entering the pit...";
+            setTimeout(() => {
+              loadingScreen.classList.add("hidden");
+            }, 250);
+          }).catch(showError);
+        };
+
+        document.body.appendChild(script);
+      } catch (error) {
+        showError(error);
+      }
+    }
+
+    window.addEventListener("error", event => {
+      console.error("[Page runtime error]", event.message, event.filename, event.lineno);
+    });
+
+    window.addEventListener("unhandledrejection", event => {
+      console.error("[Unhandled promise rejection]", event.reason);
+    });
+
+    canvas.addEventListener("webglcontextlost", event => {
+      event.preventDefault();
+      showError(new Error(
+        "The WebGL graphics context was lost. This can happen if the GPU or browser " +
+        "runs out of graphics memory. Check the Console for the last Unity messages."
+      ));
+    });
+
+    startGame();
+  </script>
+</body>
+</html>
