@@ -48,8 +48,10 @@ h1{font-size:clamp(39px,7vw,78px);line-height:1.08;font-weight:850;letter-spacin
 #games,.game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px;padding:14px 0 0}
 .section-title{display:flex;align-items:center;gap:14px;margin:34px 0 4px;color:#c9c5ed;font-size:11px;letter-spacing:4px;text-transform:uppercase}
 .section-title:after{content:"";height:1px;flex:1;background:linear-gradient(90deg,rgba(140,128,217,.35),transparent)}
-.beta-tag{display:block;width:max-content;margin:8px auto 14px;padding:3px 8px;border:1px solid rgba(196,123,232,.45);border-radius:20px;color:#f0c5ff;font-size:9px;letter-spacing:1.2px}
-.critical-error-tag{display:block;width:max-content;margin:8px auto 14px;padding:4px 9px;border:1px solid rgba(255,83,83,.72);border-radius:20px;background:rgba(110,12,20,.28);color:#ff9696;font-size:9px;font-weight:800;letter-spacing:1.2px;text-shadow:0 0 10px rgba(255,70,70,.35)}
+.game-tags{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 8px;padding:0 10px 13px;min-width:0}
+.beta-tag,.critical-error-tag{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:max-content;max-width:100%;margin:8px 0 0;padding:4px 9px;border-radius:20px;font-size:9px;font-weight:800;letter-spacing:1.2px;white-space:nowrap}
+.beta-tag{border:1px solid rgba(196,123,232,.45);color:#f0c5ff}
+.critical-error-tag{border:1px solid rgba(255,83,83,.72);background:rgba(110,12,20,.28);color:#ff9696;text-shadow:0 0 10px rgba(255,70,70,.35)}
 .game{min-width:0;position:relative;overflow:hidden;border:1px solid rgba(119,116,163,.25);border-radius:13px;background:linear-gradient(145deg,rgba(21,24,45,.92),rgba(8,12,28,.94));box-shadow:0 10px 28px rgba(0,0,0,.16);transition:transform .28s,border-color .28s,box-shadow .28s;animation:fadeUp .55s both}
 .game:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(130deg,rgba(163,149,255,.08),transparent 35%,transparent 70%,rgba(104,202,229,.05));opacity:.6}
 .game:hover{transform:translateY(-7px);border-color:rgba(168,154,255,.72);box-shadow:0 17px 38px rgba(42,35,101,.3),0 0 22px rgba(112,98,189,.13)}
@@ -303,21 +305,25 @@ function makeGameCard(game, index) {
   play.onclick = () => launch(game);
   card.appendChild(play);
 
-  if (game.beta) {
-    const tag = document.createElement("span");
-    tag.className = "beta-tag";
-    tag.textContent = "BETA";
-    tag.style.display = "block";
-    tag.style.width = "max-content";
-    tag.style.margin = "0 auto 13px";
-    card.appendChild(tag);
-  }
+  if (game.beta || game.criticalError) {
+    const tags = document.createElement("div");
+    tags.className = "game-tags";
 
-  if (game.criticalError) {
-    const tag = document.createElement("span");
-    tag.className = "critical-error-tag";
-    tag.textContent = "CRITICAL ERROR";
-    card.appendChild(tag);
+    if (game.beta) {
+      const tag = document.createElement("span");
+      tag.className = "beta-tag";
+      tag.textContent = "BETA";
+      tags.appendChild(tag);
+    }
+
+    if (game.criticalError) {
+      const tag = document.createElement("span");
+      tag.className = "critical-error-tag";
+      tag.textContent = "CRITICAL ERROR";
+      tags.appendChild(tag);
+    }
+
+    card.appendChild(tags);
   }
   return card;
 }
