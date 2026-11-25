@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -364,7 +363,6 @@ select {
 </div>
 
 <script>
-
 "use strict";
 
 /* =========================================================
@@ -1355,10 +1353,51 @@ $("retryButton").addEventListener("click", () => {
   startLauncher();
 });
 
-$("workers").addEventListener("change", event => {
-  activeWorkers = Number(event.target.value);
+/* =========================================================
+   PERSISTENT WORKER SETTING
+========================================================= */
 
-  log(`Worker setting changed to ${activeWorkers}.`);
+const WORKER_SETTING_KEY = "hollowKnightLauncher.workers";
+
+function loadWorkerSetting() {
+  const select = $("workers");
+
+  try {
+    const saved = localStorage.getItem(WORKER_SETTING_KEY);
+    const allowed = [...select.options].map(option => option.value);
+
+    if (saved && allowed.includes(saved)) {
+      select.value = saved;
+      activeWorkers = Number(saved);
+      log(`Restored saved worker setting: ${activeWorkers}.`, "success");
+    } else {
+      activeWorkers = Number(select.value) || 1;
+      log(`No saved worker setting; using ${activeWorkers}.`);
+    }
+  } catch (error) {
+    activeWorkers = Number(select.value) || 1;
+    log(`Could not read saved worker setting: ${error.name}: ${error.message}`, "error");
+    log(`Using ${activeWorkers} worker(s) for this session.`);
+  }
+}
+
+$("workers").addEventListener("change", event => {
+  const selected = Number(event.target.value);
+
+  activeWorkers = Number.isFinite(selected) && selected >= 1
+    ? Math.min(4, Math.max(1, Math.floor(selected)))
+    : 1;
+
+  event.target.value = String(activeWorkers);
+
+  try {
+    localStorage.setItem(WORKER_SETTING_KEY, String(activeWorkers));
+    log(`Worker setting saved: ${activeWorkers}.`, "success");
+  } catch (error) {
+    log(`Could not save worker setting: ${error.name}: ${error.message}`, "error");
+    log("The selected value will apply until this page is closed.");
+  }
+
   log("The new setting applies to the next download attempt.");
 });
 
@@ -1444,8 +1483,7 @@ window.addEventListener("beforeunload", () => {
   log(`Origin: ${location.origin}`);
   log(`WebAssembly support: ${typeof WebAssembly !== "undefined"}`);
 
-  activeWorkers = Number($("workers").value);
-
+  loadWorkerSetting();
   startLauncher();
 })();
 
