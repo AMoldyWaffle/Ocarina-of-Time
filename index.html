@@ -552,7 +552,7 @@ $("back").onclick = back;
 $("rescan").onclick = scan;
 $("clearlog").onclick = () => { consoleNode.innerHTML = ""; };
 $("copylog").onclick = async () => {
-  const text = Array.from(consoleNode.children).map(line => line.textContent).join("\\n");
+  const text = Array.from(consoleNode.children).map(line => line.textContent).join("\n");
   try {
     await navigator.clipboard.writeText(text);
     log("info", ["Console log copied to clipboard."]);
