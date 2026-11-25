@@ -409,7 +409,6 @@ function launch(game) {
   frame.onerror = () => log("error", ["Proxy loader navigation failed."]);
   frame.src = loaderUrl;
 }
-}
 
 window.addEventListener("message", event => {
   if (event.data && event.data.__gameConsole) {
