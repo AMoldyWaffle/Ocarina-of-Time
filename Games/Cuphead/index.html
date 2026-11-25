@@ -609,6 +609,85 @@ async function assembleAsset(asset) {
    DOWNLOAD COMPLETE UNITY ASSETS
 ========================================================= */
 
+/*
+    GitHub Blob API fallback for files that fail through both
+    jsDelivr and GitHub Raw.
+
+    This SHA identifies Build/CupheadPort.asm.framework.unityweb
+    on the repository's main branch.
+*/
+const GITHUB_BLOB_FALLBACKS = {
+    "CupheadPort.asm.framework.unityweb":
+        "07a9d2aef6919ee72f1d940a0879a2afe702dd43"
+};
+
+async function downloadFromGitHubBlobAPI(filename) {
+    const blobSha = GITHUB_BLOB_FALLBACKS[filename];
+
+    if (!blobSha) {
+        throw new Error(
+            "No GitHub Blob API fallback is configured for " + filename
+        );
+    }
+
+    const apiURL =
+        "https://api.github.com/repos/AMoldyWaffle/Cuphead/git/blobs/" +
+        blobSha;
+
+    log("Trying GitHub Blob API: " + apiURL);
+
+    const response = await fetch(apiURL, {
+        method: "GET",
+        mode: "cors",
+        cache: "no-store",
+        headers: {
+            "Accept": "application/vnd.github+json"
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error("GitHub Blob API returned HTTP " + response.status);
+    }
+
+    const result = await response.json();
+
+    if (result.encoding !== "base64" || !result.content) {
+        throw new Error(
+            "GitHub Blob API returned an unexpected response format."
+        );
+    }
+
+    const base64 = result.content.replace(/\s/g, "");
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+
+    if (result.size && bytes.byteLength !== result.size) {
+        throw new Error(
+            "GitHub Blob API size mismatch. Expected " +
+            result.size +
+            " bytes, received " +
+            bytes.byteLength +
+            " bytes."
+        );
+    }
+
+    const blob = new Blob([bytes], {
+        type: "application/octet-stream"
+    });
+
+    log(
+        "GitHub Blob API download successful: " +
+        blob.size +
+        " bytes"
+    );
+
+    return blob;
+}
+
 async function downloadNormalAssets() {
     for (const filename of NORMAL_ASSETS) {
         setStatus("Checking " + filename + "...");
@@ -618,10 +697,33 @@ async function downloadNormalAssets() {
             getNormalURL(filename, "raw")
         ];
 
-        const blob = await fetchWithFallback(
-            urls,
-            null
-        );
+        let blob;
+
+        try {
+            // Keep the existing CDN -> GitHub Raw order unchanged.
+            blob = await fetchWithFallback(urls, null);
+
+        } catch (primaryError) {
+            log(
+                "CDN and Raw downloads failed for " +
+                filename +
+                ". Trying GitHub Blob API fallback..."
+            );
+
+            try {
+                blob = await downloadFromGitHubBlobAPI(filename);
+
+            } catch (apiError) {
+                throw new Error(
+                    "All download sources failed for " +
+                    filename +
+                    ":\\n" +
+                    primaryError.message +
+                    "\\nGitHub Blob API -> " +
+                    apiError.message
+                );
+            }
+        }
 
         blobUrls[filename] =
             URL.createObjectURL(blob);
