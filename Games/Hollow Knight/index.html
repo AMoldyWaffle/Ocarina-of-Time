@@ -1,61 +1,33 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<base id="assetBase" href="https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hollow Knight</title>
-<link rel="icon" href="TemplateData/favicon.ico">
-<link rel="stylesheet" href="TemplateData/style.css">
+<link rel="icon" href="https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/TemplateData/favicon.ico">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#f0f0f0}
 body{display:flex;align-items:center;justify-content:center}
-
-#boot{
-    position:fixed;inset:0;z-index:10;
-    display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(circle at 50% 90%,rgba(140,15,15,.22),transparent 65%),#050505
-}
-.panel{width:min(640px,92%);text-align:center}
+#boot{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 90%,rgba(140,15,15,.22),transparent 65%),#050505}
+.panel{width:min(680px,92%);text-align:center}
 h1{font-size:20px;font-weight:600;letter-spacing:1px;margin-bottom:6px}
-#sub{font-size:12px;color:#999;margin-bottom:16px}
-
+#sub{font-size:12px;color:#aaa;margin-bottom:16px;min-height:18px}
 .track{width:100%;height:6px;background:#1e1e1e;border-radius:999px;overflow:hidden}
 .fill{height:100%;width:0%;background:#c81d1d;transition:width .15s ease}
-
 #pct{margin-top:10px;font-size:13px;color:#ccc;letter-spacing:1.5px}
-
 .meta{display:flex;justify-content:space-between;font-size:11px;color:#888;margin-top:18px;margin-bottom:6px}
 .thin{height:4px;background:#171717}
-
-#log{
-    margin-top:16px;height:150px;overflow-y:auto;padding:10px;
-    background:#0c0c0c;border:1px solid #262626;border-radius:6px;
-    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10.5px;line-height:1.55;
-    text-align:left;white-space:pre-wrap;overflow-wrap:anywhere
-}
+#log{margin-top:16px;height:160px;overflow-y:auto;padding:10px;background:#0c0c0c;border:1px solid #262626;border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:10.5px;line-height:1.55;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere}
 .ok{color:#66d18e}.warn{color:#ecc05a}.err{color:#ff6363}.info{color:#a8a8a8}
-
 #errBox{display:none;margin-top:12px;color:#ff6b6b;font-size:12px;white-space:pre-wrap}
 .actions{display:flex;gap:10px;justify-content:center;margin-top:14px}
-.btn{
-    display:none;padding:9px 18px;background:#191919;color:#fff;
-    border:1px solid #3a3a3a;border-radius:4px;cursor:pointer;font-size:12px
-}
-.btn:hover{background:#2a2a2a}
-.btn.primary{background:#3a0c0c;border-color:#9e1b1b}
-.btn.primary:hover{background:#571212}
-
+.btn{display:none;padding:9px 18px;background:#191919;color:#fff;border:1px solid #3a3a3a;border-radius:4px;cursor:pointer;font-size:12px}
+.btn:hover{background:#2a2a2a}.btn.primary{background:#3a0c0c;border-color:#9e1b1b}
 #game{display:none;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center;background:#000}
-#canvas{
-    display:block;width:min(100vw,160vh);height:min(62.5vw,100vh);
-    max-width:100%;max-height:calc(100% - 42px);aspect-ratio:16/10;background:#000
-}
-#bar{
-    width:min(960px,100%);height:38px;display:flex;align-items:center;justify-content:space-between;
-    padding:0 10px;color:#888;font-size:12px
-}
+#canvas{display:block;width:min(100vw,160vh);height:min(62.5vw,100vh);max-width:100%;max-height:calc(100% - 42px);aspect-ratio:16/10;background:#000}
+#bar{width:min(960px,100%);height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;color:#888;font-size:12px}
 .gbtn{background:#161616;border:1px solid #333;color:#eee;padding:6px 12px;cursor:pointer;font-size:12px}
 .gbtn:hover{background:#292929}
 </style>
@@ -63,388 +35,495 @@ h1{font-size:20px;font-weight:600;letter-spacing:1px;margin-bottom:6px}
 <body>
 
 <div id="boot">
-    <div class="panel">
-        <h1>HOLLOW KNIGHT</h1>
-        <div id="sub">Starting up...</div>
-
-        <div class="track"><div class="fill" id="overallFill"></div></div>
-        <div id="pct">0%</div>
-
-        <div class="meta"><span>GAME DATA</span><span id="dataTxt">0 / 44</span></div>
-        <div class="track thin"><div class="fill" id="dataFill"></div></div>
-
-        <div class="meta"><span>WEBASSEMBLY</span><span id="wasmTxt">0 / 3</span></div>
-        <div class="track thin"><div class="fill" id="wasmFill"></div></div>
-
-        <div id="log"></div>
-        <div id="errBox"></div>
-
-        <div class="actions">
-            <button id="retryBtn" class="btn primary" type="button">Retry</button>
-            <button id="clearBtn" class="btn" type="button">Clear Cache</button>
-        </div>
-    </div>
+<div class="panel">
+<h1>HOLLOW KNIGHT</h1>
+<div id="sub">Starting up...</div>
+<div class="track"><div class="fill" id="overallFill"></div></div>
+<div id="pct">0%</div>
+<div class="meta"><span>GAME DATA</span><span id="dataTxt">0 / 44</span></div>
+<div class="track thin"><div class="fill" id="dataFill"></div></div>
+<div class="meta"><span>WEBASSEMBLY</span><span id="wasmTxt">0 / 3</span></div>
+<div class="track thin"><div class="fill" id="wasmFill"></div></div>
+<div id="log"></div>
+<div id="errBox"></div>
+<div class="actions">
+<button id="retryBtn" class="btn primary">Retry</button>
+<button id="clearBtn" class="btn">Clear Cache</button>
+</div>
+</div>
 </div>
 
 <div id="game">
-    <canvas id="canvas" width="960" height="600" tabindex="-1"></canvas>
-    <div id="bar">
-        <span>Hollow Knight</span>
-        <div style="display:flex;gap:8px;align-items:center">
-            <select id="scaleSel" class="gbtn" aria-label="Resolution scale">
-                <option value="1">1.00x</option>
-                <option value="0.85">0.85x</option>
-                <option value="0.70">0.70x</option>
-                <option value="0.60" selected>0.60x</option>
-                <option value="0.50">0.50x</option>
-            </select>
-            <button id="fsBtn" class="gbtn" type="button">Fullscreen</button>
-        </div>
-    </div>
+<canvas id="canvas" width="960" height="600" tabindex="-1"></canvas>
+<div id="bar">
+<span>Hollow Knight</span>
+<div style="display:flex;gap:8px;align-items:center">
+<select id="scaleSel" class="gbtn">
+<option value="1">1.00x</option>
+<option value="0.85">0.85x</option>
+<option value="0.70">0.70x</option>
+<option value="0.60" selected>0.60x</option>
+<option value="0.50">0.50x</option>
+</select>
+<button id="fsBtn" class="gbtn">Fullscreen</button>
+</div>
+</div>
 </div>
 
 <script>
 "use strict";
 
 const APP = {
-    mirrors: [
-        "https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-        "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-        "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-        "https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/",
-        "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/"
-    ],
-    buildDir: "Build/",
-    loader: "hk.loader.js",
-    framework: "hk.framework.js",
-    dataPrefix: "hk.data",
-    wasmPrefix: "hk.wasm",
-    dataCount: 44,
-    wasmCount: 3,
-    streamingAssets: "StreamingAssets",
-    companyName: "Stratus Dev Team",
-    productName: "Hollow Knight",
-    productVersion: "1.5.12620",
-    cacheKeyPrefix: "hk_v1_",
-    opfsFolder: "hk_v1_cache",
-    idbName: "hk_v1_db",
-    workers: 10,
-    timeoutMs: 90000,
-    retries: 6
+mirrors:[
+"https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+"https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+"https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+"https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/",
+"https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/"
+],
+buildDir:"Build/",
+loader:"hk.loader.js",
+framework:"hk.framework.js",
+dataPrefix:"hk.data",
+wasmPrefix:"hk.wasm",
+dataCount:44,
+wasmCount:3,
+streamingAssets:"StreamingAssets",
+companyName:"Stratus Dev Team",
+productName:"Hollow Knight",
+productVersion:"1.5.12620",
+cacheVersion:"hk_v2_20261125",
+opfsFolder:"hk_v2_cache",
+idbName:"hk_v2_db",
+workers:6,
+timeoutMs:120000,
+retriesPerFile:5
 };
 
-const el = id => document.getElementById(id);
-const subEl = el("sub");
-const overallFill = el("overallFill");
-const pctEl = el("pct");
-const dataFill = el("dataFill");
-const wasmFill = el("wasmFill");
-const dataTxt = el("dataTxt");
-const wasmTxt = el("wasmTxt");
-const logEl = el("log");
-const errBox = el("errBox");
-const retryBtn = el("retryBtn");
-const clearBtn = el("clearBtn");
+const $=id=>document.getElementById(id);
+const subEl=$("sub");
+const overallFill=$("overallFill");
+const pctEl=$("pct");
+const dataFill=$("dataFill");
+const wasmFill=$("wasmFill");
+const dataTxt=$("dataTxt");
+const wasmTxt=$("wasmTxt");
+const logEl=$("log");
+const errBox=$("errBox");
+const retryBtn=$("retryBtn");
+const clearBtn=$("clearBtn");
 
-let doneData = 0;
-let doneWasm = 0;
-let totalBytes = 0;
-let tStart = 0;
-let storeMode = null;
-let opfsDir = null;
-let idb = null;
-let busy = false;
-let preferredMirror = APP.mirrors[0];
+let storeMode=null,opfsDir=null,idb=null,busy=false;
+let doneData=0,doneWasm=0,totalBytes=0,networkBytes=0;
+let startedAt=0,lastSpeedAt=0,lastSpeedBytes=0,liveMbps=0;
+let activeWorkers=0,mirrorStats=[],objectUrls=[];
 
-function writeLog(msg, cls = "info") {
-    const row = document.createElement("div");
-    row.className = cls;
-    row.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    logEl.appendChild(row);
-    while (logEl.children.length > 200) logEl.removeChild(logEl.firstChild);
-    logEl.scrollTop = logEl.scrollHeight;
+function log(message,cls="info"){
+const row=document.createElement("div");
+row.className=cls;
+row.textContent=`[${new Date().toLocaleTimeString()}] ${message}`;
+logEl.appendChild(row);
+while(logEl.children.length>220)logEl.removeChild(logEl.firstChild);
+logEl.scrollTop=logEl.scrollHeight;
 }
 
-function refreshProgress() {
-    dataFill.style.width = `${(doneData / APP.dataCount) * 100}%`;
-    wasmFill.style.width = `${(doneWasm / APP.wasmCount) * 100}%`;
-    dataTxt.textContent = `${doneData} / ${APP.dataCount}`;
-    wasmTxt.textContent = `${doneWasm} / ${APP.wasmCount}`;
+function updateUI(){
+dataFill.style.width=`${doneData/APP.dataCount*100}%`;
+wasmFill.style.width=`${doneWasm/APP.wasmCount*100}%`;
+dataTxt.textContent=`${doneData} / ${APP.dataCount}`;
+wasmTxt.textContent=`${doneWasm} / ${APP.wasmCount}`;
 
-    const ratio = (doneData + doneWasm) / (APP.dataCount + APP.wasmCount);
-    const pct = ratio * 75;
-    overallFill.style.width = `${pct.toFixed(1)}%`;
-    pctEl.textContent = `${Math.floor(pct)}%`;
+const completed=doneData+doneWasm;
+const pct=completed/(APP.dataCount+APP.wasmCount)*75;
+overallFill.style.width=`${pct.toFixed(1)}%`;
+pctEl.textContent=`${Math.floor(pct)}%`;
 
-    const sec = Math.max(0.5, (performance.now() - tStart) / 1000);
-    const mbps = (totalBytes / 1048576) / sec;
-    subEl.textContent = `Downloading assets · ${mbps.toFixed(2)} MB/s · ${(totalBytes / 1048576).toFixed(0)} MB received`;
+const now=performance.now();
+if(now-lastSpeedAt>=800){
+const seconds=Math.max(.001,(now-lastSpeedAt)/1000);
+liveMbps=((networkBytes-lastSpeedBytes)/1048576)/seconds;
+lastSpeedAt=now;
+lastSpeedBytes=networkBytes;
+}
+const average=(networkBytes/1048576)/Math.max(.5,(now-startedAt)/1000);
+const speed=liveMbps>0?liveMbps:average;
+subEl.textContent=`Downloading · ${speed.toFixed(2)} MB/s · ${(networkBytes/1048576).toFixed(1)} MB received · ${activeWorkers}/${APP.workers} workers`;
 }
 
-async function initCache() {
-    if (navigator.storage?.getDirectory) {
-        try {
-            const root = await navigator.storage.getDirectory();
-            opfsDir = await root.getDirectoryHandle(APP.opfsFolder, { create: true });
-            storeMode = "opfs";
-            writeLog("Storage: OPFS", "ok");
-            return;
-        } catch (_) {}
-    }
-
-    idb = await new Promise((resolve, reject) => {
-        const req = indexedDB.open(APP.idbName, 1);
-        req.onupgradeneeded = () => req.result.createObjectStore("blobs");
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
-    storeMode = "indexeddb";
-    writeLog("Storage: IndexedDB", "ok");
+function makeMirrorStats(){
+mirrorStats=APP.mirrors.map(url=>({
+url,host:new URL(url).hostname,mbps:.05,
+active:0,failures:0,disabled:false
+}));
 }
 
-async function readCache(name) {
-    const key = APP.cacheKeyPrefix + name;
-    if (storeMode === "opfs") {
-        try {
-            const fh = await opfsDir.getFileHandle(key);
-            const f = await fh.getFile();
-            if (f.size > 0) return f;
-        } catch (_) {}
-        return null;
-    }
-    return new Promise(resolve => {
-        const tx = idb.transaction("blobs", "readonly");
-        const r = tx.objectStore("blobs").get(key);
-        r.onsuccess = () => resolve(r.result instanceof Blob && r.result.size > 0 ? r.result : null);
-        r.onerror = () => resolve(null);
-    });
+function mirrorScore(m){
+if(m.disabled)return -1;
+return m.mbps/(1+m.active*.9)/(1+m.failures*1.5);
 }
 
-async function writeCache(name, blob) {
-    const key = APP.cacheKeyPrefix + name;
-    if (storeMode === "opfs") {
-        const fh = await opfsDir.getFileHandle(key, { create: true });
-        const w = await fh.createWritable();
-        await w.write(blob);
-        await w.close();
-        return;
-    }
-    await new Promise((resolve, reject) => {
-        const tx = idb.transaction("blobs", "readwrite");
-        tx.objectStore("blobs").put(blob, key);
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
-    });
+function chooseMirror(exclude=new Set()){
+let candidates=mirrorStats.filter(m=>!m.disabled&&!exclude.has(m.url));
+if(!candidates.length){
+mirrorStats.forEach(m=>{if(m.failures>0)m.disabled=false;});
+candidates=mirrorStats.filter(m=>!exclude.has(m.url));
+}
+return candidates.sort((a,b)=>mirrorScore(b)-mirrorScore(a))[0]||null;
 }
 
-async function clearCache() {
-    writeLog("Clearing cached files...", "warn");
-    if (storeMode === "opfs" && opfsDir) {
-        for await (const [entryName] of opfsDir.entries()) {
-            try { await opfsDir.removeEntry(entryName); } catch (_) {}
-        }
-    }
-    if (idb) {
-        await new Promise(resolve => {
-            const tx = idb.transaction("blobs", "readwrite");
-            tx.objectStore("blobs").clear();
-            tx.oncomplete = resolve;
-            tx.onerror = resolve;
-        });
-    }
-    writeLog("Cache cleared.", "ok");
+async function initCache(){
+if(navigator.storage?.getDirectory){
+try{
+const root=await navigator.storage.getDirectory();
+opfsDir=await root.getDirectoryHandle(APP.opfsFolder,{create:true});
+storeMode="opfs";
+log("Storage: OPFS (streaming writes enabled)","ok");
+return;
+}catch(e){log(`OPFS unavailable: ${e.message}`,"warn");}
+}
+idb=await new Promise((resolve,reject)=>{
+const req=indexedDB.open(APP.idbName,1);
+req.onupgradeneeded=()=>{
+if(!req.result.objectStoreNames.contains("blobs"))
+req.result.createObjectStore("blobs");
+};
+req.onsuccess=()=>resolve(req.result);
+req.onerror=()=>reject(req.error);
+});
+storeMode="indexeddb";
+log("Storage: IndexedDB fallback","warn");
 }
 
-function mirrorList(skip = new Set()) {
-    const ordered = [preferredMirror, ...APP.mirrors.filter(m => m !== preferredMirror)];
-    return ordered.filter((m, idx, arr) => !skip.has(m) && arr.indexOf(m) === idx);
+async function readCache(name){
+const key=`${APP.cacheVersion}_${name}`;
+if(storeMode==="opfs"){
+try{
+const handle=await opfsDir.getFileHandle(key);
+const file=await handle.getFile();
+return file.size?file:null;
+}catch(_){return null;}
+}
+return new Promise(resolve=>{
+const tx=idb.transaction("blobs","readonly");
+const req=tx.objectStore("blobs").get(key);
+req.onsuccess=()=>resolve(req.result instanceof Blob&&req.result.size?req.result:null);
+req.onerror=()=>resolve(null);
+});
 }
 
-async function downloadFile(relPath, label) {
-    const skip = new Set();
-    let lastErr = null;
-
-    for (let i = 0; i < APP.retries; i++) {
-        const candidates = mirrorList(skip);
-        if (!candidates.length) skip.clear();
-        const base = mirrorList(skip)[0] || APP.mirrors[0];
-        skip.add(base);
-
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(new Error("Timed out")), APP.timeoutMs);
-        const t0 = performance.now();
-
-        try {
-            const res = await fetch(new URL(relPath, base).href, {
-                signal: ctrl.signal,
-                cache: "no-store",
-                redirect: "follow"
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const blob = await res.blob();
-            if (!blob.size) throw new Error("Empty response");
-
-            const sec = Math.max(0.05, (performance.now() - t0) / 1000);
-            const mbps = (blob.size / 1048576) / sec;
-            totalBytes += blob.size;
-            preferredMirror = base;
-            el("assetBase").href = base;
-
-            writeLog(`${label} (${(blob.size / 1048576).toFixed(2)} MB, ${mbps.toFixed(2)} MB/s) <- ${new URL(base).hostname}`, "ok");
-            refreshProgress();
-            return blob;
-        } catch (e) {
-            lastErr = e;
-            writeLog(`${label} failed on ${new URL(base).hostname}: ${e.message || e}`, "warn");
-        } finally {
-            clearTimeout(timer);
-        }
-    }
-
-    throw new Error(`Unable to download ${label}: ${lastErr?.message || lastErr}`);
+async function saveIDB(key,blob){
+await new Promise((resolve,reject)=>{
+const tx=idb.transaction("blobs","readwrite");
+tx.objectStore("blobs").put(blob,key);
+tx.oncomplete=resolve;
+tx.onerror=()=>reject(tx.error);
+tx.onabort=()=>reject(tx.error||new Error("IndexedDB write aborted"));
+});
 }
 
-async function fetchGroup(prefix, count, onPartDone) {
-    const out = new Array(count);
-    let idxCursor = 0;
-
-    async function worker() {
-        while (true) {
-            const i = idxCursor++;
-            if (i >= count) return;
-            const partName = `${prefix}.${String(i).padStart(3, "0")}`;
-
-            let blob = await readCache(partName);
-            if (blob) {
-                totalBytes += blob.size;
-                writeLog(`${partName} loaded from cache`, "ok");
-            } else {
-                blob = await downloadFile(APP.buildDir + partName, partName);
-                await writeCache(partName, blob);
-            }
-
-            out[i] = blob;
-            onPartDone();
-            refreshProgress();
-        }
-    }
-
-    await Promise.all(Array.from({ length: Math.min(count, APP.workers) }, worker));
-    return new Blob(out, { type: "application/octet-stream" });
+async function streamResponseToCache(response,name){
+const key=`${APP.cacheVersion}_${name}`;
+if(!response.body?.getReader){
+const blob=await response.blob();
+if(!blob.size)throw new Error("Empty response");
+if(storeMode==="opfs"){
+const handle=await opfsDir.getFileHandle(key,{create:true});
+const writer=await handle.createWritable();
+await writer.write(blob);
+await writer.close();
+return handle.getFile();
+}
+await saveIDB(key,blob);
+return blob;
 }
 
-function runScriptBlob(blob) {
-    return new Promise((resolve, reject) => {
-        if (!blob || blob.size === 0) {
-            reject(new Error("Unity loader script blob is empty."));
-            return;
-        }
-        const url = URL.createObjectURL(blob);
-        const s = document.createElement("script");
-        s.src = url;
-        s.onload = () => resolve(url);
-        s.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject(new Error("Failed to load Unity script"));
-        };
-        document.body.appendChild(s);
-    });
+const reader=response.body.getReader();
+let chunks=[],total=0,writable=null,handle=null;
+if(storeMode==="opfs"){
+handle=await opfsDir.getFileHandle(key,{create:true});
+writable=await handle.createWritable({keepExistingData:false});
 }
 
-async function start() {
-    if (busy) return;
-    busy = true;
-    errBox.style.display = "none";
-    retryBtn.style.display = "none";
-    clearBtn.style.display = "none";
-    doneData = 0;
-    doneWasm = 0;
-    totalBytes = 0;
-    tStart = performance.now();
-    refreshProgress();
-
-    try {
-        await initCache();
-
-        const [dataBlob, wasmBlob, loaderBlob, fwBlob] = await Promise.all([
-            fetchGroup(APP.dataPrefix, APP.dataCount, () => { doneData++; }),
-            fetchGroup(APP.wasmPrefix, APP.wasmCount, () => { doneWasm++; }),
-            downloadFile(APP.buildDir + APP.loader, APP.loader),
-            downloadFile(APP.buildDir + APP.framework, APP.framework)
-        ]);
-
-        if (!dataBlob || dataBlob.size === 0) {
-            throw new Error("Merged game data blob is empty.");
-        }
-        if (!wasmBlob || wasmBlob.size === 0) {
-            throw new Error("Merged WebAssembly blob is empty.");
-        }
-        if (!fwBlob || fwBlob.size === 0) {
-            throw new Error("Unity framework blob is empty.");
-        }
-
-        const wasmBytes = new Uint8Array(await wasmBlob.arrayBuffer());
-        const dataUrl = String(URL.createObjectURL(dataBlob));
-        const wasmCodeUrl = String(URL.createObjectURL(wasmBlob));
-        const frameworkUrl = String(URL.createObjectURL(fwBlob));
-
-        await runScriptBlob(loaderBlob);
-
-        if (typeof createUnityInstance !== "function") {
-            throw new Error("Unity loader did not expose createUnityInstance.");
-        }
-
-        subEl.textContent = "Starting Hollow Knight...";
-
-        const unityConfig = {
-            dataUrl,
-            wasmCodeUrl,
-            wasmBinary: wasmBytes,
-            frameworkUrl,
-            streamingAssetsUrl: String(APP.streamingAssets || "StreamingAssets"),
-            companyName: String(APP.companyName || "Stratus Dev Team"),
-            productName: String(APP.productName || "Hollow Knight"),
-            productVersion: String(APP.productVersion || "1.5.12620")
-        };
-
-        const instance = await createUnityInstance(el("canvas"), unityConfig, p => {
-            const val = 75 + p * 25;
-            overallFill.style.width = `${val.toFixed(1)}%`;
-            pctEl.textContent = `${Math.floor(val)}%`;
-        });
-
-        window.unityInstance = instance;
-        overallFill.style.width = "100%";
-        pctEl.textContent = "100%";
-        el("boot").style.display = "none";
-        el("game").style.display = "flex";
-
-        el("fsBtn").onclick = () => instance.SetFullscreen(1);
-        el("scaleSel").onchange = e => {
-            const s = parseFloat(e.target.value) || 0.6;
-            el("canvas").width = Math.round(960 * s);
-            el("canvas").height = Math.round(600 * s);
-        };
-    } catch (e) {
-        writeLog(e.message || String(e), "err");
-        errBox.textContent = e.message || String(e);
-        errBox.style.display = "block";
-        retryBtn.style.display = "inline-block";
-        clearBtn.style.display = "inline-block";
-    } finally {
-        busy = false;
-    }
+try{
+while(true){
+const {value,done}=await reader.read();
+if(done)break;
+if(!value?.byteLength)continue;
+total+=value.byteLength;
+networkBytes+=value.byteLength;
+updateUI();
+if(writable)await writable.write(value);
+else chunks.push(value);
+}
+if(!total)throw new Error("Empty response");
+if(writable){
+await writable.close();
+writable=null;
+return await handle.getFile();
+}
+const blob=new Blob(chunks,{type:"application/octet-stream"});
+chunks=[];
+await saveIDB(key,blob);
+return blob;
+}catch(error){
+try{await reader.cancel();}catch(_){}
+if(writable)try{await writable.abort();}catch(_){}
+if(handle)try{await opfsDir.removeEntry(key);}catch(_){}
+throw error;
+}
 }
 
-retryBtn.onclick = start;
-clearBtn.onclick = async () => {
-    await clearCache();
-    start();
+async function clearCache(){
+log("Clearing launcher cache...","warn");
+if(storeMode==="opfs"&&opfsDir){
+for await(const [name] of opfsDir.entries()){
+try{await opfsDir.removeEntry(name);}catch(_){}
+}
+}
+if(idb){
+await new Promise(resolve=>{
+const tx=idb.transaction("blobs","readwrite");
+tx.objectStore("blobs").clear();
+tx.oncomplete=resolve;
+tx.onerror=resolve;
+});
+}
+log("Launcher cache cleared.","ok");
+}
+
+async function benchmarkMirrors(){
+subEl.textContent="Testing download mirrors...";
+log("Benchmarking CDN mirrors with hk.framework.js...");
+const results=await Promise.all(mirrorStats.map(async mirror=>{
+const controller=new AbortController();
+const timer=setTimeout(()=>controller.abort(),25000);
+const t0=performance.now();
+try{
+const url=new URL(APP.buildDir+APP.framework,mirror.url);
+url.searchParams.set("_mirror_test",String(Date.now()));
+const response=await fetch(url.href,{
+cache:"no-store",mode:"cors",signal:controller.signal
+});
+if(!response.ok)throw new Error(`HTTP ${response.status}`);
+let bytes=0;
+if(response.body?.getReader){
+const reader=response.body.getReader();
+while(true){
+const part=await reader.read();
+if(part.done)break;
+bytes+=part.value.byteLength;
+if(bytes>2*1024*1024){await reader.cancel();break;}
+}
+}else bytes=(await response.arrayBuffer()).byteLength;
+if(!bytes)throw new Error("Empty response");
+mirror.mbps=(bytes/1048576)/Math.max(.05,(performance.now()-t0)/1000);
+mirror.failures=0;
+log(`${mirror.host}: ${mirror.mbps.toFixed(2)} MB/s`,"ok");
+}catch(error){
+mirror.failures++;
+mirror.disabled=true;
+log(`${mirror.host}: unavailable (${error.message})`,"warn");
+}finally{clearTimeout(timer);}
+return mirror;
+}));
+const available=results.filter(m=>!m.disabled).sort((a,b)=>b.mbps-a.mbps);
+if(!available.length)throw new Error("Every CDN mirror failed. Check CORS and network access.");
+log(`Fastest mirror: ${available[0].host} (${available[0].mbps.toFixed(2)} MB/s)`,"ok");
+}
+
+async function downloadFile(relPath,label,cacheName=label){
+const cached=await readCache(cacheName);
+if(cached){
+totalBytes+=cached.size;
+log(`${label}: cache hit (${(cached.size/1048576).toFixed(2)} MB)`,"ok");
+return cached;
+}
+let lastError=null;
+const tried=new Set();
+for(let attempt=0;attempt<APP.retriesPerFile;attempt++){
+const mirror=chooseMirror(tried);
+if(!mirror)break;
+tried.add(mirror.url);
+mirror.active++;
+const controller=new AbortController();
+const timer=setTimeout(()=>controller.abort(),APP.timeoutMs);
+const t0=performance.now();
+try{
+const response=await fetch(new URL(relPath,mirror.url).href,{
+cache:"no-store",mode:"cors",signal:controller.signal
+});
+if(!response.ok)throw new Error(`HTTP ${response.status}`);
+const file=await streamResponseToCache(response,cacheName);
+if(!file?.size)throw new Error("Downloaded file was empty");
+const speed=(file.size/1048576)/Math.max(.05,(performance.now()-t0)/1000);
+mirror.mbps=mirror.mbps*.65+speed*.35;
+mirror.failures=Math.max(0,mirror.failures-1);
+totalBytes+=file.size;
+log(`${label} (${(file.size/1048576).toFixed(2)} MB, ${speed.toFixed(2)} MB/s) <- ${mirror.host}`,"ok");
+return file;
+}catch(error){
+lastError=error;
+mirror.failures++;
+if(mirror.failures>=2)mirror.disabled=true;
+log(`${label} failed on ${mirror.host}: ${error.message}`,"warn");
+}finally{
+clearTimeout(timer);
+mirror.active=Math.max(0,mirror.active-1);
+updateUI();
+}
+}
+throw new Error(`Unable to download ${label}: ${lastError?.message||"all mirrors failed"}`);
+}
+
+async function downloadAllAssets(){
+const tasks=[];
+for(let i=0;i<APP.dataCount;i++){
+const name=`${APP.dataPrefix}.${String(i).padStart(3,"0")}`;
+tasks.push({kind:"data",name,path:APP.buildDir+name});
+}
+for(let i=0;i<APP.wasmCount;i++){
+const name=`${APP.wasmPrefix}.${String(i).padStart(3,"0")}`;
+tasks.push({kind:"wasm",name,path:APP.buildDir+name});
+}
+tasks.push({kind:"loader",name:APP.loader,path:APP.buildDir+APP.loader});
+tasks.push({kind:"framework",name:APP.framework,path:APP.buildDir+APP.framework});
+
+const output=new Map();
+let cursor=0;
+async function worker(){
+while(true){
+const task=tasks[cursor++];
+if(!task)return;
+activeWorkers++;
+updateUI();
+try{
+const file=await downloadFile(task.path,task.name);
+output.set(task.name,file);
+if(task.kind==="data")doneData++;
+if(task.kind==="wasm")doneWasm++;
+updateUI();
+}finally{
+activeWorkers--;
+updateUI();
+}
+}
+}
+await Promise.all(Array.from({length:Math.min(APP.workers,tasks.length)},worker));
+
+const dataParts=[],wasmParts=[];
+for(let i=0;i<APP.dataCount;i++)
+dataParts.push(output.get(`${APP.dataPrefix}.${String(i).padStart(3,"0")}`));
+for(let i=0;i<APP.wasmCount;i++)
+wasmParts.push(output.get(`${APP.wasmPrefix}.${String(i).padStart(3,"0")}`));
+
+return{
+dataBlob:new Blob(dataParts,{type:"application/octet-stream"}),
+wasmBlob:new Blob(wasmParts,{type:"application/octet-stream"}),
+loaderBlob:output.get(APP.loader),
+frameworkBlob:output.get(APP.framework)
+};
+}
+
+function runScriptBlob(blob){
+return new Promise((resolve,reject)=>{
+if(!blob?.size)return reject(new Error("Unity loader script is empty."));
+const url=URL.createObjectURL(blob);
+objectUrls.push(url);
+const script=document.createElement("script");
+script.src=url;
+script.onload=()=>resolve(url);
+script.onerror=()=>reject(new Error("Failed to execute Unity loader script."));
+document.body.appendChild(script);
+});
+}
+
+async function start(){
+if(busy)return;
+busy=true;
+errBox.style.display="none";
+retryBtn.style.display="none";
+clearBtn.style.display="none";
+doneData=0;doneWasm=0;totalBytes=0;networkBytes=0;
+liveMbps=0;activeWorkers=0;
+startedAt=performance.now();
+lastSpeedAt=startedAt;
+lastSpeedBytes=0;
+makeMirrorStats();
+updateUI();
+
+try{
+await initCache();
+await benchmarkMirrors();
+
+const {dataBlob,wasmBlob,loaderBlob,frameworkBlob}=await downloadAllAssets();
+if(!dataBlob?.size||!wasmBlob?.size)throw new Error("Merged game assets are empty.");
+if(!loaderBlob?.size||!frameworkBlob?.size)throw new Error("Unity loader/framework is missing.");
+
+subEl.textContent="Preparing game memory...";
+overallFill.style.width="76%";
+pctEl.textContent="76%";
+
+const wasmBytes=new Uint8Array(await wasmBlob.arrayBuffer());
+const dataUrl=URL.createObjectURL(dataBlob);
+const wasmCodeUrl=URL.createObjectURL(wasmBlob);
+const frameworkUrl=URL.createObjectURL(frameworkBlob);
+objectUrls.push(dataUrl,wasmCodeUrl,frameworkUrl);
+
+await runScriptBlob(loaderBlob);
+if(typeof createUnityInstance!=="function")
+throw new Error("Unity loader did not expose createUnityInstance.");
+
+subEl.textContent="Starting Hollow Knight...";
+const config={
+dataUrl,wasmCodeUrl,wasmBinary:wasmBytes,frameworkUrl,
+streamingAssetsUrl:String(APP.streamingAssets),
+companyName:String(APP.companyName),
+productName:String(APP.productName),
+productVersion:String(APP.productVersion)
 };
 
-window.addEventListener("DOMContentLoaded", () => {
-    writeLog("Launcher ready.", "info");
-    start();
+const instance=await createUnityInstance($("canvas"),config,progress=>{
+const value=76+Math.max(0,Math.min(1,progress))*24;
+overallFill.style.width=`${value.toFixed(1)}%`;
+pctEl.textContent=`${Math.floor(value)}%`;
+subEl.textContent="Initializing Unity...";
+});
+
+window.unityInstance=instance;
+overallFill.style.width="100%";
+pctEl.textContent="100%";
+$("boot").style.display="none";
+$("game").style.display="flex";
+$("fsBtn").onclick=()=>instance.SetFullscreen(1);
+$("scaleSel").onchange=event=>{
+const scale=parseFloat(event.target.value)||.6;
+$("canvas").width=Math.round(960*scale);
+$("canvas").height=Math.round(600*scale);
+};
+}catch(error){
+log(error.stack||error.message||String(error),"err");
+errBox.textContent=error.message||String(error);
+errBox.style.display="block";
+retryBtn.style.display="inline-block";
+clearBtn.style.display="inline-block";
+subEl.textContent="Launch failed.";
+}finally{busy=false;}
+}
+
+retryBtn.onclick=start;
+clearBtn.onclick=async()=>{
+if(busy)return;
+try{
+if(!storeMode)await initCache();
+await clearCache();
+start();
+}catch(error){log(`Cache clear failed: ${error.message}`,"err");}
+};
+
+window.addEventListener("DOMContentLoaded",()=>{
+log("Launcher ready.");
+log(`Mirrors: ${APP.mirrors.length} · Workers: ${APP.workers}`);
+start();
 });
 </script>
 </body>
