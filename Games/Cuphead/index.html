@@ -1,1278 +1,1188 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#03040d">
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Five Nights at Freddy's: Into the Pit</title>
 
-  <title>Cuphead</title>
+  <!--
+    Game asset source:
+    https://github.com/AMoldyWaffle/Into-The-Pit
+
+    IMPORTANT:
+    The repository must contain the Build/ and StreamingAssets/ folders
+    with the matching .part files before the game can launch.
+  -->
+  <base href="https://raw.githubusercontent.com/AMoldyWaffle/Into-The-Pit/main/">
 
   <style>
-    * {
-      box-sizing: border-box;
+    * { box-sizing: border-box; }
+
+    :root {
+      color-scheme: dark;
+      --ink: #eef1ff;
+      --muted: #929bbd;
+      --purple: #a99aff;
+      --cyan: #91e3ef;
+      --line: rgba(164, 164, 232, .18);
     }
 
     html, body {
       width: 100%;
       height: 100%;
       margin: 0;
-      padding: 0;
       overflow: hidden;
-      background: #000;
-      color: white;
-      font-family: Arial, sans-serif;
+      background: #03040d;
+      color: var(--ink);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system,
+            "Segoe UI", sans-serif;
     }
 
-    #gameContainer {
-      position: absolute;
+    #spaceBackground {
+      position: fixed;
       inset: 0;
-      width: 100%;
-      height: 100%;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 50% 110%, #171044 0%, #08091d 43%, #03040d 82%);
     }
 
-    #gameContainer canvas {
-      width: 100% !important;
-      height: 100% !important;
-      display: block;
+    #spaceBackground::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background:
+        radial-gradient(ellipse at 23% 35%, rgba(74, 43, 157, .32), transparent 34%),
+        radial-gradient(ellipse at 78% 48%, rgba(10, 105, 137, .23), transparent 36%),
+        radial-gradient(ellipse at 48% 86%, rgba(106, 35, 112, .20), transparent 34%);
+      filter: blur(65px);
+      animation: nebulaDrift 30s ease-in-out infinite alternate;
+    }
+
+    #spaceBackground::after {
+      content: "";
+      position: absolute;
+      inset: -100%;
+      opacity: .58;
+      background-image:
+        radial-gradient(1px 1px at 10% 20%, #fff 99%, transparent),
+        radial-gradient(2px 2px at 30% 70%, #cbd9ff 99%, transparent),
+        radial-gradient(1px 1px at 50% 40%, #fff 99%, transparent),
+        radial-gradient(1px 1px at 70% 80%, #b8caff 99%, transparent),
+        radial-gradient(2px 2px at 90% 15%, #fff 99%, transparent),
+        radial-gradient(1px 1px at 80% 45%, #fff 99%, transparent);
+      background-size: 310px 280px;
+      animation: starDrift 110s linear infinite;
+    }
+
+    .shooting-star {
+      position: absolute;
+      width: 190px;
+      height: 2px;
+      opacity: 0;
+      background: linear-gradient(90deg, transparent, #a9d9ff, #fff);
+      filter: drop-shadow(0 0 7px #8ccaff);
+      transform: rotate(-35deg);
+      animation: shoot 12s linear infinite;
+    }
+
+    .shooting-star:nth-child(1) {
+      top: 16%; left: 82%; animation-delay: 1s;
+    }
+
+    .shooting-star:nth-child(2) {
+      top: 48%; left: 52%; animation-delay: 5s; animation-duration: 14s;
+    }
+
+    .shooting-star:nth-child(3) {
+      top: 72%; left: 96%; animation-delay: 8s; animation-duration: 13s;
+    }
+
+    @keyframes nebulaDrift {
+      0% { transform: translate(-3%, -2%) rotate(0) scale(1); }
+      100% { transform: translate(4%, 3%) rotate(12deg) scale(1.12); }
+    }
+
+    @keyframes starDrift {
+      from { transform: translateY(0); }
+      to { transform: translateY(280px); }
+    }
+
+    @keyframes shoot {
+      0%, 72% { opacity: 0; transform: translate(0, 0) rotate(-35deg); }
+      75% { opacity: 1; }
+      86% { opacity: 0; transform: translate(-460px, 280px) rotate(-35deg); }
+      100% { opacity: 0; }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes titleGlow {
+      0%, 100% {
+        text-shadow: 0 0 16px rgba(139, 122, 255, .35),
+                     0 0 38px rgba(113, 100, 255, .12);
+      }
+      50% {
+        text-shadow: 0 0 25px rgba(169, 156, 255, .7),
+                     0 0 60px rgba(113, 100, 255, .35);
+      }
+    }
+
+    @keyframes orbitSpin {
+      to { transform: translate(-50%, -50%) rotate(360deg); }
     }
 
     #loadingScreen {
-      position: absolute;
+      position: fixed;
       inset: 0;
-      z-index: 100;
+      z-index: 5;
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
-      background: #000;
+      justify-content: center;
       padding: 24px;
       text-align: center;
+      transition: opacity .55s ease, visibility .55s ease;
     }
 
-    #loadingTitle {
-      font-family: cursive;
-      font-size: 48px;
-      font-weight: bold;
-      background: linear-gradient(
-        270deg,
-        #ff0000,
-        #ff7f00,
-        #ffff00,
-        #00ff00,
-        #0000ff,
-        #4b0082,
-        #8f00ff
-      );
-      background-size: 400% 400%;
-      background-clip: text;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: rainbow 3s ease infinite;
+    #loadingScreen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
 
-    @keyframes rainbow {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+    .topline {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(18px, 4vw, 58px);
+      border-bottom: 1px solid rgba(155, 158, 220, .12);
+      background: rgba(4, 6, 19, .42);
+      color: #7e88ad;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .topline-mark {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #b8b4df;
+    }
+
+    .topline-mark::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan);
+    }
+
+    .hero {
+      position: relative;
+      width: min(100%, 850px);
+      padding: 35px 15px;
+      animation: fadeUp .9s ease both;
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+    }
+
+    .eyebrow {
+      margin: 0 0 15px;
+      color: #a9a0df;
+      font-size: 10px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: #f5f3ff;
+      font-size: clamp(34px, 7vw, 76px);
+      font-weight: 850;
+      line-height: 1.08;
+      letter-spacing: clamp(3px, 1vw, 12px);
+      animation: titleGlow 5s ease-in-out infinite;
+    }
+
+    .hero-subtitle {
+      margin: 17px 0 0;
+      color: #9ba2c9;
+      font-size: 12px;
+      letter-spacing: 2.5px;
+    }
+
+    .hero-rule {
+      width: 72px;
+      height: 1px;
+      margin: 27px auto 0;
+      background: linear-gradient(90deg, transparent, #a99aff, transparent);
+      box-shadow: 0 0 12px #9185ff;
+    }
+
+    .orbit {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 270px;
+      height: 270px;
+      border: 1px solid rgba(145, 133, 255, .16);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: orbitSpin 46s linear infinite;
+      pointer-events: none;
+    }
+
+    .orbit::before, .orbit::after {
+      content: "";
+      position: absolute;
+      inset: 24px;
+      border: 1px solid rgba(145, 133, 255, .12);
+      border-radius: 50%;
+      transform: rotateX(65deg) rotate(35deg);
+    }
+
+    .orbit::after {
+      inset: 49px;
+      transform: rotateX(65deg) rotate(-35deg);
+    }
+
+    .orbit-dot {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #b4a7ff;
+      box-shadow: 0 0 13px #a99aff;
+    }
+
+    .loading-panel {
+      position: relative;
+      z-index: 2;
+      width: min(100%, 510px);
+      margin-top: 24px;
+      padding: 20px 22px 17px;
+      border: 1px solid rgba(145, 133, 255, .23);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(21, 24, 45, .82), rgba(8, 12, 28, .88));
+      box-shadow: 0 16px 50px rgba(0, 0, 0, .25),
+                  0 0 35px rgba(91, 73, 178, .10);
+      backdrop-filter: blur(12px);
     }
 
     #loadingStatus {
-      margin-top: 20px;
-      font-size: 16px;
-      color: #ddd;
+      margin-bottom: 13px;
+      color: #d9d5ff;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      text-transform: uppercase;
     }
 
-    #progressOuter {
-      width: min(600px, 90vw);
-      height: 12px;
-      margin-top: 18px;
-      border-radius: 20px;
+    .progress-track {
+      width: 100%;
+      height: 9px;
       overflow: hidden;
-      background: #292929;
+      border: 1px solid rgba(157, 148, 255, .25);
+      border-radius: 20px;
+      background: rgba(3, 5, 18, .9);
+      box-shadow: inset 0 1px 4px rgba(0, 0, 0, .55);
     }
 
-    #progressInner {
+    #progressFill {
       width: 0%;
       height: 100%;
-      background: linear-gradient(90deg, #ff3333, #ffcc33);
-      transition: width 0.15s linear;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #6557c9, #a99aff, #91e3ef);
+      box-shadow: 0 0 13px rgba(169, 154, 255, .55);
+      transition: width .18s ease;
     }
 
-    #diagnostics {
-      width: min(700px, 90vw);
-      max-height: 180px;
-      overflow-y: auto;
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #333;
-      background: #101010;
-      color: #aaa;
-      font-family: monospace;
-      font-size: 11px;
-      text-align: left;
-      white-space: pre-wrap;
-    }
-
-    /* ============================================================
-       SAVE / LOAD BUTTONS
-       ============================================================ */
-
-    #saveControls {
-      position: fixed;
-      top: 12px;
-      right: 12px;
-      z-index: 1000;
+    .loading-meta {
       display: flex;
-      gap: 8px;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 11px;
+      color: #858db5;
+      font-size: 10px;
+      letter-spacing: .8px;
     }
 
-    #saveControls button {
-      padding: 10px 16px;
-      border: 2px solid #d6a832;
-      border-radius: 6px;
-      background: #211b16;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 14px;
+    #loadingDetail {
+      min-width: 0;
+      text-align: left;
+      overflow-wrap: anywhere;
     }
 
-    #saveControls button:hover {
-      background: #49351b;
+    #loadingPercent {
+      flex: 0 0 auto;
+      color: #c9c3ff;
+      font-variant-numeric: tabular-nums;
     }
 
-    #saveControls button:disabled {
-      opacity: 0.5;
-      cursor: wait;
+    #loadingText {
+      min-height: 17px;
+      margin: 12px 0 0;
+      color: #747da5;
+      font-size: 10px;
+      letter-spacing: .5px;
+      overflow-wrap: anywhere;
     }
 
-    #saveFileInput {
+    #errorBox {
       display: none;
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid rgba(255, 105, 125, .35);
+      border-radius: 8px;
+      background: rgba(80, 15, 30, .25);
+      color: #ffb5c0;
+      font-size: 11px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    #retryButton {
+      display: none;
+      margin: 13px auto 0;
+      padding: 9px 16px;
+      border: 1px solid rgba(178, 166, 255, .55);
+      border-radius: 8px;
+      background: rgba(58, 49, 105, .75);
+      color: #f4f2ff;
+      font: inherit;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+    }
+
+    #retryButton:hover {
+      background: rgba(80, 68, 145, .9);
+      box-shadow: 0 0 20px rgba(123, 105, 255, .2);
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 20px;
+      color: #626b96;
+      font-size: 9px;
+      letter-spacing: 3px;
+    }
+
+    #unity-container {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #unity-canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      background: #000;
+      outline: none;
+    }
+
+    @media (max-width: 650px) {
+      .topline { padding: 0 15px; font-size: 8px; letter-spacing: 1px; }
+      .hero { padding: 25px 5px; }
+      .orbit { width: 205px; height: 205px; }
+      .loading-panel { padding: 17px 15px; }
+      .hero-subtitle { font-size: 10px; letter-spacing: 1.5px; }
+      .footer { font-size: 8px; letter-spacing: 2px; }
+    }
+
+
+
+    /* Always-visible game controls. These are outside the Unity container. */
+    #gameTools {
+      position: fixed !important;
+      top: 14px !important;
+      right: 14px !important;
+      z-index: 2147483647 !important;
+      display: flex !important;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      visibility: visible !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+
+    .game-tool-button {
+      appearance: none;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 9px 13px;
+      border: 1px solid rgba(169, 154, 255, .65);
+      border-radius: 8px;
+      background: rgba(12, 14, 34, .94);
+      color: #f4f2ff;
+      font: 700 11px/1.2 Inter, ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: .5px;
+      cursor: pointer;
+      box-shadow: 0 3px 18px rgba(0, 0, 0, .45);
+      pointer-events: auto !important;
+    }
+
+    .game-tool-button:hover {
+      background: rgba(64, 53, 120, .98);
+      border-color: #bdb1ff;
+    }
+
+    .game-tool-button:active { transform: translateY(1px); }
+
+    #saveStatus {
+      position: fixed !important;
+      top: 62px !important;
+      right: 14px !important;
+      z-index: 2147483647 !important;
+      display: none;
+      max-width: min(420px, calc(100vw - 28px));
+      padding: 8px 11px;
+      border: 1px solid rgba(145, 227, 239, .4);
+      border-radius: 7px;
+      background: rgba(4, 10, 22, .96);
+      color: #c9f7ff;
+      font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow-wrap: anywhere;
+      box-shadow: 0 4px 18px #0009;
+    }
+
+    #restoreFileInput { display: none !important; }
+
+    @media (max-width: 650px) {
+      #gameTools { top: 8px !important; right: 8px !important; gap: 5px; }
+      .game-tool-button { min-height: 34px; padding: 7px 9px; font-size: 10px; }
+      #saveStatus { top: 52px !important; right: 8px !important; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
     }
   </style>
 </head>
 
 <body>
 
-  <div id="loadingScreen">
-    <div id="loadingTitle">CUPHEAD</div>
+  <!-- Kept directly under body so the hidden Unity container cannot hide them. -->
+  <div id="gameTools" role="toolbar" aria-label="Game controls">
+    <button class="game-tool-button" id="exportSaveButton" type="button">Download Save</button>
+    <button class="game-tool-button" id="importSaveButton" type="button">Load Save</button>
+    <button class="game-tool-button" id="fullscreenButton" type="button">Fullscreen</button>
+  </div>
+  <div id="saveStatus" role="status" aria-live="polite"></div>
+  <input id="restoreFileInput" type="file" accept=".json,application/json">
 
-    <div id="loadingStatus">
-      Preparing game...
-    </div>
-
-    <div id="progressOuter">
-      <div id="progressInner"></div>
-    </div>
-
-    <div id="diagnostics"></div>
+  <div id="spaceBackground" aria-hidden="true">
+    <i class="shooting-star"></i>
+    <i class="shooting-star"></i>
+    <i class="shooting-star"></i>
   </div>
 
-  <div id="gameContainer"></div>
+  <main id="loadingScreen">
+    <div class="topline">
+      <span class="topline-mark">AMW / DIGITAL ARCHIVE</span>
+      <span>INTO THE PIT · WEB EDITION</span>
+    </div>
 
-  <!-- SAVE / LOAD CONTROLS -->
+    <section class="hero">
+      <div class="orbit"><span class="orbit-dot"></span></div>
 
-  <div id="saveControls">
-    <button id="saveButton" type="button">
-      Save
-    </button>
+      <div class="hero-copy">
+        <p class="eyebrow">A journey beyond the ordinary</p>
+        <h1>INTO THE PIT</h1>
+        <p class="hero-subtitle">FIVE NIGHTS AT FREDDY'S</p>
+        <div class="hero-rule"></div>
+      </div>
 
-    <button id="loadButton" type="button">
-      Load
-    </button>
+      <div class="loading-panel">
+        <div id="loadingStatus">INITIALIZING GAME SYSTEMS</div>
 
-    <input
-      id="saveFileInput"
-      type="file"
-      accept=".json,application/json"
-    >
+        <div class="progress-track">
+          <div id="progressFill"></div>
+        </div>
+
+        <div class="loading-meta">
+          <span id="loadingDetail">Preparing game assets...</span>
+          <span id="loadingPercent">0%</span>
+        </div>
+
+        <p id="loadingText">Connecting to the AMW archive...</p>
+        <div id="errorBox"></div>
+        <button id="retryButton" type="button" onclick="location.reload()">RETRY DOWNLOAD</button>
+      </div>
+    </section>
+
+    <div class="footer">AMW DIGITAL ARCHIVE &nbsp;·&nbsp; ENTER THE UNKNOWN</div>
+  </main>
+
+  <div id="unity-container">
+    <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
   </div>
-
-  <!-- Unity's original loader remains unchanged. -->
-
-  <script src="https://cdn.jsdelivr.net/gh/AMoldyWaffle/Cuphead@main/Build/UnityLoader.js"></script>
 
   <script>
-  (() => {
     "use strict";
 
-    // ============================================================
-    // CONFIGURATION
-    // ============================================================
+    // All game files are expected to be committed to this repository.
+    const GAME_BASE =
+      "https://raw.githubusercontent.com/AMoldyWaffle/Into-The-Pit/main/";
 
-    const REPOSITORY = "AMoldyWaffle/Cuphead";
-    const BRANCH = "main";
+    const CACHE_NAME = "amw-into-the-pit-cache-v3";
+    const MAX_PARALLEL_DOWNLOADS = 12;
 
-    const CDN_BASE =
-      `https://cdn.jsdelivr.net/gh/${REPOSITORY}@${BRANCH}/Build/`;
+    // Retained from the original launcher as the approximate full download size.
+    // The displayed percentage is capped during downloading and finishes during
+    // Unity initialization, so a small size difference cannot push it past 100%.
+    const ESTIMATED_TOTAL_BYTES = 645.25 * 1024 * 1024;
 
-    const RAW_BASE =
-      `https://raw.githubusercontent.com/${REPOSITORY}/${BRANCH}/Build/`;
+    const PREBUNDLE_NAME =
+      "webglprefabs_assets_all_5ea291f575ddd5dc7ae765c62c8e6be3.bundle";
 
-    const CACHE_NAME = "cuphead-cache-v1";
-
-    const PART_CONCURRENCY = 8;
-
-    const ASSETS = [
-      {
-        name: "CupheadPort.data.unityweb",
-        parts: 103,
-        size: 2134335501
-      },
-      {
-        name: "CupheadPort.wasm.code.unityweb",
-        parts: 2,
-        size: 26100243
-      },
-      {
-        name: "CupheadPort.asm.code.unityweb",
-        parts: 3,
-        size: 42954393
-      }
-    ];
-
-    const SINGLE_ASSETS = [
-      {
-        name: "CupheadPort.json",
-        size: 539
-      },
-      {
-        name: "CupheadPort.asm.framework.unityweb",
-        size: 537176
-      },
-      {
-        name: "CupheadPort.asm.memory.unityweb",
-        size: 3637047
-      },
-      {
-        name: "CupheadPort.wasm.framework.unityweb",
-        size: 601597
-      }
-    ];
-
-    const ASM_FRAMEWORK_SHA =
-      "07a9d2aef6919ee72f1d940a0879a2afe702dd43";
-
-    // ============================================================
-    // STATE
-    // ============================================================
-
-    const loadingScreen =
-      document.getElementById("loadingScreen");
-
-    const loadingStatus =
-      document.getElementById("loadingStatus");
-
-    const progressInner =
-      document.getElementById("progressInner");
-
-    const diagnostics =
-      document.getElementById("diagnostics");
-
-    const objectURLs = {};
+    const loadingScreen = document.getElementById("loadingScreen");
+    const loadingStatus = document.getElementById("loadingStatus");
+    const loadingDetail = document.getElementById("loadingDetail");
+    const loadingPercent = document.getElementById("loadingPercent");
+    const loadingText = document.getElementById("loadingText");
+    const progressFill = document.getElementById("progressFill");
+    const errorBox = document.getElementById("errorBox");
+    const retryButton = document.getElementById("retryButton");
+    const unityContainer = document.getElementById("unity-container");
+    const canvas = document.getElementById("unity-canvas");
 
     let loadedBytes = 0;
+    let lastProgressUpdate = 0;
+    let activeDownloads = 0;
+    const downloadWaiters = [];
 
-    const totalBytes =
-      ASSETS.reduce((n, a) => n + a.size, 0) +
-      SINGLE_ASSETS.reduce((n, a) => n + a.size, 0);
+    function setProgress(percent, detail, status) {
+      const safePercent = Math.max(0, Math.min(100, percent));
+      progressFill.style.width = safePercent.toFixed(1) + "%";
+      loadingPercent.textContent = Math.floor(safePercent) + "%";
 
-    let cache = null;
-    let unityInstance = null;
-
-    // ============================================================
-    // SAVE / LOAD ELEMENTS
-    // ============================================================
-
-    const saveButton =
-      document.getElementById("saveButton");
-
-    const loadButton =
-      document.getElementById("loadButton");
-
-    const saveFileInput =
-      document.getElementById("saveFileInput");
-
-    const SAVE_DIRECTORY = "/idbfs";
-
-    // ============================================================
-    // DIAGNOSTICS
-    // ============================================================
-
-    function log(message) {
-      const time = new Date().toLocaleTimeString();
-
-      diagnostics.textContent +=
-        `[${time}] ${message}\n`;
-
-      diagnostics.scrollTop =
-        diagnostics.scrollHeight;
-
-      console.log("[Cuphead]", message);
+      if (detail) loadingDetail.textContent = detail;
+      if (status) loadingStatus.textContent = status;
     }
 
-    function setStatus(message) {
-      loadingStatus.textContent = message;
-      log(message);
-    }
+    function updateDownloadProgress(force = false) {
+      const now = Date.now();
+      if (!force && now - lastProgressUpdate < 100) return;
+      lastProgressUpdate = now;
 
-    function updateProgress(bytes = 0) {
-      loadedBytes += bytes;
+      const mbDone = (loadedBytes / (1024 * 1024)).toFixed(1);
+      const mbTotal = (ESTIMATED_TOTAL_BYTES / (1024 * 1024)).toFixed(1);
+      const percent = Math.min(89, (loadedBytes / ESTIMATED_TOTAL_BYTES) * 90);
 
-      const percentage = Math.min(
-        100,
-        (loadedBytes / totalBytes) * 100
+      setProgress(
+        percent,
+        mbDone + " MB / ~" + mbTotal + " MB",
+        "DOWNLOADING GAME ASSETS"
       );
-
-      progressInner.style.width =
-        percentage.toFixed(2) + "%";
-
-      const mbDone =
-        (loadedBytes / 1048576).toFixed(1);
-
-      const mbTotal =
-        (totalBytes / 1048576).toFixed(1);
-
-      loadingStatus.textContent =
-        `Downloading assets: ${mbDone} MB / ${mbTotal} MB`;
+      loadingText.textContent = "Downloading and preparing game files...";
     }
 
-    // ============================================================
-    // CACHE
-    // ============================================================
+    function showError(error) {
+      console.error("[Into The Pit Launcher]", error);
 
-    function cacheKey(filename) {
-      return new URL(
-        "/__cuphead_cache__/" +
-        encodeURIComponent(filename),
-        location.href
-      ).href;
-    }
+      const message =
+        (error && error.message ? error.message : String(error)) +
+        " — Check that the required game files are committed to " +
+        "AMoldyWaffle/Into-The-Pit on the main branch.";
 
-    async function initializeCache() {
-      try {
-        if (!("caches" in window)) {
-          log("Cache Storage unavailable.");
-          return;
-        }
+      loadingStatus.textContent = "LAUNCH FAILED";
+      loadingText.textContent = "The game could not be initialized.";
+      errorBox.style.display = "block";
+      errorBox.textContent = message;
+      retryButton.style.display = "block";
 
-        cache = await caches.open(CACHE_NAME);
-
-        log("Persistent asset cache initialized.");
-      } catch (error) {
-        cache = null;
-
-        log(
-          "Cache initialization failed: " +
-          error.message
-        );
+      // Keep diagnostics visible even if Unity has already hidden the launcher.
+      let overlay = document.getElementById("runtimeErrorOverlay");
+      if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "runtimeErrorOverlay";
+        overlay.style.cssText =
+          "position:fixed;z-index:99999;left:16px;right:16px;bottom:16px;" +
+          "max-height:40vh;overflow:auto;padding:14px 16px;" +
+          "border:1px solid #b85c70;border-radius:9px;" +
+          "background:rgba(20,5,14,.96);color:#ffd8df;" +
+          "font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;" +
+          "overflow-wrap:anywhere;box-shadow:0 8px 35px #000a;";
+        document.body.appendChild(overlay);
       }
+      overlay.textContent = "INTO THE PIT — RUNTIME ERROR\\n" + message;
     }
 
-    async function getCachedAsset(filename, expectedSize) {
-      if (!cache) return null;
-
-      try {
-        const response =
-          await cache.match(cacheKey(filename));
-
-        if (!response) return null;
-
-        const blob = await response.blob();
-
-        if (blob.size !== expectedSize) {
-          log(
-            `Invalid cached asset: ${filename} ` +
-            `(${blob.size} bytes)`
-          );
-
-          await cache.delete(cacheKey(filename));
-
-          return null;
-        }
-
-        updateProgress(blob.size);
-
-        log(`Using cached asset: ${filename}`);
-
-        return blob;
-      } catch (error) {
-        log(
-          `Cache read failed for ${filename}: ` +
-          error.message
-        );
-
-        return null;
+    async function acquireDownloadSlot() {
+      if (activeDownloads >= MAX_PARALLEL_DOWNLOADS) {
+        await new Promise(resolve => downloadWaiters.push(resolve));
       }
+      activeDownloads++;
     }
 
-    async function saveCachedAsset(filename, blob) {
-      if (!cache) return;
+    function releaseDownloadSlot() {
+      activeDownloads--;
+      const next = downloadWaiters.shift();
+      if (next) next();
+    }
+
+    function getParts(file, start, end) {
+      const parts = [];
+      for (let i = start; i <= end; i++) {
+        parts.push(file + ".part" + i);
+      }
+      return parts;
+    }
+
+    async function fetchPart(path) {
+      const url = new URL(path, GAME_BASE).href;
+
+      await acquireDownloadSlot();
 
       try {
-        await cache.put(
-          cacheKey(filename),
-          new Response(blob)
-        );
+        const response = await fetch(url, { cache: "force-cache" });
 
-        log(`Cached asset: ${filename}`);
-      } catch (error) {
-        log(
-          `Could not cache ${filename}: ` +
-          error.message
-        );
-      }
-    }
-
-    // ============================================================
-    // DOWNLOAD HELPERS
-    // ============================================================
-
-    async function fetchResponse(url) {
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(
-          `HTTP ${response.status}: ${url}`
-        );
-      }
-
-      return response;
-    }
-
-    async function fetchBlobWithFallback(filename) {
-      const urls = [
-        CDN_BASE + filename,
-        RAW_BASE + filename
-      ];
-
-      let lastError = null;
-
-      for (const url of urls) {
-        try {
-          log(`Fetching ${filename} from ${url}`);
-
-          const response = await fetchResponse(url);
-
-          return await response.blob();
-        } catch (error) {
-          lastError = error;
-
-          log(
-            `Download fallback: ${error.message}`
+        if (!response.ok) {
+          throw new Error(
+            "Could not download " + path + " (HTTP " + response.status + ")."
           );
         }
-      }
 
-      if (filename === "CupheadPort.asm.framework.unityweb") {
-        try {
-          log("Trying GitHub Blob API fallback.");
-
-          const apiURL =
-            `https://api.github.com/repos/${REPOSITORY}` +
-            `/git/blobs/${ASM_FRAMEWORK_SHA}`;
-
-          const response =
-            await fetchResponse(apiURL);
-
-          const json = await response.json();
-
-          if (!json.content) {
-            throw new Error(
-              "GitHub Blob API returned no content."
-            );
-          }
-
-          const binary = atob(
-            json.content.replace(/\s/g, "")
-          );
-
-          const bytes = new Uint8Array(binary.length);
-
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-          }
-
-          return new Blob([bytes], {
-            type: "application/octet-stream"
-          });
-
-        } catch (error) {
-          lastError = error;
-
-          log(
-            "GitHub Blob API fallback failed: " +
-            error.message
-          );
+        if (!response.body) {
+          const blob = await response.blob();
+          loadedBytes += blob.size;
+          updateDownloadProgress();
+          return blob;
         }
-      }
 
-      throw lastError ||
-        new Error(`Unable to download ${filename}`);
-    }
+        // Keep the streamed chunks as Blob parts. This avoids the old extra
+        // Uint8Array allocation and full-buffer copy after every download.
+        const reader = response.body.getReader();
+        const chunks = [];
+        let partBytes = 0;
 
-    // ============================================================
-    // STREAMED PART DOWNLOAD
-    // ============================================================
-
-    async function fetchPart(url) {
-      let lastError = null;
-
-      const sources = [
-        url,
-        url.replace(CDN_BASE, RAW_BASE)
-      ];
-
-      for (const source of sources) {
-        let received = 0;
-
-        try {
-          const response =
-            await fetchResponse(source);
-
-          if (!response.body) {
-            const blob = await response.blob();
-
-            updateProgress(blob.size);
-
-            return blob;
-          }
-
-          const reader =
-            response.body.getReader();
-
-          const chunks = [];
-
-          while (true) {
-            const result = await reader.read();
-
-            if (result.done) break;
-
-            chunks.push(result.value);
-
-            received += result.value.byteLength;
-
-            updateProgress(
-              result.value.byteLength
-            );
-          }
-
-          return new Blob(chunks, {
-            type: "application/octet-stream"
-          });
-
-        } catch (error) {
-          loadedBytes = Math.max(
-            0,
-            loadedBytes - received
-          );
-
-          lastError = error;
-
-          log(
-            `Part download failed; trying fallback: ` +
-            error.message
-          );
-        }
-      }
-
-      throw lastError ||
-        new Error("All part sources failed.");
-    }
-
-    // ============================================================
-    // LIMITED-CONCURRENCY PART ASSEMBLY
-    // ============================================================
-
-    async function downloadParts(asset) {
-      const parts = new Array(asset.parts);
-
-      let nextIndex = 0;
-
-      async function worker() {
         while (true) {
-          const index = nextIndex++;
+          const result = await reader.read();
+          if (result.done) break;
 
-          if (index >= asset.parts) {
-            return;
-          }
-
-          const partNumber = index + 1;
-
-          const filename =
-            `${asset.name}.part${partNumber}`;
-
-          const url = CDN_BASE + filename;
-
-          log(
-            `Downloading ${filename} ` +
-            `(${partNumber}/${asset.parts})`
-          );
-
-          parts[index] =
-            await fetchPart(url);
+          chunks.push(result.value);
+          partBytes += result.value.byteLength;
+          loadedBytes += result.value.byteLength;
+          updateDownloadProgress();
         }
+
+        return new Blob(chunks);
+      } finally {
+        releaseDownloadSlot();
+      }
+    }
+
+    async function mergeFiles(fileParts, cacheKey) {
+      const cache = await caches.open(CACHE_NAME);
+      const cachedResponse = await cache.match(cacheKey);
+
+      if (cachedResponse) {
+        const cachedBlob = await cachedResponse.blob();
+        loadedBytes += cachedBlob.size;
+        updateDownloadProgress();
+        console.log("[Cache] Using cached asset:", cacheKey);
+        return URL.createObjectURL(cachedBlob);
       }
 
-      const workers = [];
+      console.log("[Download] Fetching:", cacheKey);
 
-      const workerCount = Math.min(
-        PART_CONCURRENCY,
-        asset.parts
+      // The shared download limiter caps total simultaneous requests across
+      // the data, WASM, and bundle downloads.
+      const partBlobs = await Promise.all(
+        fileParts.map(path => fetchPart(path))
       );
 
-      for (let i = 0; i < workerCount; i++) {
-        workers.push(worker());
-      }
-
-      await Promise.all(workers);
-
-      const mergedBlob = new Blob(parts, {
+      const mergedBlob = new Blob(partBlobs, {
         type: "application/octet-stream"
       });
 
-      if (mergedBlob.size !== asset.size) {
-        throw new Error(
-          `${asset.name} size mismatch. ` +
-          `Expected ${asset.size}, got ${mergedBlob.size}.`
-        );
+      // Store the completed merged file. Future launches can skip all of its
+      // individual network requests and only create a local object URL.
+      await cache.put(cacheKey, new Response(mergedBlob));
+
+      return URL.createObjectURL(mergedBlob);
+    }
+
+
+    /* =========================================================
+       SAVE / RESTORE
+       The backup contains the game's browser IndexedDB databases.
+       It does not include downloaded game assets or browser cache.
+    ========================================================= */
+    const saveStatus = document.getElementById("saveStatus");
+    const restoreFileInput = document.getElementById("restoreFileInput");
+
+    function setSaveStatus(message, duration = 5000) {
+      saveStatus.textContent = message;
+      saveStatus.style.display = "block";
+      if (setSaveStatus.timer) clearTimeout(setSaveStatus.timer);
+      if (duration > 0) {
+        setSaveStatus.timer = setTimeout(() => {
+          saveStatus.style.display = "none";
+        }, duration);
       }
-
-      return mergedBlob;
     }
 
-    // ============================================================
-    // ASSET ASSEMBLY AND CACHING
-    // ============================================================
-
-    async function loadSplitAsset(asset) {
-      setStatus(`Preparing ${asset.name}...`);
-
-      let blob = await getCachedAsset(
-        asset.name,
-        asset.size
-      );
-
-      if (!blob) {
-        log(
-          `Downloading ${asset.parts} parts for ${asset.name}`
-        );
-
-        blob = await downloadParts(asset);
-
-        await saveCachedAsset(
-          asset.name,
-          blob
-        );
-      }
-
-      if (blob.size !== asset.size) {
-        throw new Error(
-          `Incorrect assembled size for ${asset.name}.`
-        );
-      }
-
-      objectURLs[asset.name] =
-        URL.createObjectURL(blob);
-
-      log(`Assembled ${asset.name}`);
-
-      return objectURLs[asset.name];
-    }
-
-    async function loadSingleAsset(asset) {
-      setStatus(`Preparing ${asset.name}...`);
-
-      let blob = await getCachedAsset(
-        asset.name,
-        asset.size
-      );
-
-      if (!blob) {
-        blob = await fetchBlobWithFallback(
-          asset.name
-        );
-
-        if (blob.size !== asset.size) {
-          throw new Error(
-            `${asset.name} size mismatch. ` +
-            `Expected ${asset.size}, got ${blob.size}.`
-          );
-        }
-
-        updateProgress(blob.size);
-
-        await saveCachedAsset(
-          asset.name,
-          blob
-        );
-      }
-
-      objectURLs[asset.name] =
-        URL.createObjectURL(blob);
-
-      log(`Loaded ${asset.name}`);
-
-      return objectURLs[asset.name];
-    }
-
-    // ============================================================
-    // UNITY REQUEST REDIRECTION
-    // ============================================================
-
-    function redirectAssetURL(url) {
-      if (url == null) return url;
-
-      const original = String(url);
-
-      for (const [filename, blobURL] of
-        Object.entries(objectURLs)) {
-
-        if (original.includes(filename)) {
-          return blobURL;
-        }
-      }
-
-      return original;
-    }
-
-    function installRequestRedirects() {
-      log("Installing local asset request redirects.");
-
-      const originalOpen =
-        XMLHttpRequest.prototype.open;
-
-      XMLHttpRequest.prototype.open =
-        function(method, url, ...rest) {
-
-          const redirected =
-            redirectAssetURL(url);
-
-          if (redirected !== String(url)) {
-            log(
-              `XHR redirected: ${url} -> local Blob`
-            );
-          }
-
-          return originalOpen.call(
-            this,
-            method,
-            redirected,
-            ...rest
-          );
-        };
-
-      const originalFetch =
-        window.fetch.bind(window);
-
-      window.fetch = function(input, init) {
-        const originalURL =
-          input instanceof Request
-            ? input.url
-            : String(input);
-
-        const redirectedURL =
-          redirectAssetURL(originalURL);
-
-        if (redirectedURL !== originalURL) {
-          log(
-            `Fetch redirected: ${originalURL} -> local Blob`
-          );
-
-          if (input instanceof Request) {
-            return originalFetch(
-              new Request(redirectedURL, input),
-              init
-            );
-          }
-
-          return originalFetch(
-            redirectedURL,
-            init
-          );
-        }
-
-        return originalFetch(input, init);
-      };
-
-      log("XHR and Fetch redirects installed.");
-    }
-
-    // ============================================================
-    // SAVE / LOAD SYSTEM
-    // ============================================================
-
-    function getUnityFS() {
-      const candidates = [
-        unityInstance?.Module?.FS,
-        unityInstance?.module?.FS,
-        unityInstance?.Module?.module?.FS,
-        window.Module?.FS,
-        window.FS
-      ];
-
-      return candidates.find(fs =>
-        fs &&
-        typeof fs.readdir === "function" &&
-        typeof fs.readFile === "function" &&
-        typeof fs.writeFile === "function" &&
-        typeof fs.syncfs === "function" &&
-        typeof fs.stat === "function"
-      );
-    }
-
-    function syncUnityFilesystem(fs, populate) {
+    function requestResult(request) {
       return new Promise((resolve, reject) => {
-        fs.syncfs(populate, error => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve();
-          }
-        });
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("IndexedDB request failed."));
       });
     }
 
-    function bytesToBase64(bytes) {
-      let binary = "";
-      const chunkSize = 0x8000;
-
-      for (
-        let i = 0;
-        i < bytes.length;
-        i += chunkSize
-      ) {
-        const chunk = bytes.subarray(
-          i,
-          Math.min(i + chunkSize, bytes.length)
-        );
-
-        binary += String.fromCharCode(...chunk);
+    async function encodeSaveValue(value) {
+      if (value === null || value === undefined) return value;
+      if (value instanceof Date) return { __saveType: "Date", value: value.toISOString() };
+      if (value instanceof Blob) {
+        return {
+          __saveType: "Blob",
+          mime: value.type,
+          value: Array.from(new Uint8Array(await value.arrayBuffer()))
+        };
       }
-
-      return btoa(binary);
+      if (value instanceof ArrayBuffer) {
+        return { __saveType: "ArrayBuffer", value: Array.from(new Uint8Array(value)) };
+      }
+      if (ArrayBuffer.isView(value)) {
+        return {
+          __saveType: "TypedArray",
+          name: value.constructor.name,
+          value: Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength))
+        };
+      }
+      if (Array.isArray(value)) return await Promise.all(value.map(encodeSaveValue));
+      if (typeof value === "object") {
+        const entries = await Promise.all(Object.entries(value).map(async ([key, item]) => [key, await encodeSaveValue(item)]));
+        return Object.fromEntries(entries);
+      }
+      return value;
     }
 
-    function base64ToBytes(base64) {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
+    function decodeSaveValue(value) {
+      if (value === null || value === undefined) return value;
+      if (Array.isArray(value)) return value.map(decodeSaveValue);
+      if (typeof value !== "object") return value;
+      if (value.__saveType === "Date") return new Date(value.value);
+      if (value.__saveType === "ArrayBuffer") return new Uint8Array(value.value).buffer;
+      if (value.__saveType === "TypedArray") {
+        const bytes = new Uint8Array(value.value);
+        const constructors = {
+          Int8Array, Uint8Array, Uint8ClampedArray, Int16Array,
+          Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array,
+          BigInt64Array: window.BigInt64Array,
+          BigUint64Array: window.BigUint64Array
+        };
+        const Constructor = constructors[value.name];
+        if (!Constructor) return bytes;
+        const copy = bytes.buffer.slice(0);
+        return new Constructor(copy);
       }
-
-      return bytes;
+      if (value.__saveType === "Blob") return new Blob([new Uint8Array(value.value || [])], { type: value.mime || "" });
+      const result = {};
+      for (const [key, item] of Object.entries(value)) result[key] = decodeSaveValue(item);
+      return result;
     }
 
-    function collectSaveFiles(
-      fs,
-      directory,
-      files,
-      directories
-    ) {
-      const entries = fs.readdir(directory);
+    function isGameDatabase(name) {
+      const lower = name.toLowerCase();
+      return lower.includes("unity") || lower.includes("idbfs") || lower.includes("em_fs");
+    }
 
-      for (const entry of entries) {
-        if (entry === "." || entry === "..") {
-          continue;
+    async function exportDatabase(name) {
+      const db = await requestResult(indexedDB.open(name));
+      const stores = [];
+      for (const storeName of Array.from(db.objectStoreNames)) {
+        const transaction = db.transaction(storeName, "readonly");
+        const store = transaction.objectStore(storeName);
+        const [keys, values] = await Promise.all([
+          requestResult(store.getAllKeys()),
+          requestResult(store.getAll())
+        ]);
+        stores.push({
+          name: storeName,
+          keyPath: store.keyPath,
+          autoIncrement: store.autoIncrement,
+          indexes: Array.from(store.indexNames).map(indexName => {
+            const index = store.index(indexName);
+            return {
+              name: index.name,
+              keyPath: index.keyPath,
+              unique: index.unique,
+              multiEntry: index.multiEntry
+            };
+          }),
+          records: await Promise.all(values.map(async (value, i) => ({
+            key: await encodeSaveValue(keys[i]),
+            value: await encodeSaveValue(value)
+          })))
+        });
+      }
+      const result = { name: db.name, version: db.version, stores };
+      db.close();
+      return result;
+    }
+
+    async function downloadGameSave() {
+      try {
+        if (!indexedDB.databases) {
+          throw new Error("This browser cannot list IndexedDB databases, so automatic save export is unavailable.");
         }
+        setSaveStatus("Preparing save backup...", 0);
+        const infos = await indexedDB.databases();
+        const targets = infos.filter(info => info.name && isGameDatabase(info.name));
+        if (!targets.length) {
+          throw new Error("No Unity save databases were found. Start the game and create some progress first.");
+        }
+        const backup = {
+          format: "AMW-UNITY-SAVE",
+          version: 1,
+          game: "Five Nights at Freddy's: Into the Pit",
+          created: new Date().toISOString(),
+          databases: []
+        };
+        for (const info of targets) {
+          setSaveStatus("Backing up " + info.name + "...", 0);
+          backup.databases.push(await exportDatabase(info.name));
+        }
+        const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "Into-The-Pit-Save-" + new Date().toISOString().replace(/[:.]/g, "-") + ".json";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        setSaveStatus("Save backup downloaded.");
+      } catch (error) {
+        console.error("Save export failed:", error);
+        setSaveStatus("Save failed: " + error.message, 0);
+      }
+    }
 
-        const path =
-          directory === "/"
-            ? "/" + entry
-            : directory + "/" + entry;
+    function deleteDatabase(name) {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.deleteDatabase(name);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error || new Error("Could not delete database " + name));
+        request.onblocked = () => reject(new Error("Database " + name + " is still open. Close other game tabs and try again."));
+      });
+    }
 
-        const stat = fs.stat(path);
+    async function importDatabase(data) {
+      await deleteDatabase(data.name);
+      const version = Math.max(1, Number(data.version) || 1);
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open(data.name, version);
+        request.onupgradeneeded = () => {
+          const database = request.result;
+          for (const storeData of data.stores) {
+            const options = { autoIncrement: !!storeData.autoIncrement };
+            if (storeData.keyPath !== null && storeData.keyPath !== undefined) options.keyPath = storeData.keyPath;
+            const store = database.createObjectStore(storeData.name, options);
+            for (const indexData of (storeData.indexes || [])) {
+              store.createIndex(indexData.name, indexData.keyPath, {
+                unique: !!indexData.unique,
+                multiEntry: !!indexData.multiEntry
+              });
+            }
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
 
-        if (fs.isDir(stat.mode)) {
-          directories.push(path);
+      for (const storeData of data.stores) {
+        if (!db.objectStoreNames.contains(storeData.name)) continue;
+        await new Promise((resolve, reject) => {
+          const transaction = db.transaction(storeData.name, "readwrite");
+          const store = transaction.objectStore(storeData.name);
+          for (const record of storeData.records || []) {
+            const value = decodeSaveValue(record.value);
+            if (store.keyPath !== null) store.put(value);
+            else store.put(value, decodeSaveValue(record.key));
+          }
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error);
+          transaction.onabort = () => reject(transaction.error || new Error("Restore transaction aborted."));
+        });
+      }
+      db.close();
+    }
 
-          collectSaveFiles(
-            fs,
-            path,
-            files,
-            directories
+    async function loadGameSave(file) {
+      try {
+        const backup = JSON.parse(await file.text());
+        if (backup.format !== "AMW-UNITY-SAVE" || !Array.isArray(backup.databases)) {
+          throw new Error("This is not a valid Into the Pit save backup.");
+        }
+        if (!confirm("Restore this save? Existing game progress in this browser will be replaced.")) return;
+        setSaveStatus("Restoring game progress...", 0);
+        for (const database of backup.databases) {
+          await importDatabase(database);
+        }
+        setSaveStatus("Save restored. Reloading the game...", 0);
+        setTimeout(() => location.reload(), 1200);
+      } catch (error) {
+        console.error("Save restore failed:", error);
+        setSaveStatus("Load failed: " + error.message, 0);
+      }
+    }
+
+    document.getElementById("exportSaveButton").addEventListener("click", downloadGameSave);
+    document.getElementById("importSaveButton").addEventListener("click", () => restoreFileInput.click());
+    restoreFileInput.addEventListener("change", event => {
+      const file = event.target.files && event.target.files[0];
+      if (file) loadGameSave(file);
+      event.target.value = "";
+    });
+    document.getElementById("fullscreenButton").addEventListener("click", async () => {
+      try {
+        if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+        else await document.exitFullscreen();
+      } catch (error) {
+        setSaveStatus("Fullscreen failed: " + error.message);
+      }
+    });
+
+    async function startGame() {
+      try {
+        setProgress(0, "Checking browser cache...", "PREPARING GAME");
+
+        if (!("caches" in window)) {
+          throw new Error(
+            "This browser does not support the Cache API required by this launcher."
           );
-
-        } else if (fs.isFile(stat.mode)) {
-          const contents = fs.readFile(path);
-
-          files.push({
-            path,
-            data: bytesToBase64(contents)
-          });
-        }
-      }
-    }
-
-    async function exportCupheadSave() {
-      const fs = getUnityFS();
-
-      if (!fs) {
-        throw new Error(
-          "Unity's filesystem is not exposed by this loader. " +
-          "The save cannot be exported through /idbfs."
-        );
-      }
-
-      log("Synchronizing Cuphead save filesystem...");
-
-      // Flush current in-memory files to persistent storage.
-      await syncUnityFilesystem(fs, false);
-
-      if (!fs.analyzePath(SAVE_DIRECTORY).exists) {
-        throw new Error(
-          "Cuphead's /idbfs directory was not found. " +
-          "This build may store saves somewhere else."
-        );
-      }
-
-      const files = [];
-      const directories = [];
-
-      collectSaveFiles(
-        fs,
-        SAVE_DIRECTORY,
-        files,
-        directories
-      );
-
-      if (files.length === 0) {
-        throw new Error(
-          "No save files were found in /idbfs. " +
-          "No backup was created."
-        );
-      }
-
-      const backup = {
-        format: "cuphead-save-backup",
-        version: 1,
-        created: new Date().toISOString(),
-        directories,
-        files
-      };
-
-      const blob = new Blob(
-        [JSON.stringify(backup)],
-        { type: "application/json" }
-      );
-
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
-      link.href = url;
-
-      link.download =
-        "Cuphead-Save-" +
-        new Date().toISOString().replace(/[:.]/g, "-") +
-        ".json";
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 60000);
-
-      log(
-        `Save exported successfully. ${files.length} file(s).`
-      );
-    }
-
-    function ensureDirectory(fs, path) {
-      const parts = path.split("/").filter(Boolean);
-      let current = "";
-
-      for (const part of parts) {
-        current += "/" + part;
-
-        if (!fs.analyzePath(current).exists) {
-          fs.mkdir(current);
-        }
-      }
-    }
-
-    function removeDirectoryContents(fs, directory) {
-      for (const entry of fs.readdir(directory)) {
-        if (entry === "." || entry === "..") {
-          continue;
         }
 
-        const path = directory + "/" + entry;
-        const stat = fs.stat(path);
+        const [dataUrl, wasmUrl, prebundleUrl] = await Promise.all([
+          mergeFiles(
+            getParts("Build/INTOTHEPIT.data", 1, 26),
+            "INTOTHEPIT.data"
+          ),
+          mergeFiles(
+            getParts("Build/INTOTHEPIT.wasm", 1, 5),
+            "INTOTHEPIT.wasm"
+          ),
+          mergeFiles(
+            getParts(
+              "StreamingAssets/aa/WebGL/" + PREBUNDLE_NAME,
+              1,
+              3
+            ),
+            PREBUNDLE_NAME
+          )
+        ]);
 
-        if (fs.isDir(stat.mode)) {
-          removeDirectoryContents(fs, path);
-          fs.rmdir(path);
-        } else {
-          fs.unlink(path);
+        setProgress(90, "Loading Unity engine...", "INITIALIZING UNITY");
+
+        // Unity requests this bundle by its normal StreamingAssets URL.
+        // Redirect only that request to the already-merged local object URL.
+        const originalOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+          if (String(url).includes(PREBUNDLE_NAME)) {
+            url = prebundleUrl;
+          }
+          return originalOpen.call(this, method, url, ...rest);
+        };
+
+        // Unity's loader inserts frameworkUrl as a normal <script src>.
+        // raw.githubusercontent.com can return JavaScript with a MIME type
+        // that the browser refuses for script loading. Fetch it and provide a
+        // JavaScript Blob URL, just as we do for the loader itself.
+        const frameworkUrl = new URL(
+          "Build/INTOTHEPIT.framework.js",
+          GAME_BASE
+        ).href;
+
+        let frameworkResponse;
+        try {
+          frameworkResponse = await fetch(frameworkUrl, { cache: "no-store" });
+        } catch (error) {
+          throw new Error(
+            "Could not fetch the Unity framework from " + frameworkUrl +
+            ". Check raw GitHub access and CORS. " + error.message
+          );
         }
-      }
-    }
 
-    async function importCupheadSave(backup) {
-      const fs = getUnityFS();
+        if (!frameworkResponse.ok) {
+          throw new Error(
+            "Unity framework request failed with HTTP " +
+            frameworkResponse.status + " (" +
+            frameworkResponse.statusText + "). URL: " + frameworkUrl
+          );
+        }
 
-      if (!fs) {
-        throw new Error(
-          "Unity's filesystem is not exposed by this loader."
-        );
-      }
-
-      if (
-        !backup ||
-        backup.format !== "cuphead-save-backup" ||
-        backup.version !== 1 ||
-        !Array.isArray(backup.files) ||
-        !Array.isArray(backup.directories)
-      ) {
-        throw new Error(
-          "This is not a valid Cuphead save backup."
-        );
-      }
-
-      if (backup.files.length === 0) {
-        throw new Error(
-          "The selected backup contains no save files."
-        );
-      }
-
-      // Validate all paths before changing existing saves.
-      for (const item of backup.files) {
+        const frameworkSource = await frameworkResponse.text();
         if (
-          typeof item.path !== "string" ||
-          !item.path.startsWith(SAVE_DIRECTORY + "/") ||
-          item.path.split("/").includes("..") ||
-          typeof item.data !== "string"
+          !frameworkSource ||
+          !frameworkSource.includes("unityFramework")
         ) {
           throw new Error(
-            "The backup contains an invalid file path."
+            "The Unity framework downloaded, but its contents appear invalid."
           );
         }
-      }
 
-      for (const directory of backup.directories) {
-        if (
-          typeof directory !== "string" ||
-          (
-            directory !== SAVE_DIRECTORY &&
-            !directory.startsWith(SAVE_DIRECTORY + "/")
-          ) ||
-          directory.split("/").includes("..")
-        ) {
+        const frameworkBlobUrl = URL.createObjectURL(
+          new Blob([frameworkSource], { type: "text/javascript" })
+        );
+
+        const config = {
+          dataUrl: dataUrl,
+          frameworkUrl: frameworkBlobUrl,
+          codeUrl: wasmUrl,
+          streamingAssetsUrl: new URL("StreamingAssets/", GAME_BASE).href,
+          companyName: "Mega Cat Studios",
+          productName: "Five Nights at Freddy's Into the Pit",
+          productVersion: "Release 1.0.11.7",
+          showBanner: function(message, type) {
+            if (type === "error") {
+              showError(new Error("Unity reported: " + message));
+            } else {
+              console.warn("[Unity]", type || "info", message);
+            }
+          }
+        };
+
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          const meta = document.createElement("meta");
+          meta.name = "viewport";
+          meta.content =
+            "width=device-width, height=device-height, initial-scale=1.0, " +
+            "user-scalable=no, shrink-to-fit=yes";
+          document.head.appendChild(meta);
+        }
+
+        unityContainer.style.display = "block";
+
+        // raw.githubusercontent.com serves JavaScript as a plain-text file on
+        // some routes. Fetch it first, then execute it from a JavaScript Blob
+        // so the browser does not reject it because of the response MIME type.
+        const loaderUrl = new URL("Build/INTOTHEPIT.loader.js", GAME_BASE).href;
+
+        let loaderResponse;
+        try {
+          loaderResponse = await fetch(loaderUrl, { cache: "no-store" });
+        } catch (error) {
           throw new Error(
-            "The backup contains an invalid directory."
+            "Could not reach the Unity loader at " + loaderUrl +
+            ". The host may be blocking the request. " + error.message
           );
         }
-      }
 
-      log("Preparing to restore Cuphead save...");
-
-      if (!fs.analyzePath(SAVE_DIRECTORY).exists) {
-        fs.mkdir(SAVE_DIRECTORY);
-      }
-
-      // Replace the existing persistent save contents.
-      removeDirectoryContents(fs, SAVE_DIRECTORY);
-
-      for (const directory of backup.directories) {
-        ensureDirectory(fs, directory);
-      }
-
-      for (const item of backup.files) {
-        const parent =
-          item.path.substring(
-            0,
-            item.path.lastIndexOf("/")
+        if (!loaderResponse.ok) {
+          throw new Error(
+            "Unity loader request failed with HTTP " + loaderResponse.status +
+            " (" + loaderResponse.statusText + "). URL: " + loaderUrl
           );
+        }
 
-        ensureDirectory(fs, parent);
+        const loaderSource = await loaderResponse.text();
+        if (!loaderSource || !loaderSource.includes("createUnityInstance")) {
+          throw new Error(
+            "The Unity loader downloaded, but its contents are empty or invalid."
+          );
+        }
 
-        fs.writeFile(
-          item.path,
-          base64ToBytes(item.data)
-        );
-      }
-
-      // Write the restored files into IndexedDB.
-      await syncUnityFilesystem(fs, false);
-
-      log(
-        `Save restored successfully. ${backup.files.length} file(s).`
-      );
-
-      alert(
-        "Cuphead save restored successfully!\n\n" +
-        "The game will now reload to apply the restored progress."
-      );
-
-      location.reload();
-    }
-
-    // ============================================================
-    // SAVE BUTTON EVENTS
-    // ============================================================
-
-    saveButton.addEventListener("click", async () => {
-      saveButton.disabled = true;
-
-      try {
-        await exportCupheadSave();
-
-        alert(
-          "Cuphead save backup downloaded successfully!"
+        const loaderBlobUrl = URL.createObjectURL(
+          new Blob([loaderSource], { type: "text/javascript" })
         );
 
+        const script = document.createElement("script");
+        script.src = loaderBlobUrl;
+
+        script.onerror = () => {
+          URL.revokeObjectURL(loaderBlobUrl);
+          showError(
+            new Error(
+              "The Unity loader was fetched successfully, but the browser " +
+              "blocked its execution. Check the page's Content Security Policy."
+            )
+          );
+        };
+
+        script.onload = () => {
+          URL.revokeObjectURL(loaderBlobUrl);
+
+          if (typeof createUnityInstance !== "function") {
+            showError(new Error("Unity loader loaded, but createUnityInstance is missing."));
+            return;
+          }
+
+          createUnityInstance(canvas, config, progress => {
+            const overallProgress = 90 + (progress * 10);
+            setProgress(
+              overallProgress,
+              "Starting game engine...",
+              "INITIALIZING UNITY"
+            );
+          }).then(() => {
+            setProgress(100, "Ready", "GAME READY");
+            loadingText.textContent = "Entering the pit...";
+            setTimeout(() => {
+              loadingScreen.classList.add("hidden");
+            }, 250);
+          }).catch(showError);
+        };
+
+        document.body.appendChild(script);
       } catch (error) {
-        console.error(error);
-
-        log("Save failed: " + error.message);
-
-        alert(
-          "Save failed:\n\n" + error.message
-        );
-
-      } finally {
-        saveButton.disabled = false;
-      }
-    });
-
-    // ============================================================
-    // LOAD BUTTON EVENTS
-    // ============================================================
-
-    loadButton.addEventListener("click", () => {
-      saveFileInput.click();
-    });
-
-    saveFileInput.addEventListener("change", async () => {
-      const file = saveFileInput.files?.[0];
-
-      if (!file) return;
-
-      loadButton.disabled = true;
-
-      try {
-        const contents = await file.text();
-        const backup = JSON.parse(contents);
-
-        if (!confirm(
-          "Restore this Cuphead save?\n\n" +
-          "Your current saved progress will be replaced."
-        )) {
-          return;
-        }
-
-        await importCupheadSave(backup);
-
-      } catch (error) {
-        console.error(error);
-
-        log("Load failed: " + error.message);
-
-        alert(
-          "Load failed:\n\n" + error.message
-        );
-
-      } finally {
-        loadButton.disabled = false;
-        saveFileInput.value = "";
-      }
-    });
-
-    // ============================================================
-    // START UNITY
-    // ============================================================
-
-    async function startUnity() {
-      setStatus("Initializing Unity...");
-
-      if (
-        typeof UnityLoader === "undefined" ||
-        typeof UnityLoader.instantiate !== "function"
-      ) {
-        throw new Error(
-          "UnityLoader.js did not load correctly."
-        );
-      }
-
-      installRequestRedirects();
-
-      log("Starting Unity with preloaded assets.");
-
-      unityInstance = UnityLoader.instantiate(
-        "gameContainer",
-        "Build/CupheadPort.json"
-      );
-
-      log("Unity instantiate() called.");
-
-      loadingScreen.style.display = "none";
-
-      return unityInstance;
-    }
-
-    // ============================================================
-    // MAIN
-    // ============================================================
-
-    async function main() {
-      try {
-        setStatus("Initializing asset cache...");
-
-        await initializeCache();
-
-        for (const asset of ASSETS) {
-          await loadSplitAsset(asset);
-        }
-
-        for (const asset of SINGLE_ASSETS) {
-          await loadSingleAsset(asset);
-        }
-
-        setStatus("All assets downloaded and assembled.");
-
-        if (loadedBytes < totalBytes) {
-          loadedBytes = totalBytes;
-
-          progressInner.style.width = "100%";
-        }
-
-        await new Promise(resolve =>
-          requestAnimationFrame(resolve)
-        );
-
-        await startUnity();
-
-      } catch (error) {
-        console.error(error);
-
-        setStatus(
-          "Failed to start Cuphead: " + error.message
-        );
-
-        log(error.stack || error.message);
-
-        loadingScreen.style.display = "flex";
+        showError(error);
       }
     }
 
-    // ============================================================
-    // CLEANUP
-    // ============================================================
-
-    window.addEventListener("beforeunload", () => {
-      for (const url of Object.values(objectURLs)) {
-        URL.revokeObjectURL(url);
-      }
+    window.addEventListener("error", event => {
+      console.error("[Page runtime error]", event.message, event.filename, event.lineno);
     });
 
-    main();
+    window.addEventListener("unhandledrejection", event => {
+      console.error("[Unhandled promise rejection]", event.reason);
+    });
 
-  })();
+    canvas.addEventListener("webglcontextlost", event => {
+      event.preventDefault();
+      showError(new Error(
+        "The WebGL graphics context was lost. This can happen if the GPU or browser " +
+        "runs out of graphics memory. Check the Console for the last Unity messages."
+      ));
+    });
+
+    startGame();
   </script>
-
 </body>
 </html>
