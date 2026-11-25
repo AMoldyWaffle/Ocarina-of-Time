@@ -3,528 +3,1452 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hollow Knight</title>
-<link rel="icon" href="https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/TemplateData/favicon.ico">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hollow Knight Launcher</title>
+
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:system-ui,-apple-system,Arial,sans-serif;color:#f0f0f0}
-body{display:flex;align-items:center;justify-content:center}
-#boot{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 90%,rgba(140,15,15,.22),transparent 65%),#050505}
-.panel{width:min(680px,92%);text-align:center}
-h1{font-size:20px;font-weight:600;letter-spacing:1px;margin-bottom:6px}
-#sub{font-size:12px;color:#aaa;margin-bottom:16px;min-height:18px}
-.track{width:100%;height:6px;background:#1e1e1e;border-radius:999px;overflow:hidden}
-.fill{height:100%;width:0%;background:#c81d1d;transition:width .15s ease}
-#pct{margin-top:10px;font-size:13px;color:#ccc;letter-spacing:1.5px}
-.meta{display:flex;justify-content:space-between;font-size:11px;color:#888;margin-top:18px;margin-bottom:6px}
-.thin{height:4px;background:#171717}
-#log{margin-top:16px;height:160px;overflow-y:auto;padding:10px;background:#0c0c0c;border:1px solid #262626;border-radius:6px;font-family:ui-monospace,Consolas,monospace;font-size:10.5px;line-height:1.55;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere}
-.ok{color:#66d18e}.warn{color:#ecc05a}.err{color:#ff6363}.info{color:#a8a8a8}
-#errBox{display:none;margin-top:12px;color:#ff6b6b;font-size:12px;white-space:pre-wrap}
-.actions{display:flex;gap:10px;justify-content:center;margin-top:14px}
-.btn{display:none;padding:9px 18px;background:#191919;color:#fff;border:1px solid #3a3a3a;border-radius:4px;cursor:pointer;font-size:12px}
-.btn:hover{background:#2a2a2a}.btn.primary{background:#3a0c0c;border-color:#9e1b1b}
-#game{display:none;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center;background:#000}
-#canvas{display:block;width:min(100vw,160vh);height:min(62.5vw,100vh);max-width:100%;max-height:calc(100% - 42px);aspect-ratio:16/10;background:#000}
-#bar{width:min(960px,100%);height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;color:#888;font-size:12px}
-.gbtn{background:#161616;border:1px solid #333;color:#eee;padding:6px 12px;cursor:pointer;font-size:12px}
-.gbtn:hover{background:#292929}
+:root {
+  --bg:#080c13;
+  --panel:#111a26;
+  --panel2:#0a111a;
+  --line:#29394b;
+  --text:#e5edf5;
+  --muted:#899bad;
+  --accent:#a9d3ed;
+  --green:#85cda5;
+  --red:#e58c8c;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(ellipse at 50% 0%,#1c3044,transparent 60%),
+    #080c13;
+  color:var(--text);
+  font-family:Inter,"Segoe UI",Arial,sans-serif;
+}
+button,select { font:inherit; }
+button {
+  padding:10px 14px;
+  border-radius:7px;
+  border:1px solid var(--line);
+  background:#192738;
+  color:var(--text);
+  cursor:pointer;
+}
+button:hover:not(:disabled) {
+  border-color:var(--accent);
+  background:#23394e;
+}
+button:disabled { opacity:.45;cursor:not-allowed; }
+#app {
+  width:min(1000px,calc(100% - 24px));
+  margin:auto;
+  padding:25px 0 40px;
+}
+header {
+  text-align:center;
+  padding:30px 8px;
+}
+.eyebrow {
+  font-size:10px;
+  color:var(--accent);
+  letter-spacing:.3em;
+  text-transform:uppercase;
+}
+h1 {
+  font-family:Georgia,serif;
+  font-size:clamp(38px,7vw,64px);
+  font-weight:400;
+  letter-spacing:.08em;
+  margin:12px 0 5px;
+}
+.subtitle {
+  color:var(--muted);
+  font-size:12px;
+  letter-spacing:.15em;
+}
+.ornament {
+  height:1px;
+  width:150px;
+  margin:23px auto 0;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+}
+.panel {
+  padding:22px;
+  background:linear-gradient(145deg,#121e2bee,#0c141eee);
+  border:1px solid var(--line);
+  border-radius:12px;
+  box-shadow:0 25px 80px #0008;
+}
+.topline {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:20px;
+}
+.section-label,.stat-label {
+  color:var(--muted);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.15em;
+}
+.status {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--accent);
+  font-size:12px;
+}
+.dot {
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 10px currentColor;
+}
+.dot.good { background:var(--green); }
+.dot.bad { background:var(--red); }
+.progress-wrap {
+  height:9px;
+  border-radius:20px;
+  background:#070d15;
+  border:1px solid #26394b;
+  overflow:hidden;
+}
+#progress {
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#6398bb,#c2e4f5);
+  transition:width .2s;
+}
+.progress-caption {
+  display:flex;
+  justify-content:space-between;
+  margin-top:9px;
+  color:var(--muted);
+  font-size:11px;
+}
+.stats {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:22px;
+}
+.stat {
+  min-width:0;
+  padding:13px;
+  background:var(--panel2);
+  border:1px solid #1e2d3e;
+  border-radius:8px;
+}
+.stat-value {
+  font-size:20px;
+  margin-top:7px;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.current {
+  margin-top:19px;
+  padding:13px;
+  background:var(--panel2);
+  border:1px solid #1e2d3e;
+  border-radius:8px;
+}
+.current small {
+  display:block;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.13em;
+  font-size:10px;
+  margin-bottom:7px;
+}
+#fileName {
+  font:12px Consolas,monospace;
+  overflow-wrap:anywhere;
+}
+.actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:19px;
+}
+.primary {
+  background:#b6d7e9;
+  color:#091521;
+  border-color:#b6d7e9;
+  font-weight:700;
+}
+.settings {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-left:auto;
+  color:var(--muted);
+  font-size:12px;
+}
+select {
+  background:#0a111a;
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:8px;
+}
+#consolePanel {
+  display:none;
+  margin-top:17px;
+  background:#05090e;
+  border:1px solid var(--line);
+  border-radius:8px;
+  overflow:hidden;
+}
+.console-head {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 13px;
+  color:var(--muted);
+  font-size:10px;
+  letter-spacing:.14em;
+  border-bottom:1px solid #1c2a39;
+}
+#console {
+  height:230px;
+  overflow:auto;
+  padding:12px;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  font:11px/1.7 Consolas,monospace;
+  color:#a8c5d8;
+}
+.log-error { color:var(--red); }
+.log-success { color:var(--green); }
+#gameArea {
+  display:none;
+  margin-top:18px;
+  background:#000;
+  border:1px solid var(--line);
+  border-radius:8px;
+  overflow:hidden;
+}
+.game-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 13px;
+  background:#101a26;
+}
+.game-head span {
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:.13em;
+}
+#gameCanvas {
+  display:block;
+  width:100%;
+  height:min(72vh,720px);
+  background:#000;
+  outline:none;
+}
+.footer {
+  margin-top:22px;
+  text-align:center;
+  color:#627487;
+  font-size:10px;
+  letter-spacing:.12em;
+}
+@media(max-width:650px) {
+  .panel { padding:15px; }
+  .stats { grid-template-columns:repeat(2,1fr); }
+  .settings { width:100%;margin-left:0; }
+  .actions button { flex:1; }
+}
 </style>
 </head>
+
 <body>
+<div id="app">
 
-<div id="boot">
-<div class="panel">
-<h1>HOLLOW KNIGHT</h1>
-<div id="sub">Starting up...</div>
-<div class="track"><div class="fill" id="overallFill"></div></div>
-<div id="pct">0%</div>
-<div class="meta"><span>GAME DATA</span><span id="dataTxt">0 / 44</span></div>
-<div class="track thin"><div class="fill" id="dataFill"></div></div>
-<div class="meta"><span>WEBASSEMBLY</span><span id="wasmTxt">0 / 3</span></div>
-<div class="track thin"><div class="fill" id="wasmFill"></div></div>
-<div id="log"></div>
-<div id="errBox"></div>
-<div class="actions">
-<button id="retryBtn" class="btn primary">Retry</button>
-<button id="clearBtn" class="btn">Clear Cache</button>
-</div>
-</div>
+<header>
+  <div class="eyebrow">A journey awaits beneath the surface</div>
+  <h1>HOLLOW KNIGHT</h1>
+  <div class="subtitle">HALL OF GODS · WEBGL EDITION</div>
+  <div class="ornament"></div>
+</header>
+
+<main class="panel">
+
+  <div class="topline">
+    <div class="section-label">Game installation</div>
+    <div class="status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Initializing</span>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div id="progress"></div>
+  </div>
+
+  <div class="progress-caption">
+    <span id="progressText">Preparing downloads...</span>
+    <span id="percentText">0%</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Downloaded</div>
+      <div class="stat-value" id="downloaded">0 MB</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Speed</div>
+      <div class="stat-value" id="speed">0 MB/s</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Files ready</div>
+      <div class="stat-value" id="filesReady">0 / 49</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Cache hits</div>
+      <div class="stat-value" id="cacheHits">0</div>
+    </div>
+  </div>
+
+  <div class="current">
+    <small>Current activity</small>
+    <div id="fileName">Initializing launcher...</div>
+  </div>
+
+  <div class="actions">
+    <button id="consoleButton">Show console</button>
+    <button id="retryButton" class="primary" hidden>Retry</button>
+    <button id="clearButton">Clear cache</button>
+
+    <div class="settings">
+      <label for="workers">Workers</label>
+      <select id="workers">
+        <option value="1" selected>1 (stable)</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="consolePanel">
+    <div class="console-head">
+      <span>Launcher diagnostics</span>
+      <button id="copyLog" style="padding:4px 9px;font-size:10px">
+        Copy log
+      </button>
+    </div>
+    <div id="console"></div>
+  </div>
+
+  <div id="gameArea">
+    <div class="game-head">
+      <span>HOLLOW KNIGHT</span>
+      <button id="fullscreenButton">Fullscreen</button>
+    </div>
+    <canvas id="gameCanvas" tabindex="-1"></canvas>
+  </div>
+
+</main>
+
+<div class="footer">
+  LOCAL DOWNLOAD CACHE · AUTOMATIC INSTALLATION · UNITY WEBGL
 </div>
 
-<div id="game">
-<canvas id="canvas" width="960" height="600" tabindex="-1"></canvas>
-<div id="bar">
-<span>Hollow Knight</span>
-<div style="display:flex;gap:8px;align-items:center">
-<select id="scaleSel" class="gbtn">
-<option value="1">1.00x</option>
-<option value="0.85">0.85x</option>
-<option value="0.70">0.70x</option>
-<option value="0.60" selected>0.60x</option>
-<option value="0.50">0.50x</option>
-</select>
-<button id="fsBtn" class="gbtn">Fullscreen</button>
-</div>
-</div>
 </div>
 
 <script>
+
 "use strict";
 
+/* =========================================================
+   HOLLOW KNIGHT — FILE:// COMPATIBLE LAUNCHER
+   Storage: IndexedDB, with in-memory fallback.
+   No OPFS. No local server. No filesystem writers.
+========================================================= */
+
 const APP = {
-mirrors:[
-"https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-"https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-"https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
-"https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/",
-"https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/"
-],
-buildDir:"Build/",
-loader:"hk.loader.js",
-framework:"hk.framework.js",
-dataPrefix:"hk.data",
-wasmPrefix:"hk.wasm",
-dataCount:44,
-wasmCount:3,
-streamingAssets:"StreamingAssets",
-companyName:"Stratus Dev Team",
-productName:"Hollow Knight",
-productVersion:"1.5.12620",
-cacheVersion:"hk_v2_20261125",
-opfsFolder:"hk_v2_cache",
-idbName:"hk_v2_db",
-workers:6,
-timeoutMs:120000,
-retriesPerFile:5
+  repo: "AMoldyWaffle/Hollow-Knight",
+  branch: "main",
+  buildPath: "Build/",
+
+  database: "HollowKnightLauncher",
+  cacheVersion: "hk_v6_20261125",
+
+  mirrors: [
+    "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+    "https://fastly.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+    "https://gcore.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+    "https://testingcf.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/",
+    "https://raw.githubusercontent.com/AMoldyWaffle/Hollow-Knight/main/"
+  ],
+
+  streamingAssets:
+    "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Hollow-Knight@main/StreamingAssets/",
+
+  companyName: "Stratus Dev Team",
+  productName: "Hollow Knight",
+  productVersion: "1.5.12620",
+
+  requestTimeout: 180000,
+  maxRetries: 5
 };
 
-const $=id=>document.getElementById(id);
-const subEl=$("sub");
-const overallFill=$("overallFill");
-const pctEl=$("pct");
-const dataFill=$("dataFill");
-const wasmFill=$("wasmFill");
-const dataTxt=$("dataTxt");
-const wasmTxt=$("wasmTxt");
-const logEl=$("log");
-const errBox=$("errBox");
-const retryBtn=$("retryBtn");
-const clearBtn=$("clearBtn");
+const DATA_PARTS = Array.from(
+  { length: 44 },
+  (_, i) => `hk.data.${String(i).padStart(3, "0")}`
+);
 
-let storeMode=null,opfsDir=null,idb=null,busy=false;
-let doneData=0,doneWasm=0,totalBytes=0,networkBytes=0;
-let startedAt=0,lastSpeedAt=0,lastSpeedBytes=0,liveMbps=0;
-let activeWorkers=0,mirrorStats=[],objectUrls=[];
+const WASM_PARTS = Array.from(
+  { length: 3 },
+  (_, i) => `hk.wasm.${String(i).padStart(3, "0")}`
+);
 
-function log(message,cls="info"){
-const row=document.createElement("div");
-row.className=cls;
-row.textContent=`[${new Date().toLocaleTimeString()}] ${message}`;
-logEl.appendChild(row);
-while(logEl.children.length>220)logEl.removeChild(logEl.firstChild);
-logEl.scrollTop=logEl.scrollHeight;
-}
+const FILES = [
+  "hk.loader.js",
+  "hk.framework.js",
+  ...DATA_PARTS,
+  ...WASM_PARTS
+];
 
-function updateUI(){
-dataFill.style.width=`${doneData/APP.dataCount*100}%`;
-wasmFill.style.width=`${doneWasm/APP.wasmCount*100}%`;
-dataTxt.textContent=`${doneData} / ${APP.dataCount}`;
-wasmTxt.textContent=`${doneWasm} / ${APP.wasmCount}`;
+const TOTAL_FILES = FILES.length;
+const $ = id => document.getElementById(id);
 
-const completed=doneData+doneWasm;
-const pct=completed/(APP.dataCount+APP.wasmCount)*75;
-overallFill.style.width=`${pct.toFixed(1)}%`;
-pctEl.textContent=`${Math.floor(pct)}%`;
+/* =========================================================
+   STATE
+========================================================= */
 
-const now=performance.now();
-if(now-lastSpeedAt>=800){
-const seconds=Math.max(.001,(now-lastSpeedAt)/1000);
-liveMbps=((networkBytes-lastSpeedBytes)/1048576)/seconds;
-lastSpeedAt=now;
-lastSpeedBytes=networkBytes;
-}
-const average=(networkBytes/1048576)/Math.max(.5,(now-startedAt)/1000);
-const speed=liveMbps>0?liveMbps:average;
-subEl.textContent=`Downloading · ${speed.toFixed(2)} MB/s · ${(networkBytes/1048576).toFixed(1)} MB received · ${activeWorkers}/${APP.workers} workers`;
-}
+let db = null;
+let persistentStorage = false;
+const memoryCache = new Map();
 
-function makeMirrorStats(){
-mirrorStats=APP.mirrors.map(url=>({
-url,host:new URL(url).hostname,mbps:.05,
-active:0,failures:0,disabled:false
+let running = false;
+let cancelled = false;
+
+let completed = 0;
+let cacheHits = 0;
+let downloadedBytes = 0;
+
+let activeWorkers = 1;
+let fileQueue = [];
+
+let unityInstance = null;
+const objectUrls = [];
+
+const activeControllers = new Set();
+const logLines = [];
+let speedSamples = [];
+
+const mirrorStats = APP.mirrors.map((url, index) => ({
+  url,
+  index,
+  bytes: 0,
+  milliseconds: 0,
+  mbps: 0,
+  failures: 0,
+  tested: false
 }));
+
+/* =========================================================
+   LOGGING AND UI
+========================================================= */
+
+function log(message, type = "") {
+  const line = `[${new Date().toLocaleTimeString()}] ${message}`;
+
+  logLines.push(line);
+
+  const element = document.createElement("div");
+  element.textContent = line;
+
+  if (type) element.className = "log-" + type;
+
+  $("console").appendChild(element);
+  $("console").scrollTop = $("console").scrollHeight;
+
+  if (logLines.length > 500) {
+    logLines.shift();
+    $("console").firstChild?.remove();
+  }
 }
 
-function mirrorScore(m){
-if(m.disabled)return -1;
-return m.mbps/(1+m.active*.9)/(1+m.failures*1.5);
+function setStatus(message, type = "") {
+  $("statusText").textContent = message;
+  $("statusDot").className = "dot " + type;
 }
 
-function chooseMirror(exclude=new Set()){
-let candidates=mirrorStats.filter(m=>!m.disabled&&!exclude.has(m.url));
-if(!candidates.length){
-mirrorStats.forEach(m=>{if(m.failures>0)m.disabled=false;});
-candidates=mirrorStats.filter(m=>!exclude.has(m.url));
-}
-return candidates.sort((a,b)=>mirrorScore(b)-mirrorScore(a))[0]||null;
+function formatMB(bytes) {
+  return (bytes / 1048576).toFixed(2) + " MB";
 }
 
-async function initCache(){
-if(navigator.storage?.getDirectory){
-try{
-const root=await navigator.storage.getDirectory();
-opfsDir=await root.getDirectoryHandle(APP.opfsFolder,{create:true});
-storeMode="opfs";
-log("Storage: OPFS (streaming writes enabled)","ok");
-return;
-}catch(e){log(`OPFS unavailable: ${e.message}`,"warn");}
+function updateUI() {
+  const percent = Math.round(completed / TOTAL_FILES * 100);
+
+  $("progress").style.width = percent + "%";
+  $("percentText").textContent = percent + "%";
+
+  $("progressText").textContent =
+    `${completed} of ${TOTAL_FILES} files completed`;
+
+  $("downloaded").textContent = formatMB(downloadedBytes);
+  $("filesReady").textContent = `${completed} / ${TOTAL_FILES}`;
+  $("cacheHits").textContent = cacheHits;
 }
-idb=await new Promise((resolve,reject)=>{
-const req=indexedDB.open(APP.idbName,1);
-req.onupgradeneeded=()=>{
-if(!req.result.objectStoreNames.contains("blobs"))
-req.result.createObjectStore("blobs");
-};
-req.onsuccess=()=>resolve(req.result);
-req.onerror=()=>reject(req.error);
+
+function updateCurrentFile(name) {
+  $("fileName").textContent = name;
+}
+
+function recordSpeed(bytes) {
+  const now = performance.now();
+
+  speedSamples.push({ bytes, time: now });
+
+  speedSamples = speedSamples.filter(
+    sample => now - sample.time <= 5000
+  );
+
+  const total = speedSamples.reduce(
+    (sum, sample) => sum + sample.bytes,
+    0
+  );
+
+  const elapsed = speedSamples.length
+    ? Math.max(0.1, (now - speedSamples[0].time) / 1000)
+    : 1;
+
+  $("speed").textContent =
+    (total / elapsed / 1048576).toFixed(2) + " MB/s";
+}
+
+/* =========================================================
+   INDEXEDDB STORAGE
+
+   This replaces every OPFS operation.
+
+   IndexedDB stores each downloaded file as a Blob.
+   If IndexedDB is unavailable, the launcher continues
+   using memoryCache instead.
+========================================================= */
+
+function cacheName(name) {
+  return APP.cacheVersion + "_" + name;
+}
+
+function openDatabase() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      reject(new Error("IndexedDB is unavailable."));
+      return;
+    }
+
+    let request;
+
+    try {
+      request = indexedDB.open(APP.database, 1);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    request.onupgradeneeded = () => {
+      const database = request.result;
+
+      if (!database.objectStoreNames.contains("files")) {
+        database.createObjectStore("files", {
+          keyPath: "name"
+        });
+      }
+    };
+
+    request.onsuccess = () => {
+      const database = request.result;
+
+      database.onversionchange = () => database.close();
+
+      resolve(database);
+    };
+
+    request.onerror = () => {
+      reject(request.error || new Error("IndexedDB could not open."));
+    };
+
+    request.onblocked = () => {
+      log("IndexedDB is blocked by another open launcher tab.", "error");
+    };
+  });
+}
+
+function idbGet(name) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      resolve(null);
+      return;
+    }
+
+    try {
+      const transaction = db.transaction("files", "readonly");
+      const request = transaction.objectStore("files").get(name);
+
+      request.onsuccess = () => {
+        resolve(request.result?.blob || null);
+      };
+
+      request.onerror = () => {
+        reject(request.error || new Error("IndexedDB read failed."));
+      };
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function idbPut(name, blob) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      reject(new Error("IndexedDB is not initialized."));
+      return;
+    }
+
+    try {
+      const transaction = db.transaction("files", "readwrite");
+
+      transaction.objectStore("files").put({
+        name,
+        blob,
+        size: blob.size,
+        savedAt: Date.now()
+      });
+
+      transaction.oncomplete = () => resolve();
+
+      transaction.onerror = () => {
+        reject(transaction.error || new Error("IndexedDB write failed."));
+      };
+
+      transaction.onabort = () => {
+        reject(transaction.error || new Error("IndexedDB write aborted."));
+      };
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+function idbDelete(name) {
+  return new Promise((resolve, reject) => {
+    if (!db) {
+      resolve();
+      return;
+    }
+
+    try {
+      const transaction = db.transaction("files", "readwrite");
+      transaction.objectStore("files").delete(name);
+
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+async function initializeCache() {
+  log("Checking browser storage...");
+  log("Page protocol: " + location.protocol);
+  log("Page origin: " + location.origin);
+  log("Secure context: " + isSecureContext);
+  log("IndexedDB available: " + !!window.indexedDB);
+
+  try {
+    db = await openDatabase();
+    persistentStorage = true;
+
+    log("IndexedDB initialized successfully.", "success");
+    log("Downloaded files will persist between launches.", "success");
+
+    try {
+      if (navigator.storage?.estimate) {
+        const estimate = await navigator.storage.estimate();
+
+        log("Storage usage: " + formatMB(estimate.usage || 0));
+        log("Storage quota: " + formatMB(estimate.quota || 0));
+      }
+    } catch (error) {
+      log("Storage estimate unavailable: " + error.message);
+    }
+
+  } catch (error) {
+    db = null;
+    persistentStorage = false;
+
+    log(
+      `IndexedDB unavailable: ${error.name}: ${error.message}`,
+      "error"
+    );
+
+    log(
+      "Using temporary memory storage. Downloads will not persist after closing the page."
+    );
+  }
+}
+
+async function getCachedFile(name) {
+  const key = cacheName(name);
+
+  if (memoryCache.has(key)) {
+    return memoryCache.get(key);
+  }
+
+  if (db) {
+    try {
+      const blob = await idbGet(key);
+
+      if (blob && blob.size > 0) {
+        return blob;
+      }
+    } catch (error) {
+      log(`Cache read failed for ${name}: ${error.message}`, "error");
+    }
+  }
+
+  return null;
+}
+
+async function saveCachedFile(name, blob) {
+  const key = cacheName(name);
+
+  if (!blob || blob.size <= 0) {
+    throw new Error("Refusing to cache an empty file: " + name);
+  }
+
+  if (db) {
+    try {
+      await idbPut(key, blob);
+      return;
+    } catch (error) {
+      log(
+        `Persistent cache write failed for ${name}: ${error.message}`,
+        "error"
+      );
+
+      log("Keeping this file in memory instead.", "error");
+    }
+  }
+
+  memoryCache.set(key, blob);
+}
+
+async function deleteCachedFile(name) {
+  const key = cacheName(name);
+
+  memoryCache.delete(key);
+
+  if (db) {
+    try {
+      await idbDelete(key);
+    } catch (error) {
+      log(`Could not delete ${name}: ${error.message}`, "error");
+    }
+  }
+}
+
+async function clearCache() {
+  memoryCache.clear();
+
+  if (!db) return;
+
+  await new Promise((resolve, reject) => {
+    try {
+      const transaction = db.transaction("files", "readwrite");
+      const store = transaction.objectStore("files");
+      const request = store.getAllKeys();
+
+      request.onsuccess = () => {
+        for (const key of request.result) {
+          if (String(key).startsWith(APP.cacheVersion + "_")) {
+            store.delete(key);
+          }
+        }
+      };
+
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/* =========================================================
+   MIRROR SELECTION
+========================================================= */
+
+function nextMirrorOrder() {
+  const untested = mirrorStats.filter(m => !m.tested);
+
+  if (untested.length) {
+    return [...untested, ...mirrorStats.filter(m => m.tested)];
+  }
+
+  return [...mirrorStats].sort((a, b) => {
+    const scoreA = a.mbps / (1 + a.failures * 1.5);
+    const scoreB = b.mbps / (1 + b.failures * 1.5);
+
+    return scoreB - scoreA;
+  });
+}
+
+function updateMirrorStats(mirror, bytes, milliseconds) {
+  mirror.tested = true;
+  mirror.bytes += bytes;
+  mirror.milliseconds += milliseconds;
+
+  mirror.mbps =
+    mirror.bytes / 1048576 /
+    Math.max(0.001, mirror.milliseconds / 1000);
+}
+
+function reportMirrors() {
+  log("Mirror performance:");
+
+  for (const mirror of mirrorStats) {
+    log(
+      `${new URL(mirror.url).hostname}: ` +
+      `${mirror.mbps.toFixed(3)} MB/s, ` +
+      `${mirror.failures} failures`
+    );
+  }
+}
+
+/* =========================================================
+   DOWNLOAD ENGINE
+
+   One response is collected as a Blob and saved to
+   IndexedDB. No filesystem handles or writable streams.
+========================================================= */
+
+async function fetchToCache(name, mirror) {
+  const url = mirror.url + APP.buildPath + name;
+
+  const controller = new AbortController();
+  activeControllers.add(controller);
+
+  const started = performance.now();
+
+  let received = 0;
+  let reader = null;
+  let timeoutId = null;
+  const chunks = [];
+
+  function resetTimeout() {
+    clearTimeout(timeoutId);
+
+    timeoutId = setTimeout(() => {
+      controller.abort();
+    }, APP.requestTimeout);
+  }
+
+  try {
+    resetTimeout();
+
+    log("Requesting " + url);
+
+    const response = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      cache: "no-store",
+      credentials: "omit",
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    let blob;
+
+    if (response.body) {
+      reader = response.body.getReader();
+
+      while (true) {
+        if (cancelled) {
+          throw new Error("Download cancelled.");
+        }
+
+        resetTimeout();
+
+        const result = await reader.read();
+
+        if (result.done) break;
+
+        const chunk = result.value;
+
+        chunks.push(chunk);
+        received += chunk.byteLength;
+        downloadedBytes += chunk.byteLength;
+
+        recordSpeed(chunk.byteLength);
+
+        updateCurrentFile(
+          `${name} — ${formatMB(received)} downloaded`
+        );
+      }
+
+      blob = new Blob(chunks);
+      chunks.length = 0;
+
+      try {
+        reader.releaseLock();
+      } catch {}
+
+      reader = null;
+
+    } else {
+      blob = await response.blob();
+      received = blob.size;
+      downloadedBytes += received;
+      recordSpeed(received);
+    }
+
+    clearTimeout(timeoutId);
+    timeoutId = null;
+
+    if (!blob || blob.size === 0) {
+      throw new Error("The server returned an empty file.");
+    }
+
+    await saveCachedFile(name, blob);
+
+    const elapsed = Math.max(1, performance.now() - started);
+
+    updateMirrorStats(mirror, received, elapsed);
+
+    log(
+      `${name}: ${formatMB(received)} from ` +
+      `${new URL(mirror.url).hostname} at ` +
+      `${(received / 1048576 / (elapsed / 1000)).toFixed(2)} MB/s`,
+      "success"
+    );
+
+    return blob;
+
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (reader) {
+      try {
+        await reader.cancel();
+      } catch {}
+
+      try {
+        reader.releaseLock();
+      } catch {}
+    }
+
+    mirror.failures++;
+
+    log(
+      `${name} failed on ${new URL(mirror.url).hostname}: ` +
+      `${error.name || "Error"}: ${error.message || error}`,
+      "error"
+    );
+
+    throw error;
+
+  } finally {
+    clearTimeout(timeoutId);
+    activeControllers.delete(controller);
+  }
+}
+
+/* =========================================================
+   DOWNLOAD ONE FILE
+========================================================= */
+
+async function downloadOne(name) {
+  const cached = await getCachedFile(name);
+
+  if (cached) {
+    cacheHits++;
+    completed++;
+
+    log(
+      `${name}: cache hit (${formatMB(cached.size)})`,
+      "success"
+    );
+
+    updateUI();
+    return cached;
+  }
+
+  const mirrors = nextMirrorOrder();
+  let lastError = null;
+
+  for (let attempt = 0; attempt < APP.maxRetries; attempt++) {
+    if (cancelled) {
+      throw new Error("Download cancelled.");
+    }
+
+    const mirror = mirrors[attempt % mirrors.length];
+
+    updateCurrentFile(
+      `Downloading ${name} — attempt ${attempt + 1}`
+    );
+
+    try {
+      const blob = await fetchToCache(name, mirror);
+
+      completed++;
+      updateUI();
+
+      return blob;
+
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new Error(
+    `All mirror attempts failed for ${name}: ` +
+    `${lastError?.message || "Unknown error"}`
+  );
+}
+
+/* =========================================================
+   DOWNLOAD QUEUE
+========================================================= */
+
+async function runWorker(workerNumber) {
+  while (fileQueue.length > 0 && !cancelled) {
+    const name = fileQueue.shift();
+
+    if (!name) break;
+
+    log(`Worker ${workerNumber}: ${name}`);
+
+    await downloadOne(name);
+  }
+}
+
+async function downloadAll() {
+  fileQueue = [...FILES];
+
+  const workers = Math.max(
+    1,
+    Math.min(activeWorkers, FILES.length)
+  );
+
+  log(`Starting ${FILES.length} files with ${workers} worker(s).`);
+
+  setStatus("Downloading");
+
+  const promises = [];
+
+  for (let i = 0; i < workers; i++) {
+    promises.push(runWorker(i + 1));
+  }
+
+  const results = await Promise.allSettled(promises);
+
+  const failed = results.find(
+    result => result.status === "rejected"
+  );
+
+  if (failed) throw failed.reason;
+
+  if (cancelled) {
+    throw new Error("Download cancelled.");
+  }
+
+  reportMirrors();
+}
+
+/* =========================================================
+   MERGE SPLIT FILES
+
+   Blobs are combined without OPFS or filesystem streams.
+   The resulting Blob is used directly by Unity.
+========================================================= */
+
+async function mergeParts(parts, outputName, mimeType) {
+  log(`Assembling ${outputName}...`);
+
+  const blobs = [];
+  let expectedSize = 0;
+
+  for (let i = 0; i < parts.length; i++) {
+    const name = parts[i];
+
+    updateCurrentFile(
+      `Preparing ${outputName}: ${i + 1}/${parts.length}`
+    );
+
+    const blob = await getCachedFile(name);
+
+    if (!blob || blob.size === 0) {
+      throw new Error("Missing or empty part: " + name);
+    }
+
+    blobs.push(blob);
+    expectedSize += blob.size;
+  }
+
+  if (!expectedSize) {
+    throw new Error("Assembled file would be empty: " + outputName);
+  }
+
+  const output = new Blob(blobs, { type: mimeType });
+
+  if (output.size !== expectedSize) {
+    throw new Error(
+      `Assembly size mismatch for ${outputName}: ` +
+      `${output.size} vs ${expectedSize}`
+    );
+  }
+
+  log(
+    `${outputName} assembled successfully: ${formatMB(output.size)}`,
+    "success"
+  );
+
+  return output;
+}
+
+/* =========================================================
+   OBJECT URL MANAGEMENT
+========================================================= */
+
+function makeObjectURL(blob) {
+  const url = URL.createObjectURL(blob);
+  objectUrls.push(url);
+  return url;
+}
+
+/* =========================================================
+   UNITY LAUNCH
+========================================================= */
+
+async function launchUnity(
+  loaderFile,
+  frameworkFile,
+  dataFile,
+  wasmFile
+) {
+  const canvas = $("gameCanvas");
+
+  const loaderUrl = makeObjectURL(loaderFile);
+  const frameworkUrl = makeObjectURL(frameworkFile);
+  const dataUrl = makeObjectURL(dataFile);
+  const codeUrl = makeObjectURL(wasmFile);
+
+  const config = {
+    dataUrl,
+    frameworkUrl,
+    codeUrl,
+
+    streamingAssetsUrl: APP.streamingAssets,
+
+    companyName: APP.companyName,
+    productName: APP.productName,
+    productVersion: APP.productVersion,
+
+    devicePixelRatio: Math.min(
+      window.devicePixelRatio || 1,
+      1.5
+    )
+  };
+
+  $("gameArea").style.display = "block";
+
+  $("gameArea").scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+
+  canvas.width = Math.floor(
+    canvas.clientWidth * config.devicePixelRatio
+  );
+
+  canvas.height = Math.floor(
+    Math.min(window.innerHeight * 0.72, 720) *
+    config.devicePixelRatio
+  );
+
+  log("Loading Unity loader...");
+  setStatus("Starting game");
+
+  await new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+
+    script.src = loaderUrl;
+
+    script.onload = async () => {
+      try {
+        if (typeof createUnityInstance !== "function") {
+          throw new Error(
+            "Unity loader loaded, but createUnityInstance is missing."
+          );
+        }
+
+        unityInstance = await createUnityInstance(
+          canvas,
+          config,
+          progress => {
+            $("progress").style.width =
+              Math.round(progress * 100) + "%";
+
+            $("percentText").textContent =
+              Math.round(progress * 100) + "%";
+
+            $("progressText").textContent =
+              "Unity is initializing...";
+          }
+        );
+
+        log("Unity launched successfully.", "success");
+
+        setStatus("Game running", "good");
+        updateCurrentFile("Hollow Knight is ready.");
+
+        resolve();
+
+      } catch (error) {
+        log(
+          `Unity initialization error: ${error.name}: ${error.message}`,
+          "error"
+        );
+
+        reject(error);
+      }
+    };
+
+    script.onerror = () => {
+      reject(new Error("The Unity loader script could not be loaded."));
+    };
+
+    document.body.appendChild(script);
+  });
+}
+
+/* =========================================================
+   MAIN LAUNCHER
+========================================================= */
+
+async function startLauncher() {
+  if (running) return;
+
+  running = true;
+  cancelled = false;
+
+  completed = 0;
+  cacheHits = 0;
+  downloadedBytes = 0;
+  speedSamples = [];
+
+  $("retryButton").hidden = true;
+
+  $("progress").style.width = "0%";
+  $("percentText").textContent = "0%";
+  $("progressText").textContent = "Preparing...";
+  $("downloaded").textContent = "0 MB";
+  $("speed").textContent = "0 MB/s";
+  $("filesReady").textContent = `0 / ${TOTAL_FILES}`;
+  $("cacheHits").textContent = "0";
+
+  try {
+    setStatus("Checking storage");
+    updateCurrentFile("Initializing browser cache...");
+
+    await initializeCache();
+
+    log(`Repository: ${APP.repo}`);
+    log(`Cache version: ${APP.cacheVersion}`);
+    log(`Download workers: ${activeWorkers}`);
+    log(`Storage mode: ${persistentStorage ? "IndexedDB" : "Memory"}`);
+
+    await downloadAll();
+
+    setStatus("Assembling game");
+    updateCurrentFile("Assembling data file...");
+
+    const dataFile = await mergeParts(
+      DATA_PARTS,
+      "hk.data",
+      "application/octet-stream"
+    );
+
+    const wasmFile = await mergeParts(
+      WASM_PARTS,
+      "hk.wasm",
+      "application/wasm"
+    );
+
+    const loaderFile = await getCachedFile("hk.loader.js");
+    const frameworkFile = await getCachedFile("hk.framework.js");
+
+    if (!loaderFile || !frameworkFile || !dataFile || !wasmFile) {
+      throw new Error("One or more required Unity files are missing.");
+    }
+
+    log("All game files verified.", "success");
+    log(`Data: ${formatMB(dataFile.size)}`);
+    log(`WASM: ${formatMB(wasmFile.size)}`);
+
+    updateCurrentFile("Launching Hollow Knight...");
+
+    await launchUnity(
+      loaderFile,
+      frameworkFile,
+      dataFile,
+      wasmFile
+    );
+
+  } catch (error) {
+    log(
+      `LAUNCHER ERROR: ${error.name || "Error"}: ${error.message || error}`,
+      "error"
+    );
+
+    log(
+      `Stack: ${error.stack || "Unavailable"}`,
+      "error"
+    );
+
+    setStatus("Something went wrong", "bad");
+
+    updateCurrentFile(
+      `${error.name || "Error"}: ${error.message || error}`
+    );
+
+    $("retryButton").hidden = false;
+
+  } finally {
+    running = false;
+  }
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+$("consoleButton").addEventListener("click", () => {
+  const panel = $("consolePanel");
+  const visible = panel.style.display === "block";
+
+  panel.style.display = visible ? "none" : "block";
+
+  $("consoleButton").textContent =
+    visible ? "Show console" : "Hide console";
 });
-storeMode="indexeddb";
-log("Storage: IndexedDB fallback","warn");
-}
 
-async function readCache(name){
-const key=`${APP.cacheVersion}_${name}`;
-if(storeMode==="opfs"){
-try{
-const handle=await opfsDir.getFileHandle(key);
-const file=await handle.getFile();
-return file.size?file:null;
-}catch(_){return null;}
-}
-return new Promise(resolve=>{
-const tx=idb.transaction("blobs","readonly");
-const req=tx.objectStore("blobs").get(key);
-req.onsuccess=()=>resolve(req.result instanceof Blob&&req.result.size?req.result:null);
-req.onerror=()=>resolve(null);
-});
-}
-
-async function saveIDB(key,blob){
-await new Promise((resolve,reject)=>{
-const tx=idb.transaction("blobs","readwrite");
-tx.objectStore("blobs").put(blob,key);
-tx.oncomplete=resolve;
-tx.onerror=()=>reject(tx.error);
-tx.onabort=()=>reject(tx.error||new Error("IndexedDB write aborted"));
-});
-}
-
-async function streamResponseToCache(response,name){
-const key=`${APP.cacheVersion}_${name}`;
-if(!response.body?.getReader){
-const blob=await response.blob();
-if(!blob.size)throw new Error("Empty response");
-if(storeMode==="opfs"){
-const handle=await opfsDir.getFileHandle(key,{create:true});
-const writer=await handle.createWritable();
-await writer.write(blob);
-await writer.close();
-return handle.getFile();
-}
-await saveIDB(key,blob);
-return blob;
-}
-
-const reader=response.body.getReader();
-let chunks=[],total=0,writable=null,handle=null;
-if(storeMode==="opfs"){
-handle=await opfsDir.getFileHandle(key,{create:true});
-writable=await handle.createWritable({keepExistingData:false});
-}
-
-try{
-while(true){
-const {value,done}=await reader.read();
-if(done)break;
-if(!value?.byteLength)continue;
-total+=value.byteLength;
-networkBytes+=value.byteLength;
-updateUI();
-if(writable)await writable.write(value);
-else chunks.push(value);
-}
-if(!total)throw new Error("Empty response");
-if(writable){
-await writable.close();
-writable=null;
-return await handle.getFile();
-}
-const blob=new Blob(chunks,{type:"application/octet-stream"});
-chunks=[];
-await saveIDB(key,blob);
-return blob;
-}catch(error){
-try{await reader.cancel();}catch(_){}
-if(writable)try{await writable.abort();}catch(_){}
-if(handle)try{await opfsDir.removeEntry(key);}catch(_){}
-throw error;
-}
-}
-
-async function clearCache(){
-log("Clearing launcher cache...","warn");
-if(storeMode==="opfs"&&opfsDir){
-for await(const [name] of opfsDir.entries()){
-try{await opfsDir.removeEntry(name);}catch(_){}
-}
-}
-if(idb){
-await new Promise(resolve=>{
-const tx=idb.transaction("blobs","readwrite");
-tx.objectStore("blobs").clear();
-tx.oncomplete=resolve;
-tx.onerror=resolve;
-});
-}
-log("Launcher cache cleared.","ok");
-}
-
-async function benchmarkMirrors(){
-subEl.textContent="Testing download mirrors...";
-log("Benchmarking CDN mirrors with hk.framework.js...");
-const results=await Promise.all(mirrorStats.map(async mirror=>{
-const controller=new AbortController();
-const timer=setTimeout(()=>controller.abort(),25000);
-const t0=performance.now();
-try{
-const url=new URL(APP.buildDir+APP.framework,mirror.url);
-url.searchParams.set("_mirror_test",String(Date.now()));
-const response=await fetch(url.href,{
-cache:"no-store",mode:"cors",signal:controller.signal
-});
-if(!response.ok)throw new Error(`HTTP ${response.status}`);
-let bytes=0;
-if(response.body?.getReader){
-const reader=response.body.getReader();
-while(true){
-const part=await reader.read();
-if(part.done)break;
-bytes+=part.value.byteLength;
-if(bytes>2*1024*1024){await reader.cancel();break;}
-}
-}else bytes=(await response.arrayBuffer()).byteLength;
-if(!bytes)throw new Error("Empty response");
-mirror.mbps=(bytes/1048576)/Math.max(.05,(performance.now()-t0)/1000);
-mirror.failures=0;
-log(`${mirror.host}: ${mirror.mbps.toFixed(2)} MB/s`,"ok");
-}catch(error){
-mirror.failures++;
-mirror.disabled=true;
-log(`${mirror.host}: unavailable (${error.message})`,"warn");
-}finally{clearTimeout(timer);}
-return mirror;
-}));
-const available=results.filter(m=>!m.disabled).sort((a,b)=>b.mbps-a.mbps);
-if(!available.length)throw new Error("Every CDN mirror failed. Check CORS and network access.");
-log(`Fastest mirror: ${available[0].host} (${available[0].mbps.toFixed(2)} MB/s)`,"ok");
-}
-
-async function downloadFile(relPath,label,cacheName=label){
-const cached=await readCache(cacheName);
-if(cached){
-totalBytes+=cached.size;
-log(`${label}: cache hit (${(cached.size/1048576).toFixed(2)} MB)`,"ok");
-return cached;
-}
-let lastError=null;
-const tried=new Set();
-for(let attempt=0;attempt<APP.retriesPerFile;attempt++){
-const mirror=chooseMirror(tried);
-if(!mirror)break;
-tried.add(mirror.url);
-mirror.active++;
-const controller=new AbortController();
-const timer=setTimeout(()=>controller.abort(),APP.timeoutMs);
-const t0=performance.now();
-try{
-const response=await fetch(new URL(relPath,mirror.url).href,{
-cache:"no-store",mode:"cors",signal:controller.signal
-});
-if(!response.ok)throw new Error(`HTTP ${response.status}`);
-const file=await streamResponseToCache(response,cacheName);
-if(!file?.size)throw new Error("Downloaded file was empty");
-const speed=(file.size/1048576)/Math.max(.05,(performance.now()-t0)/1000);
-mirror.mbps=mirror.mbps*.65+speed*.35;
-mirror.failures=Math.max(0,mirror.failures-1);
-totalBytes+=file.size;
-log(`${label} (${(file.size/1048576).toFixed(2)} MB, ${speed.toFixed(2)} MB/s) <- ${mirror.host}`,"ok");
-return file;
-}catch(error){
-lastError=error;
-mirror.failures++;
-if(mirror.failures>=2)mirror.disabled=true;
-log(`${label} failed on ${mirror.host}: ${error.message}`,"warn");
-}finally{
-clearTimeout(timer);
-mirror.active=Math.max(0,mirror.active-1);
-updateUI();
-}
-}
-throw new Error(`Unable to download ${label}: ${lastError?.message||"all mirrors failed"}`);
-}
-
-async function downloadAllAssets(){
-const tasks=[];
-for(let i=0;i<APP.dataCount;i++){
-const name=`${APP.dataPrefix}.${String(i).padStart(3,"0")}`;
-tasks.push({kind:"data",name,path:APP.buildDir+name});
-}
-for(let i=0;i<APP.wasmCount;i++){
-const name=`${APP.wasmPrefix}.${String(i).padStart(3,"0")}`;
-tasks.push({kind:"wasm",name,path:APP.buildDir+name});
-}
-tasks.push({kind:"loader",name:APP.loader,path:APP.buildDir+APP.loader});
-tasks.push({kind:"framework",name:APP.framework,path:APP.buildDir+APP.framework});
-
-const output=new Map();
-let cursor=0;
-async function worker(){
-while(true){
-const task=tasks[cursor++];
-if(!task)return;
-activeWorkers++;
-updateUI();
-try{
-const file=await downloadFile(task.path,task.name);
-output.set(task.name,file);
-if(task.kind==="data")doneData++;
-if(task.kind==="wasm")doneWasm++;
-updateUI();
-}finally{
-activeWorkers--;
-updateUI();
-}
-}
-}
-await Promise.all(Array.from({length:Math.min(APP.workers,tasks.length)},worker));
-
-const dataParts=[],wasmParts=[];
-for(let i=0;i<APP.dataCount;i++)
-dataParts.push(output.get(`${APP.dataPrefix}.${String(i).padStart(3,"0")}`));
-for(let i=0;i<APP.wasmCount;i++)
-wasmParts.push(output.get(`${APP.wasmPrefix}.${String(i).padStart(3,"0")}`));
-
-return{
-dataBlob:new Blob(dataParts,{type:"application/octet-stream"}),
-wasmBlob:new Blob(wasmParts,{type:"application/octet-stream"}),
-loaderBlob:output.get(APP.loader),
-frameworkBlob:output.get(APP.framework)
-};
-}
-
-function runScriptBlob(blob){
-return new Promise((resolve,reject)=>{
-if(!blob?.size)return reject(new Error("Unity loader script is empty."));
-const url=URL.createObjectURL(blob);
-objectUrls.push(url);
-const script=document.createElement("script");
-script.src=url;
-script.onload=()=>resolve(url);
-script.onerror=()=>reject(new Error("Failed to execute Unity loader script."));
-document.body.appendChild(script);
-});
-}
-
-async function start(){
-if(busy)return;
-busy=true;
-errBox.style.display="none";
-retryBtn.style.display="none";
-clearBtn.style.display="none";
-doneData=0;doneWasm=0;totalBytes=0;networkBytes=0;
-liveMbps=0;activeWorkers=0;
-startedAt=performance.now();
-lastSpeedAt=startedAt;
-lastSpeedBytes=0;
-makeMirrorStats();
-updateUI();
-
-try{
-await initCache();
-await benchmarkMirrors();
-
-const {dataBlob,wasmBlob,loaderBlob,frameworkBlob}=await downloadAllAssets();
-if(!dataBlob?.size||!wasmBlob?.size)throw new Error("Merged game assets are empty.");
-if(!loaderBlob?.size||!frameworkBlob?.size)throw new Error("Unity loader/framework is missing.");
-
-subEl.textContent="Preparing game memory...";
-overallFill.style.width="76%";
-pctEl.textContent="76%";
-
-const wasmBytes=new Uint8Array(await wasmBlob.arrayBuffer());
-const dataUrl=URL.createObjectURL(dataBlob);
-const wasmCodeUrl=URL.createObjectURL(wasmBlob);
-const frameworkUrl=URL.createObjectURL(frameworkBlob);
-objectUrls.push(dataUrl,wasmCodeUrl,frameworkUrl);
-
-await runScriptBlob(loaderBlob);
-if(typeof createUnityInstance!=="function")
-throw new Error("Unity loader did not expose createUnityInstance.");
-
-subEl.textContent="Starting Hollow Knight...";
-const config={
-dataUrl,wasmCodeUrl,wasmBinary:wasmBytes,frameworkUrl,
-streamingAssetsUrl:String(APP.streamingAssets),
-companyName:String(APP.companyName),
-productName:String(APP.productName),
-productVersion:String(APP.productVersion)
-};
-
-const instance=await createUnityInstance($("canvas"),config,progress=>{
-const value=76+Math.max(0,Math.min(1,progress))*24;
-overallFill.style.width=`${value.toFixed(1)}%`;
-pctEl.textContent=`${Math.floor(value)}%`;
-subEl.textContent="Initializing Unity...";
+$("retryButton").addEventListener("click", () => {
+  startLauncher();
 });
 
-window.unityInstance=instance;
-overallFill.style.width="100%";
-pctEl.textContent="100%";
-$("boot").style.display="none";
-$("game").style.display="flex";
-$("fsBtn").onclick=()=>instance.SetFullscreen(1);
-$("scaleSel").onchange=event=>{
-const scale=parseFloat(event.target.value)||.6;
-$("canvas").width=Math.round(960*scale);
-$("canvas").height=Math.round(600*scale);
-};
-}catch(error){
-log(error.stack||error.message||String(error),"err");
-errBox.textContent=error.message||String(error);
-errBox.style.display="block";
-retryBtn.style.display="inline-block";
-clearBtn.style.display="inline-block";
-subEl.textContent="Launch failed.";
-}finally{busy=false;}
-}
+$("workers").addEventListener("change", event => {
+  activeWorkers = Number(event.target.value);
 
-retryBtn.onclick=start;
-clearBtn.onclick=async()=>{
-if(busy)return;
-try{
-if(!storeMode)await initCache();
-await clearCache();
-start();
-}catch(error){log(`Cache clear failed: ${error.message}`,"err");}
-};
-
-window.addEventListener("DOMContentLoaded",()=>{
-log("Launcher ready.");
-log(`Mirrors: ${APP.mirrors.length} · Workers: ${APP.workers}`);
-start();
+  log(`Worker setting changed to ${activeWorkers}.`);
+  log("The new setting applies to the next download attempt.");
 });
+
+$("clearButton").addEventListener("click", async () => {
+  if (running) {
+    log("Cannot clear cache while the launcher is running.", "error");
+    return;
+  }
+
+  const confirmed = confirm(
+    "Delete the saved Hollow Knight downloads? " +
+    "The game will need to download again."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await clearCache();
+
+    log("Hollow Knight cache deleted.", "success");
+
+    completed = 0;
+    cacheHits = 0;
+    downloadedBytes = 0;
+
+    updateUI();
+
+    await startLauncher();
+
+  } catch (error) {
+    log(
+      `Cache deletion failed: ${error.name}: ${error.message}`,
+      "error"
+    );
+  }
+});
+
+$("copyLog").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(logLines.join("\n"));
+    log("Diagnostic log copied.", "success");
+  } catch (error) {
+    log(`Clipboard failed: ${error.message}`, "error");
+  }
+});
+
+$("fullscreenButton").addEventListener("click", async () => {
+  try {
+    if (!document.fullscreenElement) {
+      await $("gameArea").requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (error) {
+    log(`Fullscreen failed: ${error.message}`, "error");
+  }
+});
+
+window.addEventListener("beforeunload", () => {
+  for (const controller of activeControllers) {
+    try {
+      controller.abort();
+    } catch {}
+  }
+
+  if (db) db.close();
+
+  for (const url of objectUrls) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {}
+  }
+});
+
+/* =========================================================
+   STARTUP
+========================================================= */
+
+(async () => {
+  log("Hollow Knight launcher started.");
+  log(`Browser: ${navigator.userAgent}`);
+  log(`Protocol: ${location.protocol}`);
+  log(`Origin: ${location.origin}`);
+  log(`WebAssembly support: ${typeof WebAssembly !== "undefined"}`);
+
+  activeWorkers = Number($("workers").value);
+
+  startLauncher();
+})();
+
 </script>
 </body>
 </html>
