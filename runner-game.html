@@ -8,15 +8,9 @@
 <title>Game Loader</title>
 
 <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
-<link rel="dns-prefetch" href="https://raw.githubusercontent.com">
 
 <style>
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
+html, body {
   margin: 0;
   width: 100%;
   height: 100%;
@@ -32,13 +26,12 @@ body {
   place-items: center;
   background: #101010;
   color: #ddd;
-  font-size: 14px;
+  font: 14px system-ui;
   z-index: 999999;
 }
 
 #details {
   max-width: 90vw;
-  padding: 20px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   text-align: center;
@@ -55,9 +48,7 @@ body {
 <script>
 "use strict";
 
-/*
-  The launcher replaces this placeholder with the selected game's URL.
-*/
+/* The launcher inserts the selected game's URL here. */
 const GAME_URL = __GAME_URL__;
 
 const RAW_ROOT =
@@ -65,13 +56,6 @@ const RAW_ROOT =
 
 const PAGES_ROOT =
   "https://amoldywaffle.github.io/Ocarina-of-Time/";
-
-const REQUEST_TIMEOUT = 45000;
-
-
-/* -------------------------------------------------------
-   LOADING STATUS
-------------------------------------------------------- */
 
 function setStatus(message) {
   const node = document.getElementById("details");
@@ -81,138 +65,52 @@ function setStatus(message) {
   }
 }
 
-
-/* -------------------------------------------------------
-   CONVERT GITHUB PAGES URL TO RAW GITHUB URL
-------------------------------------------------------- */
-
 function toRawUrl(pagesUrl) {
-  if (typeof pagesUrl !== "string" || !pagesUrl.trim()) {
-    throw new Error("No game URL was provided.");
+  if (typeof pagesUrl !== "string" || !pagesUrl) {
+    throw new Error(
+      "The launcher did not provide a game URL. Received: " +
+      String(pagesUrl)
+    );
   }
 
-  let parsed;
-
-  try {
-    parsed = new URL(pagesUrl);
-  } catch {
-    throw new Error("The game URL is invalid.");
-  }
-
-  if (
-    parsed.protocol !== "https:" ||
-    parsed.hostname !== "amoldywaffle.github.io" ||
-    !parsed.pathname.startsWith("/Ocarina-of-Time/")
-  ) {
+  if (!pagesUrl.startsWith(PAGES_ROOT)) {
     throw new Error("Unexpected game URL: " + pagesUrl);
   }
 
-  const relativePath = parsed.pathname.slice(
-    "/Ocarina-of-Time/".length
-  );
+  const relativePath = pagesUrl
+    .slice(PAGES_ROOT.length)
+    .split(/[?#]/, 1)[0];
 
-  const encodedPath = relativePath
-    .split("/")
-    .map(part => {
-      try {
-        return encodeURIComponent(decodeURIComponent(part));
-      } catch {
-        return encodeURIComponent(part);
-      }
-    })
-    .join("/");
+  const encodedPath = relativePath.split("/").map(part => {
+    let decoded = part;
+
+    try {
+      decoded = decodeURIComponent(part);
+    } catch (_) {}
+
+    return encodeURIComponent(decoded);
+  }).join("/");
 
   return RAW_ROOT + encodedPath;
 }
 
-
-/* -------------------------------------------------------
-   DETERMINE THE ORIGINAL GAME DIRECTORY
-------------------------------------------------------- */
-
 function gameBaseUrl(pagesUrl) {
-  const parsed = new URL(pagesUrl);
+  const cleanUrl = pagesUrl.split(/[?#]/, 1)[0];
 
-  parsed.search = "";
-  parsed.hash = "";
-
-  const path = parsed.pathname;
-  const directory = path.slice(0, path.lastIndexOf("/") + 1);
-
-  return parsed.origin + directory;
+  return cleanUrl.slice(
+    0,
+    cleanUrl.lastIndexOf("/") + 1
+  );
 }
 
-
-/* -------------------------------------------------------
-   SAFELY INSERT A BASE ELEMENT
-------------------------------------------------------- */
-
-function insertBaseElement(html, baseUrl) {
-  /*
-    Preserve an existing base element.
-    Some games intentionally use their own asset locations.
-  */
-  if (/<base\b[^>]*>/i.test(html)) {
-    return html;
-  }
-
-  const escapedBase = baseUrl
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;");
-
-  const baseTag = '<base href="' + escapedBase + '">';
-
-  /*
-    Normal HTML document with a head element.
-  */
-  if (/<head\b[^>]*>/i.test(html)) {
-    return html.replace(
-      /<head\b[^>]*>/i,
-      match => match + "\n" + baseTag
-    );
-  }
-
-  /*
-    HTML document without a head element.
-  */
-  if (/<html\b[^>]*>/i.test(html)) {
-    return html.replace(
-      /<html\b[^>]*>/i,
-      match => match + "\n<head>" + baseTag + "</head>"
-    );
-  }
-
-  /*
-    HTML fragment.
-  */
-  return "<head>" + baseTag + "</head>\n" + html;
-}
-
-
-/* -------------------------------------------------------
-   DOWNLOAD GAME HTML
-------------------------------------------------------- */
-
-async function downloadGame(url) {
-  const controller = new AbortController();
-
-  const timeout = setTimeout(() => {
-    controller.abort();
-  }, REQUEST_TIMEOUT);
-
+async function start() {
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      mode: "cors",
-      credentials: "omit",
+    setStatus("Downloading game HTML…");
 
-      /*
-        Allow the browser to reuse cached game HTML
-        when the server's caching headers permit it.
-      */
-      cache: "default",
+    const rawUrl = toRawUrl(GAME_URL);
 
-      signal: controller.signal
+    const response = await fetch(rawUrl, {
+      cache: "no-store"
     });
 
     if (!response.ok) {
@@ -221,91 +119,60 @@ async function downloadGame(url) {
       );
     }
 
-    const html = await response.text();
+    let html = await response.text();
 
-    if (!html || !html.trim()) {
+    if (!html.trim()) {
       throw new Error("The downloaded game HTML was empty.");
     }
 
-    return html;
+    /*
+      Preserve existing base elements.
+      Otherwise, keep relative files pointed at the game's
+      original GitHub Pages directory.
+    */
+    if (!/<base\b/i.test(html)) {
+      const base = gameBaseUrl(GAME_URL);
 
-  } catch (error) {
-    if (error.name === "AbortError") {
-      throw new Error(
-        "Game download timed out after " +
-        (REQUEST_TIMEOUT / 1000) +
-        " seconds."
-      );
+      const escapedBase = base
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;");
+
+      const baseTag = '<base href="' + escapedBase + '">';
+
+      if (/<head\b[^>]*>/i.test(html)) {
+        html = html.replace(
+          /<head\b[^>]*>/i,
+          match => match + "\n" + baseTag
+        );
+      } else {
+        html = baseTag + html;
+      }
     }
-
-    throw error;
-
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-
-/* -------------------------------------------------------
-   START GAME
-------------------------------------------------------- */
-
-async function startGame() {
-  try {
-    if (
-      typeof GAME_URL !== "string" ||
-      !GAME_URL.trim()
-    ) {
-      throw new Error(
-        "The launcher did not provide a valid game URL."
-      );
-    }
-
-    setStatus("Preparing game…");
-
-    const rawUrl = toRawUrl(GAME_URL);
-    const baseUrl = gameBaseUrl(GAME_URL);
-
-    setStatus("Downloading game HTML…");
-
-    let html = await downloadGame(rawUrl);
-
-    setStatus("Preparing game files…");
-
-    html = insertBaseElement(html, baseUrl);
 
     setStatus("Starting game…");
 
     /*
-      Replace the loader document with the downloaded game.
-
-      Relative game assets continue resolving from the
-      original GitHub Pages directory because of the
-      inserted base element.
+      Preserve the original document replacement method.
+      This is important for compatibility with existing games.
     */
     document.open();
     document.write(html);
     document.close();
 
   } catch (error) {
-    console.error("[Game Loader]", error);
-
     setStatus(
-      "Could not start game.\n\n" +
+      "Could not start game.\n" +
       (error && error.stack
         ? error.stack
         : String(error))
     );
+
+    console.error("[Runner game loader]", error);
   }
 }
 
-
-/* -------------------------------------------------------
-   INITIALIZE
-------------------------------------------------------- */
-
-startGame();
-
+start();
 </script>
+
 </body>
 </html>
