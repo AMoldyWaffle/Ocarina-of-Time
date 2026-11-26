@@ -60,6 +60,14 @@ button:disabled{
   transform:none
 }
 
+/* SETTINGS PREFERENCES */
+.no-background-effects #spaceBackground{display:none!important}
+.no-interface-animations *,
+.no-interface-animations *:before,
+.no-interface-animations *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+.compact-cards #games,.compact-cards .game-grid{gap:10px;grid-template-columns:repeat(auto-fill,minmax(155px,1fr))}
+.compact-cards .cover{aspect-ratio:16/9}
+
 #spaceBackground{
   position:fixed;
   inset:0;
@@ -142,6 +150,11 @@ button:disabled{
 @keyframes orbitSpin{
   to{transform:translate(-50%,-50%) rotate(360deg)}
 }
+
+.topline-actions{display:flex;align-items:center;gap:16px}
+.settings-link{display:grid;place-items:center;width:34px;height:34px;border:1px solid rgba(157,148,255,.3);border-radius:9px;color:#c9c5ed;background:rgba(24,25,52,.72);transition:background .2s,border-color .2s,transform .2s}
+.settings-link:hover{background:rgba(58,49,105,.85);border-color:rgba(178,166,255,.8);transform:rotate(25deg)}
+.settings-link svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 
 .topline{
   height:48px;
@@ -591,6 +604,7 @@ footer{
 
 @media(max-width:650px){
   .topline{padding:0 16px}
+  .topline-actions>span{display:none}
   .hero{padding:65px 14px 39px}
   .orbit{width:185px;height:185px}
   #toolbar{gap:10px}
@@ -720,7 +734,12 @@ footer{
 
 <div class="topline">
   <span class="topline-mark">AMW / DIGITAL ARCHIVE</span>
-  <span>UNKNOWN SPACE · OPEN ACCESS</span>
+  <div class="topline-actions">
+    <span>UNKNOWN SPACE · OPEN ACCESS</span>
+    <a class="settings-link" href="https://amoldywaffle.github.io/Ocarina-of-Time/Features/Settings/" aria-label="Open settings" title="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/><path d="m19.4 13.5 1.1.9-1.1 1.9-1.4-.5a7.8 7.8 0 0 1-1.5.9l-.2 1.5h-2.2l-.3-1.5a7.8 7.8 0 0 1-1.7 0l-.8 1.3-1.9-1.1.5-1.4a7.8 7.8 0 0 1-.9-1.5l-1.5-.2v-2.2l1.5-.3a7.8 7.8 0 0 1 0-1.7l-1.3-.8 1.1-1.9 1.4.5a7.8 7.8 0 0 1 1.5-.9l.2-1.5h2.2l.3 1.5a7.8 7.8 0 0 1 1.7 0l.8-1.3 1.9 1.1-.5 1.4a7.8 7.8 0 0 1 .9 1.5l1.5.2v2.2l-1.5.3a7.8 7.8 0 0 1 0 1.6Z"/></svg>
+    </a>
+  </div>
 </div>
 
 <header class="hero">
@@ -831,6 +850,19 @@ const PROXY_LOADER_URL = PAGES_BASE + "proxy-game.html";
 const CACHE_KEY = "AMW_GAME_LIBRARY_V3";
 
 const $ = id => document.getElementById(id);
+
+// Apply preferences saved by Features/Settings.
+const SITE_SETTINGS_KEY = "AMW_SITE_SETTINGS_V1";
+function applySiteSettings() {
+  let settings = {};
+  try {
+    settings = JSON.parse(localStorage.getItem(SITE_SETTINGS_KEY) || "{}") || {};
+  } catch (_) {}
+  document.documentElement.classList.toggle("no-background-effects", settings.backgroundEffects === false);
+  document.documentElement.classList.toggle("no-interface-animations", settings.animations === false);
+  document.documentElement.classList.toggle("compact-cards", settings.compactCards === true);
+}
+applySiteSettings();
 
 const gamesNode = $("games");
 const newGamesNode = $("newGames");
