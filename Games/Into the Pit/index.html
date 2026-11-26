@@ -693,16 +693,25 @@
     }
 
     async function acquireDownloadSlot() {
-      if (activeDownloads >= MAX_PARALLEL_DOWNLOADS) {
-        await new Promise(resolve => downloadWaiters.push(resolve));
+      if (activeDownloads < MAX_PARALLEL_DOWNLOADS) {
+        activeDownloads++;
+        return;
       }
-      activeDownloads++;
+
+      // A released slot is handed directly to the next waiter. Do not
+      // increment again after waking, or simultaneous requests can exceed
+      // the Chromebook's configured connection limit.
+      await new Promise(resolve => downloadWaiters.push(resolve));
     }
 
     function releaseDownloadSlot() {
-      activeDownloads--;
       const next = downloadWaiters.shift();
-      if (next) next();
+
+      if (next) {
+        next();
+      } else {
+        activeDownloads = Math.max(0, activeDownloads - 1);
+      }
     }
 
     function getParts(file, start, end) {
@@ -896,9 +905,10 @@
         console.log("[OPFS] Downloading directly to disk:", cacheKey);
 
         let nextPart = 0;
+        let workerError = null;
 
         async function runWorker() {
-          while (true) {
+          while (!workerError) {
             const index = nextPart++;
             if (index >= fileParts.length) return;
 
@@ -908,20 +918,35 @@
 
             const position = index * PART_SIZE;
 
-            await downloadPartToOPFS(
-              fileParts[index],
-              writer,
-              position,
-              expectedSize
-            );
+            try {
+              await downloadPartToOPFS(
+                fileParts[index],
+                writer,
+                position,
+                expectedSize
+              );
+            } catch (error) {
+              workerError = error;
+              throw error;
+            }
           }
         }
 
         const workerCount = Math.min(2, fileParts.length);
 
-        await Promise.all(
+        // Wait for every active worker to settle before aborting or deleting
+        // the file. Promise.all alone rejects early while other writes may
+        // still be using the shared OPFS writer.
+        const workerResults = await Promise.allSettled(
           Array.from({ length: workerCount }, () => runWorker())
         );
+
+        if (workerError) throw workerError;
+
+        const failedWorker = workerResults.find(
+          result => result.status === "rejected"
+        );
+        if (failedWorker) throw failedWorker.reason;
 
         await writer.close();
 
