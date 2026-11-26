@@ -4,3 +4,5 @@ Beta V0.8.5
 	-Now Can Wipe all Saved Game Files, So You Will Have to Redownload Game Files
 
 -Optimized GTA: Vice City Downloading
+
+-Updated Favicon
