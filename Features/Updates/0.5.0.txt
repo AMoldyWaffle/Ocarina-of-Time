@@ -1,0 +1,6 @@
+V0.5.0
+-Added Update Log
+-Optimized Loading Times For:
+	Cuphead
+	Hollow Knight
+	Into the Pit
