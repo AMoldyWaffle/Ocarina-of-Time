@@ -31,6 +31,126 @@ h1{margin:0 0 8px;font-size:17px;letter-spacing:2px}
 <script>
 "use strict";
 
+/*
+ * AMW cross-origin worker bridge. Worker entry URLs must be same-origin,
+ * so remote classic/module workers are bootstrapped through same-origin Blob URLs.
+ */
+function installAMWWorkerBridge() {
+  if (window.__amwWorkerBridgeInstalled) return;
+  window.__amwWorkerBridgeInstalled = true;
+
+  function bridgeConstructor(NativeConstructor, kind) {
+    if (typeof NativeConstructor !== "function") return NativeConstructor;
+    return new Proxy(NativeConstructor, {
+      construct(target, args) {
+        let remoteURL;
+        try {
+          remoteURL = new URL(String(args[0]), document.baseURI);
+        } catch (_) {
+          return Reflect.construct(target, args, target);
+        }
+
+        if (
+          remoteURL.protocol === "blob:" ||
+          remoteURL.protocol === "data:" ||
+          remoteURL.origin === location.origin
+        ) {
+          return Reflect.construct(target, args, target);
+        }
+
+        const options = args[1];
+        const moduleWorker =
+          !!(options && typeof options === "object" && options.type === "module");
+        const originalURL = remoteURL.href;
+        let bootstrap;
+
+        if (moduleWorker) {
+          bootstrap = "import " + JSON.stringify(originalURL) + ";";
+        } else {
+          bootstrap =
+            "const __amwRemoteWorkerURL=" + JSON.stringify(originalURL) + ";" +
+            "const __amwNativeImportScripts=self.importScripts.bind(self);" +
+            "self.importScripts=(...urls)=>__amwNativeImportScripts(" +
+              "...urls.map(url=>new URL(url,__amwRemoteWorkerURL).href));" +
+            "self.importScripts(__amwRemoteWorkerURL);";
+        }
+
+        const blobURL = URL.createObjectURL(
+          new Blob([bootstrap], { type: "text/javascript" })
+        );
+        const patchedArgs = args.slice();
+        patchedArgs[0] = blobURL;
+
+        try {
+          const worker = Reflect.construct(target, patchedArgs, target);
+          setTimeout(() => URL.revokeObjectURL(blobURL), 5 * 60 * 1000);
+          console.info("[AMW worker bridge] " + kind + ":", originalURL);
+          return worker;
+        } catch (error) {
+          URL.revokeObjectURL(blobURL);
+          throw error;
+        }
+      }
+    });
+  }
+
+  if (window.Worker) window.Worker = bridgeConstructor(window.Worker, "Worker");
+  if (window.SharedWorker) {
+    window.SharedWorker = bridgeConstructor(window.SharedWorker, "SharedWorker");
+  }
+
+  // Waffle loads emulator.html and turns it into a nested Blob document.
+  // Inject the bridge into that document before its own scripts run.
+  if (!window.__amwWorkerBridgeFetchPatched) {
+    window.__amwWorkerBridgeFetchPatched = true;
+    const nativeFetch = window.fetch.bind(window);
+
+    window.fetch = async function(input, init) {
+      let requestURL = "";
+      try {
+        requestURL = typeof input === "string" ? input : input.url;
+      } catch (_) {}
+
+      const response = await nativeFetch(input, init);
+      if (!response.ok || !/\/emulator\.html(?:[?#]|$)/i.test(requestURL)) {
+        return response;
+      }
+
+      let source = await response.text();
+      const nestedBridge =
+        "<script>(" + installAMWWorkerBridge.toString() + ")();<\\/script>";
+
+      if (/<head\\b[^>]*>/i.test(source)) {
+        source = source.replace(/<head\\b[^>]*>/i, match => match + nestedBridge);
+      } else {
+        source = nestedBridge + source;
+      }
+
+      const headers = new Headers(response.headers);
+      headers.delete("content-length");
+      headers.delete("content-encoding");
+      return new Response(source, {
+        status: response.status,
+        statusText: response.statusText,
+        headers
+      });
+    };
+  }
+}
+
+function injectAMWWorkerBridge(html) {
+  if (/__amwWorkerBridgeInstalled/.test(html)) return html;
+  const tag =
+    "<script>(" + installAMWWorkerBridge.toString() + ")();<\\/script>";
+
+  if (/<head\\b[^>]*>/i.test(html)) {
+    return html.replace(/<head\\b[^>]*>/i, match => match + tag);
+  }
+  return tag + html;
+}
+
+
+
 (() => {
   const PAGES_ROOT = "https://amoldywaffle.github.io/Ocarina-of-Time/";
   const RAW_ROOT = "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/";
@@ -121,6 +241,8 @@ h1{margin:0 0 8px;font-size:17px;letter-spacing:2px}
           html = baseTag + html;
         }
       }
+
+    html = injectAMWWorkerBridge(html);
 
       statusNode.textContent = "Starting " + gameTitle + "…";
       document.open();
