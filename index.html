@@ -1467,7 +1467,6 @@ async function launchInRunner(game) {
 
 function launch(game) {
 
-  // The Settings page currently offers Proxy as the only launcher.
   const launcherType = (() => {
     try {
       return localStorage.getItem("AMW_LAUNCHER_TYPE") || "proxy";
@@ -1476,9 +1475,14 @@ function launch(game) {
     }
   })();
 
-  if (launcherType !== "proxy") {
-    log("error", ["Unsupported launcher type:", launcherType]);
+  // Runner uses its own top-level blob loader; Proxy stays inside the player.
+  if (launcherType === "runner") {
+    launchInRunner(game);
     return;
+  }
+
+  if (launcherType !== "proxy") {
+    log("error", ["Unknown launcher type:", launcherType, "- using Proxy."]);
   }
 
   openPlayer(game);
