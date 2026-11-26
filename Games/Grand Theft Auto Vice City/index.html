@@ -2327,7 +2327,6 @@ function githubRequest(url,responseType="text"){
   return new Promise((resolve,reject)=>{
     const xhr=new XMLHttpRequest();
     xhr.open("GET",url,true);
-    // API responses are parsed from text; raw repository files must be fetched as binary Blobs.
     xhr.responseType=responseType==="blob"?"blob":"text";
     if(url.startsWith("https://api.github.com/"))xhr.setRequestHeader("Accept","application/vnd.github+json");
     xhr.onload=()=>{
@@ -2340,49 +2339,87 @@ function githubRequest(url,responseType="text"){
     };
     xhr.onerror=()=>reject(new Error("Network/CORS error while requesting "+url));
     xhr.ontimeout=()=>reject(new Error("Request timed out: "+url));
-    xhr.timeout=120000;
+    xhr.timeout=180000;
     xhr.send();
   });
 }
+
+// Retry individual files so a temporary GitHub/CDN hiccup does not discard
+// the entire multi-gigabyte download already completed.
+async function githubRequestWithRetry(url,responseType="text",attempts=4){
+  let lastError;
+  for(let attempt=0;attempt<attempts;attempt++){
+    try{return await githubRequest(url,responseType);}
+    catch(error){
+      lastError=error;
+      if(attempt+1<attempts){
+        const delay=Math.min(8000,750*Math.pow(2,attempt));
+        console.warn("[repo] Request failed; retrying in "+delay+"ms ("+(attempt+1)+"/"+attempts+"):",url,error);
+        await new Promise(resolve=>setTimeout(resolve,delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function autoDownloadRepo(){
   const repo="AMoldyWaffle/GTA-VC";
   const api="https://api.github.com/repos/"+repo;
   const raw="https://raw.githubusercontent.com/"+repo+"/";
   try{
     console.info("[repo] Looking up "+repo);
-    const meta=await githubRequest(api,"json");
+    const meta=await githubRequestWithRetry(api,"json");
     const branch=meta.default_branch;
     if(!branch)throw new Error("Repository has no default branch");
-    const tree=await githubRequest(api+"/git/trees/"+encodeURIComponent(branch)+"?recursive=1","json");
+    const tree=await githubRequestWithRetry(api+"/git/trees/"+encodeURIComponent(branch)+"?recursive=1","json");
     if(tree.truncated)throw new Error("GitHub truncated the repository file list; cannot safely import an incomplete tree");
-    const files=(tree.tree||[]).filter(x=>x.type==="blob"&&!x.path.startsWith(".github/")&&!x.path.startsWith(".git/"));
+
+    // Keep the game's actual files, while avoiding repository metadata.
+    const files=(tree.tree||[]).filter(item=>item.type==="blob"&&
+      !item.path.startsWith(".github/")&&
+      !item.path.startsWith(".git/")&&
+      item.path!==".DS_Store"&&
+      !/(^|\/)(Thumbs\.db|desktop\.ini)$/i.test(item.path));
     if(!files.length)throw new Error("No downloadable files were found in the repository");
-    const total=files.reduce((n,f)=>n+(f.size||0),0);
-    console.info("[repo] "+files.length+" files; "+(total/1048576).toFixed(1)+" MiB. Downloading with 32 parallel workers.");
-    console.info("[performance] Runtime IndexedDB handles and chunk reads are cached; canvas compositing hints enabled.");
+
+    const total=files.reduce((sum,file)=>sum+(file.size||0),0);
+    // Browsers commonly cap per-origin connections around six. Using 32
+    // workers only creates a large queue and extra memory pressure; 6 keeps
+    // the network busy without flooding it.
+    const concurrency=Math.min(6,files.length);
+    console.info("[repo] "+files.length+" files; "+(total/1048576).toFixed(1)+" MiB. Downloading with "+concurrency+" parallel workers.");
+    console.info("[performance] Limited parallelism, per-file retry, byte-based progress, and cached IndexedDB reads enabled.");
+
     x(true);r.style.display="block";c.style.display="none";k(false);y("status.missing","missing");
     z(l,"progress.converting",{done:0,total:files.length});o.style.width="0%";d.textContent="0%";
-    const entries=new Array(files.length);let next=0,done=0,bytes=0;
+
+    const entries=new Array(files.length);
+    let next=0,done=0,bytes=0;
+    function updateProgress(){
+      const pct=total>0?Math.min(100,Math.floor(bytes/total*100)):Math.floor(done/files.length*100);
+      o.style.width=pct+"%";d.textContent=pct+"%";
+      // Keep the existing translated status label, while the console reports
+      // both file count and real bytes so large files are visible in progress.
+      z(l,"progress.converting",{done,total:files.length});
+    }
     async function worker(){
       while(true){
         const index=next++;
         if(index>=files.length)return;
         const item=files[index];
         const url=raw+branch.split("/").map(encodeURIComponent).join("/")+"/"+item.path.split("/").map(encodeURIComponent).join("/");
-        const blob=await githubRequest(url,"blob");
+        const blob=await githubRequestWithRetry(url,"blob");
         if(item.size!=null&&blob.size!==item.size)throw new Error("Size mismatch for "+item.path+": expected "+item.size+", got "+blob.size);
         entries[index]={path:repo.split("/")[1]+"/"+item.path,file:new File([blob],item.path.split("/").pop(),{type:"application/octet-stream"})};
         done++;bytes+=blob.size;
-        const pct=Math.floor(done/files.length*100);
-        o.style.width=pct+"%";d.textContent=pct+"%";
-        z(l,"progress.converting",{done,total:files.length});
-        if(done%100===0||done===files.length)console.info("[repo] Downloaded "+done+"/"+files.length+" files ("+(bytes/1048576).toFixed(1)+" / "+(total/1048576).toFixed(1)+" MiB)");
+        updateProgress();
+        if(done%50===0||done===files.length){
+          console.info("[repo] Downloaded "+done+"/"+files.length+" files ("+(bytes/1048576).toFixed(1)+" / "+(total/1048576).toFixed(1)+" MiB)");
+        }
       }
     }
-    await Promise.all(Array.from({length:Math.min(32,files.length)},()=>worker()));
+    await Promise.all(Array.from({length:concurrency},()=>worker()));
     console.info("[repo] Download complete. Preparing the built-in importer and importing files into local storage.");
-    // Use the same wrapped folder-import path as the file picker. It calls M.prepareImport()
-    // first (loads the worker and embedded conversion tables), then starts the import worker.
     I("GTA-VC",entries);
   }catch(err){
     console.error("[repo] Automatic download/import failed:",err);
