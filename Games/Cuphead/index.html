@@ -70,8 +70,9 @@ const CACHE_NAME = "cuphead-cache-v2";
 const DOWNLOAD_SETTINGS = {
   initial: 6,
   minimum: 3,
-  maximum: 8,
-  increaseEvery: 6
+  // Scale up only after several fast responses; back off on slow ones.
+  maximum: 12,
+  increaseEvery: 4
 };
 
 const ASSETS = [
@@ -479,25 +480,11 @@ async function fetchPart(url,partKey,expectedSize) {
 
         let result;
 
-        if(!response.body) {
-          result=await response.blob();
-          updateProgress(result.size);
-        } else {
-          const reader=response.body.getReader();
-          const chunks=[];
-
-          while(true) {
-            const item=await reader.read();
-            if(item.done)break;
-
-            chunks.push(item.value);
-            updateProgress(item.value.byteLength);
-          }
-
-          result=new Blob(chunks,{
-            type:"application/octet-stream"
-          });
-        }
+        // Let the browser's native Blob pipeline consume the response.
+        // This avoids allocating and reassembling a JavaScript array of
+        // stream chunks for every ~20 MB piece.
+        result=await response.blob();
+        updateProgress(result.size);
 
         if(!result.size)throw new Error("Downloaded part was empty.");
 
