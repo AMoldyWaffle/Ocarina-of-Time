@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#000000">
+<title>Starting emulator…</title>
+<style>
+html,body{margin:0;width:100%;height:100%;background:#000;color:#ddd;font:14px system-ui,sans-serif}
+body{display:grid;place-items:center}
+#status{max-width:90vw;text-align:center;overflow-wrap:anywhere;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div id="status">Preparing emulator…</div>
+<script>
+"use strict";
+
+(async function () {
+  const status = document.getElementById("status");
+  const params = new URLSearchParams(location.search);
+  const RAW_ROOT =
+    "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/";
+  const PAGES_ROOT =
+    "https://amoldywaffle.github.io/Ocarina-of-Time/";
+
+  function fail(error) {
+    const message = error && error.stack ? error.stack : String(error);
+    status.textContent = "Emulator setup failed:\n" + message;
+    console.error("[Waffle hosted emulator]", error);
+  }
+
+  try {
+    // The page is intentionally served from GitHub Pages, not from a Blob.
+    // Keep the document on this origin when replacing its contents.
+    const pagesBase = new URL(".", location.href).href;
+    const packs = params.get("packs") || RAW_ROOT + "Emulator/Waffle/packs/";
+    const data = params.get("data") || RAW_ROOT + "Emulator/Waffle/";
+
+    if (
+      !packs.startsWith(RAW_ROOT) &&
+      !packs.startsWith(PAGES_ROOT)
+    ) {
+      throw new Error("Invalid emulator pack location.");
+    }
+
+    if (
+      !data.startsWith(RAW_ROOT) &&
+      !data.startsWith(PAGES_ROOT)
+    ) {
+      throw new Error("Invalid emulator data location.");
+    }
+
+    status.textContent = "Loading emulator files…";
+
+    const response = await fetch(pagesBase + "emulator.html", {
+      cache: "default",
+      credentials: "same-origin"
+    });
+
+    if (!response.ok) {
+      throw new Error("Could not load emulator.html (HTTP " + response.status + ").");
+    }
+
+    let html = await response.text();
+    if (!html.trim()) throw new Error("emulator.html was empty.");
+
+    const safeBase = pagesBase
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;");
+
+    const setup =
+      '<base href="' + safeBase + '">' +
+      '<script>window.WI_PACK_BASE=' + JSON.stringify(packs) +
+      ';window.WI_DATA_BASE=' + JSON.stringify(data) +
+      ';<\\/script>';
+
+    if (/<head\b[^>]*>/i.test(html)) {
+      html = html.replace(/<head\b[^>]*>/i, match => match + setup);
+    } else {
+      html = setup + html;
+    }
+
+    // document.open/write keeps this document's real GitHub Pages origin.
+    // This is the key difference from creating a Blob URL in the proxy.
+    document.open();
+    document.write(html);
+    document.close();
+
+  } catch (error) {
+    fail(error);
+  }
+})();
+</script>
+</body>
+</html>
