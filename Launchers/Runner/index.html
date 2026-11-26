@@ -54,6 +54,12 @@ const GAME_URL = __GAME_URL__;
 const RAW_ROOT =
   "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/";
 
+// Pin Cuphead's game HTML to the exact commit containing the Blob-safe
+// cache-key fix. This avoids stale raw/CDN responses serving the old code.
+const CUPHEAD_HTML_URL =
+  "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/" +
+  "b5ae3f5800dc57c65cbaf9b22a53a530af2db012/Games/Cuphead/index.html";
+
 const PAGES_ROOT =
   "https://amoldywaffle.github.io/Ocarina-of-Time/";
 
@@ -80,6 +86,10 @@ function toRawUrl(pagesUrl) {
   const relativePath = pagesUrl
     .slice(PAGES_ROOT.length)
     .split(/[?#]/, 1)[0];
+
+  if (relativePath.replace(/^\\/+/, "") === "Games/Cuphead/index.html") {
+    return CUPHEAD_HTML_URL;
+  }
 
   const encodedPath = relativePath.split("/").map(part => {
     let decoded = part;
