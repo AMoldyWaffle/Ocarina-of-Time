@@ -68,10 +68,11 @@ const CACHE_NAME = "cuphead-cache-v2";
   It starts conservatively and adjusts based on real request results.
 */
 const DOWNLOAD_SETTINGS = {
-  initial: 6,
-  minimum: 3,
-  // Scale up only after several fast responses; back off on slow ones.
-  maximum: 12,
+  // Conservative Chromebook defaults: keep only a small number of
+  // large (~20 MB) responses in flight at once.
+  initial: 2,
+  minimum: 1,
+  maximum: 3,
   increaseEvery: 4
 };
 
@@ -499,13 +500,17 @@ async function fetchPart(url,partKey,expectedSize) {
       });
 
       if(cache&&partKey) {
-        // Serialize disk writes so dozens of 20 MB chunks do not compete
-        // with the active network transfers for storage bandwidth.
-        partCacheWriteQueue=partCacheWriteQueue
-          .then(()=>cache.put(partKey,new Response(blob)))
-          .catch(error=>{
-            log("Could not cache part: "+error.message);
-          });
+        // Apply backpressure: a worker does not fetch another 20 MB chunk
+        // until its current chunk has finished writing to disk.
+        const cacheWrite=partCacheWriteQueue.then(
+          ()=>cache.put(partKey,new Response(blob))
+        );
+
+        partCacheWriteQueue=cacheWrite.catch(error=>{
+          log("Could not cache part: "+error.message);
+        });
+
+        await partCacheWriteQueue;
       }
 
       return blob;
@@ -550,7 +555,7 @@ async function downloadParts(asset) {
     These workers may exist for every asset at once, but the shared
     scheduler controls the actual number of active network requests.
   */
-  const workerCount=Math.min(12,asset.parts);
+  const workerCount=Math.min(2,asset.parts);
 
   await Promise.all(
     Array.from({length:workerCount},()=>worker())
