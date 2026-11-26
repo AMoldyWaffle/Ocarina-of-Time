@@ -1677,8 +1677,12 @@ function launch(game) {
     }
   })();
 
-  // Runner uses its own top-level blob loader; Proxy stays inside the player.
-  if (launcherType === "runner") {
+  // Cuphead must use the top-level Runner document. The Proxy launcher
+  // document-writes the game into the proxied page, where Fuze's injected
+  // SharedWorker hits the cross-origin restriction. Runner fetches the game
+  // HTML and opens it through a Blob URL instead, preserving HTML execution
+  // and the game's relative asset base.
+  if (game.name.toLowerCase() === "cuphead" || launcherType === "runner") {
     launchInRunner(game);
     return;
   }
