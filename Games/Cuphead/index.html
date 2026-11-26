@@ -70,14 +70,14 @@ const CACHE_NAME = "cuphead-cache-v2";
 const DOWNLOAD_SETTINGS = {
   initial: 6,
   minimum: 3,
-  maximum: 12,
+  maximum: 8,
   increaseEvery: 6
 };
 
 const ASSETS = [
-  {name:"CupheadPort.data.unityweb",parts:103,size:2134335501},
-  {name:"CupheadPort.wasm.code.unityweb",parts:2,size:26100243},
-  {name:"CupheadPort.asm.code.unityweb",parts:3,size:42954393}
+  {name:"CupheadPort.data.unityweb",parts:103,size:2134335501,partSize:20866662},
+  {name:"CupheadPort.wasm.code.unityweb",parts:2,size:26100243,partSize:20866662},
+  {name:"CupheadPort.asm.code.unityweb",parts:3,size:42954393,partSize:20866662}
 ];
 
 const SINGLE_ASSETS = [
@@ -111,6 +111,7 @@ const totalBytes =
   SINGLE_ASSETS.reduce((n,a)=>n+a.size,0);
 
 let cache = null;
+let partCacheWriteQueue = Promise.resolve();
 let unityInstance = null;
 
 /* ============================================================
@@ -201,10 +202,17 @@ class DownloadScheduler {
       this.slowSamples=0;
     }
 
-    if(this.successes%this.increaseEvery===0 &&
-       this.fastSamples>=this.increaseEvery) {
+    if(this.slowSamples>=3 && this.limit>this.minimum) {
+      this.limit=Math.max(this.minimum,this.limit-1);
+      this.slowSamples=0;
+      log(`Large/slow responses detected. Concurrency reduced to ${this.limit}.`);
+    }
+
+    if(this.fastSamples>=this.increaseEvery &&
+       this.limit<this.maximum) {
       this.limit=Math.min(this.maximum,this.limit+1);
       this.fastSamples=0;
+      this.slowSamples=0;
       log(`Download speed looks healthy. Concurrency increased to ${this.limit}.`);
     }
 
@@ -217,6 +225,7 @@ class DownloadScheduler {
 
     if(this.limit>this.minimum) {
       this.limit=Math.max(this.minimum,this.limit-1);
+      this.slowSamples=0;
       log(`Download failure detected. Concurrency reduced to ${this.limit}.`);
     }
 
@@ -437,7 +446,7 @@ async function fetchBlobWithFallback(filename) {
    PART DOWNLOAD
 ============================================================ */
 
-async function fetchPart(url,partKey) {
+async function fetchPart(url,partKey,expectedSize) {
   if(cache&&partKey) {
     try {
       const cachedResponse=await cache.match(partKey);
@@ -445,12 +454,14 @@ async function fetchPart(url,partKey) {
       if(cachedResponse) {
         const cachedBlob=await cachedResponse.blob();
 
-        if(cachedBlob.size>0) {
+        if(cachedBlob.size>0 &&
+           (!expectedSize || cachedBlob.size===expectedSize)) {
           updateProgress(cachedBlob.size);
           log("Using cached part: "+partKey);
           return cachedBlob;
         }
 
+        log("Discarding incomplete cached part: "+partKey);
         await cache.delete(partKey);
       }
     } catch(error) {
@@ -490,14 +501,24 @@ async function fetchPart(url,partKey) {
 
         if(!result.size)throw new Error("Downloaded part was empty.");
 
+        if(expectedSize && result.size!==expectedSize) {
+          throw new Error(
+            `Part size mismatch. Expected ${expectedSize}, received ${result.size}.`
+          );
+        }
+
         recordMirrorSuccess(source,performance.now()-start);
         return result;
       });
 
       if(cache&&partKey) {
-        cache.put(partKey,new Response(blob)).catch(error=>{
-          log("Could not cache part: "+error.message);
-        });
+        // Serialize disk writes so dozens of 20 MB chunks do not compete
+        // with the active network transfers for storage bandwidth.
+        partCacheWriteQueue=partCacheWriteQueue
+          .then(()=>cache.put(partKey,new Response(blob)))
+          .catch(error=>{
+            log("Could not cache part: "+error.message);
+          });
       }
 
       return blob;
@@ -528,10 +549,13 @@ async function downloadParts(asset) {
       const partNumber=index+1;
       const filename=`${asset.name}.part${partNumber}`;
       const url=CDN_BASE+filename;
+      const expectedSize=index===asset.parts-1
+        ? asset.size-asset.partSize*(asset.parts-1)
+        : asset.partSize;
 
       log(`Queued ${filename} (${partNumber}/${asset.parts})`);
 
-      parts[index]=await fetchPart(url,cacheKey(filename));
+      parts[index]=await fetchPart(url,cacheKey(filename),expectedSize);
     }
   }
 
@@ -566,7 +590,15 @@ async function loadSplitAsset(asset) {
   if(!blob) {
     log(`Downloading ${asset.parts} parts for ${asset.name}`);
     blob=await downloadParts(asset);
-    await saveCachedAsset(asset.name,blob);
+
+    // The 2.13 GB data file is already represented by individually cached
+    // parts. Writing a second full-size copy to Cache Storage only adds
+    // heavy disk I/O and can exhaust the browser's storage quota.
+    if(asset.size<=256*1024*1024) {
+      await saveCachedAsset(asset.name,blob);
+    } else {
+      log(`Skipping duplicate assembled-file cache for large asset: ${asset.name}`);
+    }
   }
 
   if(blob.size!==asset.size) {
