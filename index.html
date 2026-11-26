@@ -1677,31 +1677,6 @@ function launch(game) {
     }
   })();
 
-  // Cuphead is served as a standalone jsDelivr document. This keeps the
-  // game page on the CDN origin instead of document-writing it into the
-  // school proxy's origin, which is where its injected Fuze SharedWorker
-  // becomes cross-origin and throws SecurityError.
-  if (game.name.toLowerCase() === "cuphead") {
-    openPlayer(game);
-    const cdnGameUrl =
-      "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/" +
-      enc(game.path);
-
-    log("info", ["Using standalone CDN launch for Cuphead."]);
-    log("info", ["Game URL:", cdnGameUrl]);
-
-    frame.onload = () => {
-      log("info", ["Cuphead CDN document loaded."]);
-    };
-
-    frame.onerror = () => {
-      log("error", ["Cuphead CDN document failed to load."]);
-    };
-
-    frame.src = cdnGameUrl;
-    return;
-  }
-
   // Runner uses its own top-level blob loader; Proxy stays inside the player.
   if (launcherType === "runner") {
     launchInRunner(game);
