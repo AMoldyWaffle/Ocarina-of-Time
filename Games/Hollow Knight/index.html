@@ -302,12 +302,12 @@ const CONFIG = {
 
     chunkRetries: 2,
 
-    // Keep a rolling pipeline of downloads instead of waiting for batches.
-    // Twelve workers are bounded to avoid excessive memory use.
-    maxParallelChunks: 12,
+    // Low-memory Chromebook profile: only two downloads per asset.
+    // Data and WASM prepare together, so this keeps peak chunk memory modest.
+    maxParallelChunks: 2,
 
-    // Smaller UI updates reduce rendering overhead.
-    progressUpdateInterval: 100,
+    // Throttle DOM updates to reduce CPU and rendering overhead.
+    progressUpdateInterval: 250,
 
     expectedPartSizes: {
         data: [
@@ -1230,10 +1230,8 @@ async function mergeIndexedDB(prefix, partCount, progressCallback) {
         (_, index) => index
     );
 
-    // Download workers do not wait for individual cache writes.
-    // This allows network workers to keep downloading.
-
-    const pendingCacheWrites = [];
+    // Cache writes are awaited by each worker. This applies backpressure
+    // instead of allowing dozens of 20 MB Blobs to queue in memory.
 
     const parts = await mapWithConcurrency(
         indices,
@@ -1277,24 +1275,22 @@ async function mergeIndexedDB(prefix, partCount, progressCallback) {
                     index
                 );
 
-                const writePromise = idbPut(
-                    partKey,
-                    {
-                        blob: partBlob,
-                        size: partBlob.size,
-                        version: CONFIG.cacheVersion
-                    }
-                ).catch(error => {
-
+                try {
+                    await idbPut(
+                        partKey,
+                        {
+                            blob: partBlob,
+                            size: partBlob.size,
+                            version: CONFIG.cacheVersion
+                        }
+                    );
+                } catch (error) {
                     consoleLog(
                         "Could not cache " + partName +
                         ": " + error.message,
                         "warning"
                     );
-
-                });
-
-                pendingCacheWrites.push(writePromise);
+                }
             }
 
             completed++;
@@ -1338,20 +1334,21 @@ async function mergeIndexedDB(prefix, partCount, progressCallback) {
         );
     }
 
-    // Wait for background cache writes before completing.
-    await Promise.all(pendingCacheWrites);
-
-    await idbPut(
-        CONFIG.cacheVersion + ":" + prefix,
-        {
-            blob: mergedBlob,
-            size: mergedBlob.size,
-            version: CONFIG.cacheVersion
-        }
-    );
+    // The data file is over 2 GB and its individual chunks are already
+    // cached. Avoid writing a second full-size copy to IndexedDB.
+    if (mergedBlob.size <= 256 * 1024 * 1024) {
+        await idbPut(
+            CONFIG.cacheVersion + ":" + prefix,
+            {
+                blob: mergedBlob,
+                size: mergedBlob.size,
+                version: CONFIG.cacheVersion
+            }
+        );
+    }
 
     consoleLog(
-        prefix + " assembled and cached successfully (" +
+        prefix + " assembled successfully (" +
         (mergedBlob.size / 1048576).toFixed(2) +
         " MB).",
         "success"
