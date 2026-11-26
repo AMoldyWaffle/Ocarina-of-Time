@@ -322,14 +322,10 @@ function recordMirrorFailure(url,error) {
 ============================================================ */
 
 function cacheKey(filename) {
-  // Runner opens this page from a Blob URL. Blob URLs cannot be used as
-  // the base for a root-relative URL, so use the inherited HTTPS origin.
-  // This keeps Cache Storage keys valid in both normal and Runner launches.
-  const origin = location.origin && location.origin !== "null"
-    ? location.origin
-    : "https://amoldywaffle.github.io";
-
-  return origin + "/__cuphead_cache__/" +
+  // Use an explicit HTTPS URL. Runner executes this document from a Blob
+  // URL, and school proxy wrappers can expose a non-standard location base.
+  // Cache Storage accepts this stable URL without parsing the Blob URL.
+  return "https://amoldywaffle.github.io/__cuphead_cache__/" +
     encodeURIComponent(filename);
 }
 
