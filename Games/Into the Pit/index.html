@@ -593,8 +593,12 @@
   <script>
     "use strict";
 
-    // All game files are expected to be committed to this repository.
+    // Use a commit-pinned Cloudflare-backed CDN for the large binary parts.
+    // If the CDN is unavailable, fall back to GitHub's raw file host.
     const GAME_BASE =
+      "https://rawcdn.githack.com/AMoldyWaffle/Into-The-Pit/4f7b44a0895f21cb573dfaefc7c605f9af53f677/";
+
+    const FALLBACK_GAME_BASE =
       "https://raw.githubusercontent.com/AMoldyWaffle/Into-The-Pit/main/";
 
     const CACHE_NAME = "amw-into-the-pit-cache-v3";
@@ -821,7 +825,9 @@
       }
 
       const reader = response.body.getReader();
-      const writeBatchSize = 1024 * 1024;
+      // Four-megabyte writes reduce disk-operation overhead while keeping
+      // the active write buffer small on low-memory devices.
+      const writeBatchSize = 4 * 1024 * 1024;
       let receivedBytes = 0;
       let writtenBytes = 0;
       let bufferedBytes = 0;
@@ -870,13 +876,34 @@
       await acquireDownloadSlot();
 
       try {
-        const url = new URL(path, GAME_BASE).href;
-        const response = await fetch(url, { cache: "force-cache" });
+        let response;
+        let primaryError = null;
 
-        if (!response.ok) {
-          throw new Error(
-            "Could not download " + path + " (HTTP " + response.status + ")."
+        try {
+          const primaryUrl = new URL(path, GAME_BASE).href;
+          response = await fetch(primaryUrl, { cache: "force-cache" });
+
+          if (!response.ok) {
+            throw new Error("CDN returned HTTP " + response.status);
+          }
+        } catch (error) {
+          primaryError = error;
+          console.warn(
+            "[CDN] Primary mirror failed for " + path +
+            "; falling back to GitHub raw.",
+            error
           );
+
+          const fallbackUrl = new URL(path, FALLBACK_GAME_BASE).href;
+          response = await fetch(fallbackUrl, { cache: "force-cache" });
+
+          if (!response.ok) {
+            throw new Error(
+              "Both download sources failed for " + path +
+              ". CDN: " + primaryError.message +
+              "; GitHub raw: HTTP " + response.status
+            );
+          }
         }
 
         await writeResponseToOPFS(
@@ -902,7 +929,10 @@
       });
 
       try {
-        console.log("[OPFS] Downloading directly to disk:", cacheKey);
+        console.log(
+          "[OPFS] Downloading directly to disk through the CDN:",
+          cacheKey
+        );
 
         let nextPart = 0;
         let workerError = null;
