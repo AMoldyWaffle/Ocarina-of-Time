@@ -32,7 +32,11 @@ h1{margin:0;color:#f5f3ff;font-size:clamp(34px,6vw,54px);letter-spacing:5px;line
 .switch input:checked+.track:before{transform:translateX(21px);background:#fff}
 .switch input:focus-visible+.track{outline:2px solid #b9e9f3;outline-offset:3px}
 .actions{display:flex;flex-wrap:wrap;gap:10px;padding:18px 21px;border-top:1px solid var(--line)}
-button{border:1px solid rgba(157,148,255,.35);border-radius:9px;background:rgba(24,25,52,.88);color:#f4f2ff;padding:10px 14px;cursor:pointer}
+button,select{border:1px solid rgba(157,148,255,.35);border-radius:9px;background:rgba(24,25,52,.88);color:#f4f2ff;padding:10px 14px;cursor:pointer}
+select{min-width:150px;max-width:45%;color-scheme:dark}
+.danger-button{border-color:rgba(255,111,130,.45);background:rgba(75,18,36,.58)}
+.danger-button:hover{background:rgba(112,25,48,.8);border-color:rgba(255,132,148,.8)}
+.warning-note{margin:0;padding:0 21px 15px;color:#d6b98b;font-size:11px;line-height:1.6}
 button:hover{background:rgba(58,49,105,.85);border-color:rgba(178,166,255,.8)}
 #saveStatus{min-height:22px;padding:0 21px 14px;color:#9edfc8;font-size:11px}
 footer{text-align:center;padding:25px 15px 38px;color:#626b96;font-size:9px;letter-spacing:3px}
@@ -45,7 +49,17 @@ footer{text-align:center;padding:25px 15px 38px;color:#626b96;font-size:9px;lett
   <p class="eyebrow">Personalize your archive</p>
   <h1>SETTINGS</h1>
   <p class="subtitle">Adjust the library experience. Your choices are saved in this browser.</p>
-  <section class="panel" aria-label="Appearance settings">
+  <section class="panel" aria-label="Launcher settings">
+    <div class="panel-heading">Game launcher</div>
+    <div class="setting">
+      <div class="setting-copy"><p class="setting-title">Launcher type</p><p class="setting-description">Choose how games are opened. More launcher types may be added later.</p></div>
+      <select id="launcherType" aria-label="Launcher type">
+        <option value="proxy">Proxy</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Appearance settings" style="margin-top:18px">
     <div class="panel-heading">Appearance</div>
     <div class="setting">
       <div class="setting-copy"><p class="setting-title">Animated background</p><p class="setting-description">Show the moving nebula, stars, and shooting stars on the library page.</p></div>
@@ -61,8 +75,16 @@ footer{text-align:center;padding:25px 15px 38px;color:#626b96;font-size:9px;lett
     </div>
     <div class="actions">
       <button id="reset" type="button">RESET TO DEFAULTS</button>
-      <button id="clearCache" type="button">CLEAR SAVED GAME LIST</button>
     </div>
+  </section>
+
+  <section class="panel" aria-label="Saved game data" style="margin-top:18px">
+    <div class="panel-heading">Storage management</div>
+    <div class="setting">
+      <div class="setting-copy"><p class="setting-title">Clear saved game data</p><p class="setting-description">Remove this site's saved game data, cached app files, offline caches, and saved library list. The next launch may need to download game files again.</p></div>
+      <button id="clearGameData" class="danger-button" type="button">WIPE GAME DATA</button>
+    </div>
+    <p class="warning-note">This does not delete save files stored by a game's own account or on a remote server. Browsers do not let websites directly erase their normal HTTP disk cache; this clears the website-managed storage that the browser exposes.</p>
     <div id="saveStatus" role="status" aria-live="polite"></div>
   </section>
 </main>
@@ -71,6 +93,8 @@ footer{text-align:center;padding:25px 15px 38px;color:#626b96;font-size:9px;lett
 "use strict";
 const SETTINGS_KEY = "AMW_SITE_SETTINGS_V1";
 const CACHE_KEY = "AMW_GAME_LIBRARY_V3";
+const LAUNCHER_KEY = "AMW_LAUNCHER_TYPE";
+const launcherSelect = document.getElementById("launcherType");
 const defaults = {backgroundEffects:true,animations:true,compactCards:false};
 const controls = {
   backgroundEffects: document.getElementById("backgroundEffects"),
@@ -94,18 +118,76 @@ function saveSettings(){
 }
 function loadSettings(){
   const settings=readSettings();
+  try {
+    launcherSelect.value = localStorage.getItem(LAUNCHER_KEY) || "proxy";
+  } catch (_) {
+    launcherSelect.value = "proxy";
+  }
   for(const [key,control] of Object.entries(controls)) control.checked=settings[key]!==false;
   controls.compactCards.checked=settings.compactCards===true;
 }
 for(const control of Object.values(controls)) control.addEventListener("change",saveSettings);
+launcherSelect.addEventListener("change",()=>{
+  try {
+    localStorage.setItem(LAUNCHER_KEY, launcherSelect.value);
+    status.textContent = "Launcher preference saved.";
+  } catch(error) {
+    status.textContent = "Could not save launcher preference: " + error.message;
+  }
+});
 document.getElementById("reset").addEventListener("click",()=>{
   for(const [key,control] of Object.entries(controls)) control.checked=defaults[key];
   saveSettings();
   status.textContent="Defaults restored.";
 });
-document.getElementById("clearCache").addEventListener("click",()=>{
-  try{localStorage.removeItem(CACHE_KEY);status.textContent="Saved game list cleared. The library will rescan next time it opens.";}
-  catch(error){status.textContent="Could not clear the saved list: "+error.message;}
+document.getElementById("clearGameData").addEventListener("click",async()=>{
+  const button=document.getElementById("clearGameData");
+  if(!confirm("Wipe saved game data for this website? Cached site files and saved browser data will be removed. Games may need to download again.")) return;
+
+  button.disabled=true;
+  status.textContent="Clearing website-managed storage...";
+
+  const results=[];
+  try {
+    // Clear browser Cache Storage entries (including app-managed game caches).
+    if("caches" in window) {
+      const names=await caches.keys();
+      const removed=await Promise.all(names.map(name=>caches.delete(name)));
+      results.push(removed.filter(Boolean).length+" cache(s)");
+    }
+
+    // Delete IndexedDB databases where supported.
+    if(indexedDB && typeof indexedDB.databases==="function") {
+      const databases=await indexedDB.databases();
+      await Promise.all(databases.filter(db=>db.name).map(db=>new Promise(resolve=>{
+        const request=indexedDB.deleteDatabase(db.name);
+        request.onsuccess=()=>resolve();
+        request.onerror=()=>resolve();
+        request.onblocked=()=>resolve();
+      })));
+      results.push(databases.length+" database(s)");
+    }
+
+    // Unregister service workers that may keep offline game files.
+    if("serviceWorker" in navigator) {
+      const registrations=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(registration=>registration.unregister()));
+      results.push(registrations.length+" service worker(s)");
+    }
+
+    // Clear this site's stored game progress/metadata while retaining preferences.
+    for(let i=localStorage.length-1;i>=0;i--) {
+      const key=localStorage.key(i);
+      if(key!==SETTINGS_KEY && key!==LAUNCHER_KEY) localStorage.removeItem(key);
+    }
+    sessionStorage.clear();
+
+    status.textContent="Website-managed game data cleared. Reload the library; games may need to download again. ("+results.join(", ")+")";
+  } catch(error) {
+    status.textContent="Some data could not be cleared: "+error.message;
+  } finally {
+    button.disabled=false;
+  }
 });
 loadSettings();
 </script>
