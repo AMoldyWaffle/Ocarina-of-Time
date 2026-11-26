@@ -1,0 +1,6 @@
+Beta V0.8.5
+-Added Settings Tab
+	-You can now Change Launcher Type and How Games Are Handles
+	-Now Can Wipe all Saved Game Files, So You Will Have to Redownload Game Files
+
+-Optimized GTA: Vice City Downloading
