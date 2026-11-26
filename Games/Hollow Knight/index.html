@@ -302,9 +302,9 @@ const CONFIG = {
 
     chunkRetries: 2,
 
-    // Eight workers keep the CDN busy without buffering 30+ large chunks at once.
-    // Data and WebAssembly downloads share this per-file limit.
-    maxParallelChunks: 8,
+    // Keep a rolling pipeline of downloads instead of waiting for batches.
+    // Twelve workers are bounded to avoid excessive memory use.
+    maxParallelChunks: 12,
 
     // Smaller UI updates reduce rendering overhead.
     progressUpdateInterval: 100,
@@ -1103,64 +1103,60 @@ async function mergeOPFS(prefix, partCount, progressCallback) {
     let totalBytes = 0;
     let completed = 0;
 
-    try {
+    // Precompute each part's byte offset so workers can write chunks
+    // directly into their final positions as soon as they arrive.
+    const expectedSizes = prefix === CONFIG.dataPrefix
+        ? CONFIG.expectedPartSizes.data
+        : CONFIG.expectedPartSizes.wasm;
 
-        const batchSize = Math.min(
-            CONFIG.maxParallelChunks,
-            32
-        );
+    const offsets = new Array(partCount);
+    let nextOffset = 0;
+
+    for (let index = 0; index < partCount; index++) {
+        offsets[index] = nextOffset;
+        nextOffset += expectedSizes[index];
+    }
+
+    try {
 
         consoleLog(
             "Starting " + prefix +
-            " download with " + batchSize +
+            " rolling download with " + CONFIG.maxParallelChunks +
             " parallel workers.",
             "info"
         );
 
-        for (
-            let batchStart = 0;
-            batchStart < partCount;
-            batchStart += batchSize
-        ) {
+        // A continuous worker pool avoids batch barriers: a slow chunk
+        // no longer prevents free workers from starting later chunks.
+        await mapWithConcurrency(
+            Array.from({ length: partCount }, (_, index) => index),
+            CONFIG.maxParallelChunks,
+            async index => {
+                const blob = await fetchValidatedPart(prefix, index);
 
-            const indices = Array.from(
-                {
-                    length: Math.min(
-                        batchSize,
-                        partCount - batchStart
-                    )
-                },
-                (_, offset) => batchStart + offset
-            );
-
-            const blobs = await mapWithConcurrency(
-                indices,
-                batchSize,
-                async index => {
-                    return await fetchValidatedPart(prefix, index);
-                }
-            );
-
-            for (const blob of blobs) {
-
-                await writer.write(blob);
+                await writer.write({
+                    type: "write",
+                    position: offsets[index],
+                    data: blob
+                });
 
                 totalBytes += blob.size;
-
                 completed++;
-
                 progressCallback(completed);
 
+                if (completed % CONFIG.maxParallelChunks === 0 ||
+                    completed === partCount) {
+                    consoleLog(
+                        prefix + " assembly progress: " +
+                        completed + "/" + partCount + " parts.",
+                        "info"
+                    );
+                    await yieldUI();
+                }
+
+                return true;
             }
-
-            consoleLog(
-                prefix + " assembly progress: " +
-                completed + "/" + partCount + " parts.",
-                "info"
-            );
-
-            await yieldUI();
-        }
+        );
 
         await writer.close();
 
