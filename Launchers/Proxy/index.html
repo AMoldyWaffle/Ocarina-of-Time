@@ -31,11 +31,6 @@ h1{margin:0 0 8px;font-size:17px;letter-spacing:2px}
 <script>
 "use strict";
 
-  if (/<head\b[^>]*>/i.test(html)) {
-    return html.replace(/<head\b[^>]*>/i, match => match + tag);
-  }
-  return tag + html;
-}
 
 
 
