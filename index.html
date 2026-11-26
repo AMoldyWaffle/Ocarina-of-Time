@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#03040d">
 <title>Game Library</title>
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Features/favicon/images.png">
+<link rel="shortcut icon" type="image/png" href="https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Features/favicon/images.png">
 
 <link rel="preconnect" href="https://api.github.com">
 <link rel="preconnect" href="https://raw.githubusercontent.com">
@@ -622,10 +624,93 @@ footer{
   }
 }
 
+
+
+/* UPDATE LOG MODAL */
+#updatesModal{
+  position:fixed;inset:0;z-index:1000;display:flex;align-items:center;
+  justify-content:center;padding:20px;background:rgba(1,2,10,.82);
+  backdrop-filter:blur(12px);animation:fadeUp .25s ease both
+}
+#updatesModal[hidden]{display:none!important}
+.updates-window{
+  display:flex;width:min(900px,100%);height:min(610px,85vh);min-height:320px;
+  overflow:hidden;border:1px solid rgba(157,148,255,.4);border-radius:16px;
+  background:linear-gradient(145deg,rgba(19,21,46,.99),rgba(5,8,23,.99));
+  box-shadow:0 25px 90px rgba(0,0,0,.65),0 0 45px rgba(112,98,255,.16)
+}
+.updates-sidebar{
+  width:220px;flex:0 0 220px;display:flex;flex-direction:column;gap:7px;
+  padding:22px 14px;border-right:1px solid var(--line);
+  background:rgba(5,7,22,.65);overflow-y:auto
+}
+.updates-sidebar-title{
+  margin:0 0 10px;padding:0 8px;color:#a9a0df;font-size:10px;
+  letter-spacing:2px;text-transform:uppercase
+}
+.update-version{
+  width:100%;padding:10px 11px;text-align:left;border-color:transparent;
+  background:transparent;color:#aeb5d6;font-size:12px;letter-spacing:.5px
+}
+.update-version.active{
+  border-color:rgba(169,154,255,.42);background:rgba(105,87,190,.22);
+  color:#fff;box-shadow:inset 3px 0 #a99aff
+}
+.updates-content{
+  min-width:0;flex:1;display:flex;flex-direction:column;
+  padding:25px clamp(18px,4vw,36px)
+}
+.updates-top{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:15px;
+  padding-bottom:17px;border-bottom:1px solid var(--line)
+}
+.updates-eyebrow{
+  margin:0 0 5px;color:#a9a0df;font-size:10px;letter-spacing:3px;
+  text-transform:uppercase
+}
+#updatesHeading{
+  margin:0;color:#f4f1ff;font-size:clamp(20px,3vw,29px);line-height:1.2
+}
+#closeUpdates{flex:0 0 auto;padding:8px 12px;font-size:11px}
+#updateBody{
+  flex:1;overflow:auto;padding:22px 5px 20px 0;color:#d4d8f2;
+  font-size:13px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere
+}
+#updateBody .update-loading{color:#929bbd}
+@media(max-width:560px){
+  #updatesModal{padding:10px}
+  .updates-window{height:min(650px,92vh);min-height:0}
+  .updates-sidebar{width:116px;flex-basis:116px;padding:16px 8px}
+  .updates-sidebar-title{font-size:9px;letter-spacing:1px;padding:0 5px}
+  .update-version{padding:9px 7px;font-size:11px}
+  .updates-content{padding:17px 14px}
+  .updates-top{gap:8px}
+  #closeUpdates{padding:7px 9px;font-size:10px}
+  #updateBody{font-size:12px}
+}
 </style>
 </head>
 
 <body>
+
+<div id="updatesModal" hidden role="dialog" aria-modal="true" aria-labelledby="updatesHeading">
+  <div class="updates-window">
+    <aside class="updates-sidebar">
+      <p class="updates-sidebar-title">Update history</p>
+      <div id="updateVersions"><div class="update-loading">Loading versions...</div></div>
+    </aside>
+    <div class="updates-content">
+      <div class="updates-top">
+        <div>
+          <p class="updates-eyebrow">What's new</p>
+          <h2 id="updatesHeading">Latest Update</h2>
+        </div>
+        <button id="closeUpdates" type="button">CLOSE ✕</button>
+      </div>
+      <div id="updateBody" aria-live="polite"><span class="update-loading">Fetching the latest update...</span></div>
+    </div>
+  </div>
+</div>
 
 <div id="spaceBackground" aria-hidden="true">
   <i class="shooting-star"></i>
@@ -1459,6 +1544,135 @@ $("toggleconsole").onclick = () => {
       : "SHOW CONSOLE";
 };
 
+
+// ==================================================
+// UPDATE LOG
+// ==================================================
+
+const UPDATES_DIRECTORY =
+  "https://api.github.com/repos/" +
+  OWNER + "/" + REPO + "/contents/Features/Updates?ref=" + BRANCH;
+
+const UPDATES_RAW_BASE =
+  "https://raw.githubusercontent.com/" +
+  OWNER + "/" + REPO + "/" + BRANCH + "/Features/Updates/";
+
+let updateFiles = [];
+let selectedUpdate = null;
+let updatesOpenedThisPage = false;
+
+function compareVersions(a, b) {
+  const parse = value => value.replace(/^v/i, "").split(".")
+    .map(part => Number.parseInt(part, 10) || 0);
+  const left = parse(a);
+  const right = parse(b);
+  const length = Math.max(left.length, right.length);
+
+  for (let i = 0; i < length; i++) {
+    const difference = (right[i] || 0) - (left[i] || 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+function versionFromFilename(filename) {
+  const match = filename.match(/^v?(\d+(?:\.\d+)+)\.txt$/i);
+  return match ? match[1] : null;
+}
+
+function renderUpdateVersions() {
+  const container = $("updateVersions");
+  container.replaceChildren();
+
+  for (const update of updateFiles) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "update-version" +
+      (selectedUpdate && selectedUpdate.name === update.name ? " active" : "");
+    button.textContent = "v" + update.version;
+    button.setAttribute("aria-pressed", String(
+      Boolean(selectedUpdate && selectedUpdate.name === update.name)
+    ));
+    button.addEventListener("click", () => showUpdate(update));
+    container.appendChild(button);
+  }
+}
+
+async function showUpdate(update) {
+  selectedUpdate = update;
+  renderUpdateVersions();
+  $("updatesHeading").textContent = "Version " + update.version;
+  $("updateBody").textContent = "Loading update notes...";
+
+  try {
+    const response = await fetch(UPDATES_RAW_BASE + encodeURIComponent(update.name), {
+      cache: "no-cache"
+    });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const content = await response.text();
+    $("updateBody").textContent =
+      content.trim() || "No notes were published for this version.";
+  } catch (error) {
+    $("updateBody").textContent =
+      "Could not load this update log. Please try again later. (" +
+      error.message + ")";
+  }
+}
+
+async function openUpdates() {
+  if (updatesOpenedThisPage) return;
+  updatesOpenedThisPage = true;
+
+  $("updatesModal").hidden = false;
+  document.body.style.overflow = "hidden";
+
+  try {
+    const response = await fetch(UPDATES_DIRECTORY, {
+      cache: "no-cache",
+      headers: { "Accept": "application/vnd.github+json" }
+    });
+    if (!response.ok) throw new Error("GitHub returned HTTP " + response.status);
+
+    const files = await response.json();
+    updateFiles = files
+      .filter(file => file.type === "file" && file.name)
+      .map(file => ({ name: file.name, version: versionFromFilename(file.name) }))
+      .filter(file => file.version !== null)
+      .sort((a, b) => compareVersions(a.version, b.version));
+
+    if (!updateFiles.length) {
+      $("updateVersions").textContent = "No versions found.";
+      $("updatesHeading").textContent = "Update Log";
+      $("updateBody").textContent =
+        "No versioned .txt files were found in Features/Updates.";
+      return;
+    }
+
+    renderUpdateVersions();
+    await showUpdate(updateFiles[0]);
+  } catch (error) {
+    $("updateVersions").textContent = "Unavailable";
+    $("updatesHeading").textContent = "Updates unavailable";
+    $("updateBody").textContent =
+      "The update history could not be loaded. (" + error.message + ")";
+  }
+}
+
+function closeUpdates() {
+  $("updatesModal").hidden = true;
+  document.body.style.overflow = "";
+}
+
+$("closeUpdates").addEventListener("click", closeUpdates);
+
+$("updatesModal").addEventListener("click", event => {
+  if (event.target === $("updatesModal")) closeUpdates();
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !$("updatesModal").hidden) closeUpdates();
+});
+
 // ==================================================
 // STARTUP
 // ==================================================
@@ -1469,6 +1683,10 @@ $("toggleconsole").onclick = () => {
 loadCachedLibrary();
 
 scan();
+
+// Once per document lifetime. Browser history restoration preserves
+// the closed state; a full reload creates a fresh document.
+openUpdates();
 
 </script>
 
