@@ -640,6 +640,35 @@ footer{
 
 
 
+/* SETTINGS MODAL */
+#settingsModal{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(1,2,10,.84);backdrop-filter:blur(12px)}
+#settingsModal[hidden]{display:none!important}
+.settings-window{width:min(720px,100%);max-height:min(850px,92vh);overflow:auto;border:1px solid rgba(157,148,255,.4);border-radius:16px;background:linear-gradient(145deg,rgba(19,21,46,.99),rgba(5,8,23,.99));box-shadow:0 25px 90px rgba(0,0,0,.65),0 0 45px rgba(112,98,255,.16)}
+.settings-header{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:15px;padding:20px 23px;border-bottom:1px solid var(--line);background:rgba(9,11,29,.97)}
+.settings-header h2{margin:0;color:#f4f1ff;font-size:22px;letter-spacing:3px}
+.settings-header p{margin:3px 0 0;color:#929bbd;font-size:11px}
+#closeSettings{padding:8px 12px;font-size:11px}
+.settings-section{margin:16px 18px 0;overflow:hidden;border:1px solid rgba(119,116,163,.28);border-radius:12px;background:linear-gradient(145deg,rgba(21,24,45,.94),rgba(8,12,28,.96))}
+.settings-section:last-of-type{margin-bottom:18px}
+.settings-section-title{margin:0;padding:13px 17px;border-bottom:1px solid var(--line);color:#c9c5ed;font-size:10px;letter-spacing:3px;text-transform:uppercase}
+.settings-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 17px;border-bottom:1px solid rgba(164,164,232,.1)}
+.settings-row:last-child{border-bottom:0}
+.settings-copy{min-width:0}
+.settings-label{margin:0 0 3px;color:#f0efff;font-size:13px;font-weight:700}
+.settings-description{margin:0;color:#929bbd;font-size:11px}
+.settings-select{width:min(230px,45%);min-width:125px;padding:10px 12px;border:1px solid rgba(169,154,255,.65);border-radius:9px;background:#171a36;color:#fff;color-scheme:dark}
+.settings-switch{position:relative;flex:0 0 46px;width:46px;height:26px}
+.settings-switch input{position:absolute;opacity:0;width:1px;height:1px}
+.settings-switch span{position:absolute;inset:0;border:1px solid rgba(164,164,232,.35);border-radius:20px;background:#242640;cursor:pointer}
+.settings-switch span:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;background:#aeb5d6;transition:.2s}
+.settings-switch input:checked+span{background:#6354a8;border-color:#a99aff}
+.settings-switch input:checked+span:before{transform:translateX(20px);background:#fff}
+.settings-actions{display:flex;flex-wrap:wrap;gap:9px;padding:14px 17px}
+.settings-danger{border-color:rgba(255,111,130,.45);background:rgba(75,18,36,.58)}
+.settings-note{margin:0;padding:0 17px 13px;color:#d6b98b;font-size:10px;line-height:1.6}
+#settingsStatus{min-height:18px;padding:0 17px 14px;color:#9edfc8;font-size:11px}
+@media(max-width:560px){#settingsModal{padding:8px}.settings-header{padding:16px}.settings-section{margin:12px 10px 0}.settings-row{padding:13px;gap:10px}.settings-select{width:42%;min-width:110px}.settings-header h2{font-size:18px}}
+
 /* UPDATE LOG MODAL */
 #updatesModal{
   position:fixed;inset:0;z-index:1000;display:flex;align-items:center;
@@ -726,6 +755,53 @@ footer{
   </div>
 </div>
 
+<div id="settingsModal" hidden role="dialog" aria-modal="true" aria-labelledby="settingsHeading">
+  <div class="settings-window">
+    <div class="settings-header">
+      <div><h2 id="settingsHeading">SETTINGS</h2><p>Personalize your archive experience.</p></div>
+      <button id="closeSettings" type="button">CLOSE ✕</button>
+    </div>
+
+    <section class="settings-section">
+      <h3 class="settings-section-title">Game launcher</h3>
+      <div class="settings-row">
+        <div class="settings-copy"><p class="settings-label">Launcher type</p><p class="settings-description">Proxy loads inside the library; Runner opens a standalone game page.</p></div>
+        <select class="settings-select" id="launcherType" aria-label="Launcher type">
+          <option value="proxy">Proxy</option>
+          <option value="runner">Runner</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h3 class="settings-section-title">Appearance</h3>
+      <div class="settings-row">
+        <div class="settings-copy"><p class="settings-label">Animated background</p><p class="settings-description">Show the nebula, stars, and shooting stars.</p></div>
+        <label class="settings-switch"><input id="settingBackground" type="checkbox" checked><span></span></label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-copy"><p class="settings-label">Interface animations</p><p class="settings-description">Enable card transitions and decorative motion.</p></div>
+        <label class="settings-switch"><input id="settingAnimations" type="checkbox" checked><span></span></label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-copy"><p class="settings-label">Compact game cards</p><p class="settings-description">Fit more games on screen with smaller cards.</p></div>
+        <label class="settings-switch"><input id="settingCompact" type="checkbox"><span></span></label>
+      </div>
+      <div class="settings-actions"><button id="resetSettings" type="button">RESET APPEARANCE</button></div>
+    </section>
+
+    <section class="settings-section">
+      <h3 class="settings-section-title">Storage management</h3>
+      <div class="settings-row">
+        <div class="settings-copy"><p class="settings-label">Clear saved game data</p><p class="settings-description">Remove website-managed caches and stored game data so games download again.</p></div>
+        <button id="wipeGameData" class="settings-danger" type="button">WIPE DATA</button>
+      </div>
+      <p class="settings-note">This clears Cache Storage, IndexedDB, service workers, local storage, and session storage. Browser-managed HTTP disk cache cannot be erased directly by a webpage.</p>
+      <div id="settingsStatus" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+</div>
+
 <div id="spaceBackground" aria-hidden="true">
   <i class="shooting-star"></i>
   <i class="shooting-star"></i>
@@ -768,9 +844,9 @@ footer{
       >
     </label>
 
-    <a class="settings-link toolbar-settings" href="https://amoldywaffle.github.io/Ocarina-of-Time/Features/Settings/" aria-label="Open settings" title="Settings">
+    <button class="settings-link toolbar-settings" id="openSettings" type="button" aria-label="Open settings" title="Settings">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/><path d="m19.4 13.5 1.1.9-1.1 1.9-1.4-.5a7.8 7.8 0 0 1-1.5.9l-.2 1.5h-2.2l-.3-1.5a7.8 7.8 0 0 1-1.7 0l-.8 1.3-1.9-1.1.5-1.4a7.8 7.8 0 0 1-.9-1.5l-1.5-.2v-2.2l1.5-.3a7.8 7.8 0 0 1 0-1.7l-1.3-.8 1.1-1.9 1.4.5a7.8 7.8 0 0 1 1.5-.9l.2-1.5h2.2l.3 1.5a7.8 7.8 0 0 1 1.7 0l.8-1.3 1.9 1.1-.5 1.4a7.8 7.8 0 0 1 .9 1.5l1.5.2v2.2l-1.5.3a7.8 7.8 0 0 1 0 1.6Z"/></svg>
-    </a>
+    </button>
 
     <button id="rescan">↻ &nbsp; RESCAN</button>
   </div>
@@ -862,6 +938,128 @@ function applySiteSettings() {
   document.documentElement.classList.toggle("compact-cards", settings.compactCards === true);
 }
 applySiteSettings();
+
+// ==================================================
+// IN-PAGE SETTINGS
+// ==================================================
+const SETTINGS_KEY = "AMW_SITE_SETTINGS_V1";
+const LAUNCHER_KEY = "AMW_LAUNCHER_TYPE";
+const settingsModal = $("settingsModal");
+const settingsStatus = $("settingsStatus");
+const settingControls = {
+  backgroundEffects: $("settingBackground"),
+  animations: $("settingAnimations"),
+  compactCards: $("settingCompact")
+};
+
+function readSitePreferences() {
+  let preferences = {};
+  try { preferences = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") || {}; }
+  catch (_) {}
+  return preferences;
+}
+
+function openSettings() {
+  const preferences = readSitePreferences();
+  for (const [key, control] of Object.entries(settingControls)) {
+    control.checked = preferences[key] !== false;
+  }
+  settingControls.compactCards.checked = preferences.compactCards === true;
+
+  try {
+    $("launcherType").value = localStorage.getItem(LAUNCHER_KEY) || "proxy";
+  } catch (_) {
+    $("launcherType").value = "proxy";
+  }
+
+  settingsModal.hidden = false;
+  document.body.style.overflow = "hidden";
+  $("closeSettings").focus();
+}
+
+function closeSettings() {
+  settingsModal.hidden = true;
+  document.body.style.overflow = "";
+  $("openSettings").focus();
+}
+
+function saveSitePreferences() {
+  const preferences = {};
+  for (const [key, control] of Object.entries(settingControls)) {
+    preferences[key] = control.checked;
+  }
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(preferences));
+    applySiteSettings();
+    settingsStatus.textContent = "Appearance settings saved.";
+  } catch (error) {
+    settingsStatus.textContent = "Could not save preferences: " + error.message;
+  }
+}
+
+$("openSettings").addEventListener("click", openSettings);
+$("closeSettings").addEventListener("click", closeSettings);
+settingsModal.addEventListener("click", event => {
+  if (event.target === settingsModal) closeSettings();
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !settingsModal.hidden) closeSettings();
+});
+for (const control of Object.values(settingControls)) {
+  control.addEventListener("change", saveSitePreferences);
+}
+$("launcherType").addEventListener("change", () => {
+  try {
+    localStorage.setItem(LAUNCHER_KEY, $("launcherType").value);
+    settingsStatus.textContent = "Launcher preference saved.";
+  } catch (error) {
+    settingsStatus.textContent = "Could not save launcher preference: " + error.message;
+  }
+});
+$("resetSettings").addEventListener("click", () => {
+  settingControls.backgroundEffects.checked = true;
+  settingControls.animations.checked = true;
+  settingControls.compactCards.checked = false;
+  saveSitePreferences();
+  settingsStatus.textContent = "Appearance defaults restored.";
+});
+$("wipeGameData").addEventListener("click", async () => {
+  if (!confirm("Wipe this site's saved game data? Cached game files may need to download again.")) return;
+  const button = $("wipeGameData");
+  button.disabled = true;
+  settingsStatus.textContent = "Clearing website-managed storage...";
+  const results = [];
+  try {
+    if ("caches" in window) {
+      const names = await caches.keys();
+      const deleted = await Promise.all(names.map(name => caches.delete(name)));
+      results.push(deleted.filter(Boolean).length + " cache(s)");
+    }
+    if (window.indexedDB && typeof indexedDB.databases === "function") {
+      const databases = await indexedDB.databases();
+      await Promise.all(databases.filter(db => db.name).map(db => new Promise(resolve => {
+        const request = indexedDB.deleteDatabase(db.name);
+        request.onsuccess = request.onerror = request.onblocked = () => resolve();
+      })));
+      results.push(databases.length + " database(s)");
+    }
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(registration => registration.unregister()));
+      results.push(registrations.length + " service worker(s)");
+    }
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key !== SETTINGS_KEY && key !== LAUNCHER_KEY) localStorage.removeItem(key);
+    }
+    sessionStorage.clear();
+    settingsStatus.textContent = "Website-managed game data cleared. Reload the library; games may need to download again. " + results.join(", ");
+  } catch (error) {
+    settingsStatus.textContent = "Some storage could not be cleared: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 
 const gamesNode = $("games");
 const newGamesNode = $("newGames");
