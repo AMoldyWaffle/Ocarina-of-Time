@@ -416,6 +416,44 @@
       .footer { font-size: 8px; letter-spacing: 2px; }
     }
 
+    /* Keep the launcher lightweight while a large game is downloading. */
+    html.low-effects #spaceBackground::before {
+      filter: none;
+      animation: none;
+      opacity: .42;
+    }
+
+    html.low-effects #spaceBackground::after {
+      animation: none;
+      opacity: .24;
+    }
+
+    html.low-effects .shooting-star,
+    html.low-effects .orbit {
+      display: none;
+      animation: none;
+    }
+
+    html.low-effects h1 {
+      animation: none;
+      text-shadow: 0 0 14px rgba(139, 122, 255, .25);
+    }
+
+    html.low-effects .loading-panel {
+      backdrop-filter: none;
+      box-shadow: none;
+    }
+
+    html.low-effects .progress-track,
+    html.low-effects #progressFill,
+    html.low-effects .orbit-dot {
+      box-shadow: none;
+    }
+
+    html.low-effects #progressFill {
+      transition: none;
+    }
+
 
 
     /* Always-visible game controls. These are outside the Unity container. */
@@ -560,12 +598,22 @@
       "https://raw.githubusercontent.com/AMoldyWaffle/Into-The-Pit/main/";
 
     const CACHE_NAME = "amw-into-the-pit-cache-v3";
-    const MAX_PARALLEL_DOWNLOADS = 12;
+    const OPFS_FOLDER_NAME = "amw-into-the-pit";
+    const OPFS_CACHE_VERSION = "1";
 
-    // Retained from the original launcher as the approximate full download size.
-    // The displayed percentage is capped during downloading and finishes during
-    // Unity initialization, so a small size difference cannot push it past 100%.
-    const ESTIMATED_TOTAL_BYTES = 645.25 * 1024 * 1024;
+    // Three active streams are enough to keep the CDN busy without allowing
+    // a weak Chromebook to buffer twelve 20 MB chunks simultaneously.
+    const MAX_PARALLEL_DOWNLOADS = 3;
+    const PART_SIZE = 20866662;
+
+    const ASSET_SIZES = {
+      data: 530680345,
+      wasm: 103962206,
+      prebundle: 41976335
+    };
+
+    const ESTIMATED_TOTAL_BYTES =
+      ASSET_SIZES.data + ASSET_SIZES.wasm + ASSET_SIZES.prebundle;
 
     const PREBUNDLE_NAME =
       "webglprefabs_assets_all_5ea291f575ddd5dc7ae765c62c8e6be3.bundle";
@@ -584,6 +632,7 @@
     let loadedBytes = 0;
     let lastProgressUpdate = 0;
     let activeDownloads = 0;
+    let opfsDirectory = null;
     const downloadWaiters = [];
 
     function setProgress(percent, detail, status) {
@@ -597,7 +646,7 @@
 
     function updateDownloadProgress(force = false) {
       const now = Date.now();
-      if (!force && now - lastProgressUpdate < 100) return;
+      if (!force && now - lastProgressUpdate < 250) return;
       lastProgressUpdate = now;
 
       const mbDone = (loadedBytes / (1024 * 1024)).toFixed(1);
@@ -664,7 +713,7 @@
       return parts;
     }
 
-    async function fetchPart(path) {
+    async function fetchPart(path, expectedSize) {
       const url = new URL(path, GAME_BASE).href;
 
       await acquireDownloadSlot();
@@ -678,63 +727,290 @@
           );
         }
 
-        if (!response.body) {
-          const blob = await response.blob();
-          loadedBytes += blob.size;
-          updateDownloadProgress();
-          return blob;
+        const blob = await response.blob();
+
+        if (blob.size !== expectedSize) {
+          throw new Error(
+            path + " has an unexpected size. Expected " +
+            expectedSize + " bytes, received " + blob.size + "."
+          );
         }
 
-        // Keep the streamed chunks as Blob parts. This avoids the old extra
-        // Uint8Array allocation and full-buffer copy after every download.
-        const reader = response.body.getReader();
-        const chunks = [];
-        let partBytes = 0;
-
-        while (true) {
-          const result = await reader.read();
-          if (result.done) break;
-
-          chunks.push(result.value);
-          partBytes += result.value.byteLength;
-          loadedBytes += result.value.byteLength;
-          updateDownloadProgress();
-        }
-
-        return new Blob(chunks);
+        loadedBytes += blob.size;
+        updateDownloadProgress();
+        return blob;
       } finally {
         releaseDownloadSlot();
       }
     }
 
-    async function mergeFiles(fileParts, cacheKey) {
+    function getOPFSNames(cacheKey) {
+      const fileName = encodeURIComponent(cacheKey) + ".bin";
+
+      return {
+        fileName,
+        markerName: fileName + ".complete"
+      };
+    }
+
+    async function getOPFSCachedURL(cacheKey, expectedSize) {
+      const names = getOPFSNames(cacheKey);
+
+      try {
+        const fileHandle = await opfsDirectory.getFileHandle(names.fileName);
+        const markerHandle = await opfsDirectory.getFileHandle(names.markerName);
+        const marker = await (await markerHandle.getFile()).text();
+
+        if (marker !== OPFS_CACHE_VERSION + ":" + expectedSize) {
+          return null;
+        }
+
+        const file = await fileHandle.getFile();
+
+        if (file.size !== expectedSize) {
+          return null;
+        }
+
+        loadedBytes += file.size;
+        updateDownloadProgress();
+        console.log("[OPFS] Using cached asset:", cacheKey);
+
+        return URL.createObjectURL(file);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // Stream a response to disk in 1 MB writes. Each worker pauses while its
+    // disk write completes, keeping only a small buffer in Chromebook memory.
+    async function writeResponseToOPFS(
+      response,
+      writer,
+      startPosition,
+      expectedSize,
+      label
+    ) {
+      if (!response.body) {
+        const blob = await response.blob();
+
+        if (blob.size !== expectedSize) {
+          throw new Error(
+            label + " has an unexpected size. Expected " +
+            expectedSize + " bytes, received " + blob.size + "."
+          );
+        }
+
+        await writer.write({
+          type: "write",
+          position: startPosition,
+          data: blob
+        });
+
+        loadedBytes += blob.size;
+        updateDownloadProgress();
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const writeBatchSize = 1024 * 1024;
+      let receivedBytes = 0;
+      let writtenBytes = 0;
+      let bufferedBytes = 0;
+      let bufferedChunks = [];
+
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+
+        bufferedChunks.push(result.value);
+        bufferedBytes += result.value.byteLength;
+        receivedBytes += result.value.byteLength;
+        loadedBytes += result.value.byteLength;
+        updateDownloadProgress();
+
+        if (bufferedBytes >= writeBatchSize) {
+          await writer.write({
+            type: "write",
+            position: startPosition + writtenBytes,
+            data: new Blob(bufferedChunks)
+          });
+
+          writtenBytes += bufferedBytes;
+          bufferedBytes = 0;
+          bufferedChunks = [];
+        }
+      }
+
+      if (receivedBytes !== expectedSize) {
+        throw new Error(
+          label + " has an unexpected size. Expected " +
+          expectedSize + " bytes, received " + receivedBytes + "."
+        );
+      }
+
+      if (bufferedBytes > 0) {
+        await writer.write({
+          type: "write",
+          position: startPosition + writtenBytes,
+          data: new Blob(bufferedChunks)
+        });
+      }
+    }
+
+    async function downloadPartToOPFS(path, writer, position, expectedSize) {
+      await acquireDownloadSlot();
+
+      try {
+        const url = new URL(path, GAME_BASE).href;
+        const response = await fetch(url, { cache: "force-cache" });
+
+        if (!response.ok) {
+          throw new Error(
+            "Could not download " + path + " (HTTP " + response.status + ")."
+          );
+        }
+
+        await writeResponseToOPFS(
+          response,
+          writer,
+          position,
+          expectedSize,
+          path
+        );
+      } finally {
+        releaseDownloadSlot();
+      }
+    }
+
+    async function mergeFilesToOPFS(fileParts, cacheKey, totalBytes) {
+      const names = getOPFSNames(cacheKey);
+      const fileHandle = await opfsDirectory.getFileHandle(
+        names.fileName,
+        { create: true }
+      );
+      const writer = await fileHandle.createWritable({
+        keepExistingData: false
+      });
+
+      try {
+        console.log("[OPFS] Downloading directly to disk:", cacheKey);
+
+        let nextPart = 0;
+
+        async function runWorker() {
+          while (true) {
+            const index = nextPart++;
+            if (index >= fileParts.length) return;
+
+            const expectedSize = index === fileParts.length - 1
+              ? totalBytes - PART_SIZE * (fileParts.length - 1)
+              : PART_SIZE;
+
+            const position = index * PART_SIZE;
+
+            await downloadPartToOPFS(
+              fileParts[index],
+              writer,
+              position,
+              expectedSize
+            );
+          }
+        }
+
+        const workerCount = Math.min(2, fileParts.length);
+
+        await Promise.all(
+          Array.from({ length: workerCount }, () => runWorker())
+        );
+
+        await writer.close();
+
+        const completedFile = await fileHandle.getFile();
+
+        if (completedFile.size !== totalBytes) {
+          throw new Error(
+            cacheKey + " assembly size mismatch. Expected " +
+            totalBytes + " bytes, received " + completedFile.size + "."
+          );
+        }
+
+        const markerHandle = await opfsDirectory.getFileHandle(
+          names.markerName,
+          { create: true }
+        );
+        const markerWriter = await markerHandle.createWritable({
+          keepExistingData: false
+        });
+
+        await markerWriter.write(
+          OPFS_CACHE_VERSION + ":" + totalBytes
+        );
+        await markerWriter.close();
+
+        console.log("[OPFS] Finished and cached:", cacheKey);
+        return URL.createObjectURL(completedFile);
+      } catch (error) {
+        try {
+          await writer.abort();
+        } catch (_) {}
+
+        try {
+          await opfsDirectory.removeEntry(names.fileName);
+        } catch (_) {}
+
+        try {
+          await opfsDirectory.removeEntry(names.markerName);
+        } catch (_) {}
+
+        throw error;
+      }
+    }
+
+    async function mergeFiles(fileParts, cacheKey, totalBytes) {
+      if (opfsDirectory) {
+        const opfsURL = await getOPFSCachedURL(cacheKey, totalBytes);
+        if (opfsURL) return opfsURL;
+      }
+
       const cache = await caches.open(CACHE_NAME);
       const cachedResponse = await cache.match(cacheKey);
 
       if (cachedResponse) {
         const cachedBlob = await cachedResponse.blob();
-        loadedBytes += cachedBlob.size;
-        updateDownloadProgress();
-        console.log("[Cache] Using cached asset:", cacheKey);
-        return URL.createObjectURL(cachedBlob);
+
+        if (cachedBlob.size === totalBytes) {
+          loadedBytes += cachedBlob.size;
+          updateDownloadProgress();
+          console.log("[Cache] Using cached asset:", cacheKey);
+          return URL.createObjectURL(cachedBlob);
+        }
+
+        await cache.delete(cacheKey);
       }
 
-      console.log("[Download] Fetching:", cacheKey);
+      if (opfsDirectory) {
+        return await mergeFilesToOPFS(fileParts, cacheKey, totalBytes);
+      }
 
-      // The shared download limiter caps total simultaneous requests across
-      // the data, WASM, and bundle downloads.
+      // Compatibility fallback for browsers without OPFS. This path uses
+      // the same low concurrency limit, but needs a full in-memory Blob.
+      console.warn("[Storage] OPFS unavailable; using Cache Storage fallback.");
+
       const partBlobs = await Promise.all(
-        fileParts.map(path => fetchPart(path))
+        fileParts.map((path, index) => {
+          const expectedSize = index === fileParts.length - 1
+            ? totalBytes - PART_SIZE * (fileParts.length - 1)
+            : PART_SIZE;
+
+          return fetchPart(path, expectedSize);
+        })
       );
 
       const mergedBlob = new Blob(partBlobs, {
         type: "application/octet-stream"
       });
 
-      // Store the completed merged file. Future launches can skip all of its
-      // individual network requests and only create a local object URL.
       await cache.put(cacheKey, new Response(mergedBlob));
-
       return URL.createObjectURL(mergedBlob);
     }
 
@@ -982,6 +1258,7 @@
 
     async function startGame() {
       try {
+        document.documentElement.classList.add("low-effects");
         setProgress(0, "Checking browser cache...", "PREPARING GAME");
 
         if (!("caches" in window)) {
@@ -990,14 +1267,32 @@
           );
         }
 
+        if (
+          navigator.storage &&
+          typeof navigator.storage.getDirectory === "function"
+        ) {
+          try {
+            const storageRoot = await navigator.storage.getDirectory();
+            opfsDirectory = await storageRoot.getDirectoryHandle(
+              OPFS_FOLDER_NAME,
+              { create: true }
+            );
+            console.log("[Storage] Using OPFS for low-memory downloads.");
+          } catch (error) {
+            console.warn("[Storage] OPFS unavailable:", error);
+          }
+        }
+
         const [dataUrl, wasmUrl, prebundleUrl] = await Promise.all([
           mergeFiles(
             getParts("Build/INTOTHEPIT.data", 1, 26),
-            "INTOTHEPIT.data"
+            "INTOTHEPIT.data",
+            ASSET_SIZES.data
           ),
           mergeFiles(
             getParts("Build/INTOTHEPIT.wasm", 1, 5),
-            "INTOTHEPIT.wasm"
+            "INTOTHEPIT.wasm",
+            ASSET_SIZES.wasm
           ),
           mergeFiles(
             getParts(
@@ -1005,7 +1300,8 @@
               1,
               3
             ),
-            PREBUNDLE_NAME
+            PREBUNDLE_NAME,
+            ASSET_SIZES.prebundle
           )
         ]);
 
