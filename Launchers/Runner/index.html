@@ -48,11 +48,6 @@ html, body {
 <script>
 "use strict";
 
-  if (/<head\b[^>]*>/i.test(html)) {
-    return html.replace(/<head\b[^>]*>/i, match => match + tag);
-  }
-  return tag + html;
-}
 
 
 
