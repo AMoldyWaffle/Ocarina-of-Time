@@ -135,10 +135,10 @@ function installAMWWorkerBridge() {
 
       let source = await response.text();
       const nestedBridge =
-        "<script>(" + installAMWWorkerBridge.toString() + ")();<\\/script>";
+        "<script>(" + installAMWWorkerBridge.toString() + ")();<\/script>";
 
-      if (/<head\\b[^>]*>/i.test(source)) {
-        source = source.replace(/<head\\b[^>]*>/i, match => match + nestedBridge);
+      if (/<head\b[^>]*>/i.test(source)) {
+        source = source.replace(/<head\b[^>]*>/i, match => match + nestedBridge);
       } else {
         source = nestedBridge + source;
       }
@@ -158,10 +158,10 @@ function installAMWWorkerBridge() {
 function injectAMWWorkerBridge(html) {
   if (/__amwWorkerBridgeInstalled/.test(html)) return html;
   const tag =
-    "<script>(" + installAMWWorkerBridge.toString() + ")();<\\/script>";
+    "<script>(" + installAMWWorkerBridge.toString() + ")();<\/script>";
 
-  if (/<head\\b[^>]*>/i.test(html)) {
-    return html.replace(/<head\\b[^>]*>/i, match => match + tag);
+  if (/<head\b[^>]*>/i.test(html)) {
+    return html.replace(/<head\b[^>]*>/i, match => match + tag);
   }
   return tag + html;
 }
