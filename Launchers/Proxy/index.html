@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#03040d">
+<title>Loading game…</title>
+<link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;background:#03040d;color:#eef1ff;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+body{display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 110%,#171044 0%,#08091d 43%,#03040d 82%)}
+.loader{width:min(440px,100%);padding:32px 28px;text-align:center;border:1px solid rgba(157,148,255,.28);border-radius:16px;background:rgba(12,15,34,.88);box-shadow:0 20px 70px rgba(0,0,0,.4)}
+.spinner{width:38px;height:38px;margin:0 auto 20px;border:3px solid rgba(169,154,255,.2);border-top-color:#b9adff;border-radius:50%;animation:spin .85s linear infinite}
+h1{margin:0 0 8px;font-size:17px;letter-spacing:2px}
+#status{margin:0;color:#aab2d4;font-size:12px;overflow-wrap:anywhere}
+#retry{display:none;margin-top:20px;padding:9px 14px;border:1px solid rgba(169,154,255,.4);border-radius:8px;background:#28234b;color:#fff;text-decoration:none}
+#error{display:none;margin-top:12px;color:#ffaaaa;font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spinner{animation:none}}
+</style>
+</head>
+<body>
+<main class="loader">
+  <div class="spinner" id="spinner" aria-hidden="true"></div>
+  <h1 id="title">PREPARING GAME</h1>
+  <p id="status" role="status" aria-live="polite">Checking game address…</p>
+  <a id="retry" href="#">OPEN GAME DIRECTLY</a>
+  <p id="error"></p>
+</main>
+<script>
+"use strict";
+
+(() => {
+  const PAGES_ROOT = "https://amoldywaffle.github.io/Ocarina-of-Time/";
+  const RAW_ROOT = "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/";
+  const params = new URLSearchParams(location.search);
+  const gameParam = params.get("game");
+  const gameTitle = params.get("title") || "Game";
+
+  const titleNode = document.getElementById("title");
+  const statusNode = document.getElementById("status");
+  const spinner = document.getElementById("spinner");
+  const retry = document.getElementById("retry");
+  const errorNode = document.getElementById("error");
+
+  titleNode.textContent = "LOADING " + gameTitle.toUpperCase();
+  document.title = "Loading " + gameTitle + "…";
+
+  function showError(message) {
+    spinner.style.display = "none";
+    statusNode.textContent = "The game could not be loaded.";
+    errorNode.style.display = "block";
+    errorNode.textContent = message;
+    if (gameParam) {
+      retry.href = gameParam;
+      retry.style.display = "inline-block";
+    }
+  }
+
+  function getGameAddress(value) {
+    if (!value) throw new Error("No game URL was supplied.");
+
+    const gameUrl = new URL(value, PAGES_ROOT);
+    if (
+      gameUrl.protocol !== "https:" ||
+      gameUrl.hostname !== "amoldywaffle.github.io" ||
+      !gameUrl.pathname.startsWith("/Ocarina-of-Time/Games/")
+    ) {
+      throw new Error("This launcher only accepts game pages from the Ocarina-of-Time repository.");
+    }
+
+    const relativePath = gameUrl.pathname.slice("/Ocarina-of-Time/".length);
+    const rawPath = relativePath.split("/").map(part => {
+      let decoded = part;
+      try { decoded = decodeURIComponent(part); } catch (_) {}
+      return encodeURIComponent(decoded);
+    }).join("/");
+
+    const gameDirectory = gameUrl.href.split(/[?#]/, 1)[0];
+    const baseDirectory = gameDirectory.slice(0, gameDirectory.lastIndexOf("/") + 1);
+
+    return {
+      rawUrl: RAW_ROOT + rawPath,
+      baseUrl: baseDirectory,
+      directUrl: gameUrl.href
+    };
+  }
+
+  async function start() {
+    let address;
+
+    try {
+      address = getGameAddress(gameParam);
+      retry.href = address.directUrl;
+      statusNode.textContent = "Downloading the game page…";
+
+      const response = await fetch(address.rawUrl, {
+        cache: "default",
+        mode: "cors",
+        credentials: "omit"
+      });
+
+      if (!response.ok) {
+        throw new Error("Game page request failed (HTTP " + response.status + ").");
+      }
+
+      let html = await response.text();
+      if (!html.trim()) throw new Error("The game page downloaded, but it was empty.");
+
+      // Keep any base tag already supplied by the game. Otherwise, resolve
+      // relative scripts, data files, images, and other assets from its folder.
+      if (!/<base\b/i.test(html)) {
+        const safeBase = address.baseUrl
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;");
+        const baseTag = '<base href="' + safeBase + '">';
+        if (/<head\b[^>]*>/i.test(html)) {
+          html = html.replace(/<head\b[^>]*>/i, match => match + "\n" + baseTag);
+        } else {
+          html = baseTag + html;
+        }
+      }
+
+      statusNode.textContent = "Starting " + gameTitle + "…";
+      document.open();
+      document.write(html);
+      document.close();
+
+    } catch (error) {
+      console.error("[Proxy launcher]", error);
+      showError(error && error.stack ? error.stack : String(error));
+    }
+  }
+
+  start();
+})();
+</script>
+</body>
+</html>
