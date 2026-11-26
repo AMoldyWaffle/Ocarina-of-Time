@@ -302,15 +302,23 @@ const CONFIG = {
 
     chunkRetries: 2,
 
-    // Increased parallel downloading.
-    maxParallelChunks: 32,
+    // Eight workers keep the CDN busy without buffering 30+ large chunks at once.
+    // Data and WebAssembly downloads share this per-file limit.
+    maxParallelChunks: 8,
 
     // Smaller UI updates reduce rendering overhead.
     progressUpdateInterval: 100,
 
     expectedPartSizes: {
-        data: [],
-        wasm: []
+        data: [
+            ...Array(43).fill(19922944),
+            18530856
+        ],
+        wasm: [
+            19922944,
+            19922944,
+            19387694
+        ]
     }
 };
 
