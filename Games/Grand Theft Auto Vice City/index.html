@@ -24,30 +24,178 @@ p{color:#9aa4bd;line-height:1.6}
 (async function(){
   const status=document.getElementById("status");
   const detail=document.getElementById("detail");
+  const fail=error=>{
+    status.textContent="Unable to start the optimized loader";
+    status.style.color="#ff657a";
+    detail.textContent=error&&error.message?error.message:String(error);
+    console.error("[VC optimized wrapper]",error);
+  };
   try{
     status.textContent="Loading game runtime…";
-    const response=await fetch("./index-source.txt",{cache:"force-cache"});
+    const response=await fetch("./index-source.txt",{cache:"no-cache"});
     if(!response.ok)throw new Error("Could not load the game runtime (HTTP "+response.status+")");
     let html=await response.text();
 
     const original='const files=(tree.tree||[]).filter(item=>item.type==="blob"&&';
     const optimized='const files=(tree.tree||[]).filter(item=>item.type==="blob"&&\n      !item.path.startsWith("art work/")&&';
-    if(!html.includes(original))throw new Error("The downloader code did not match the expected version; refusing to start an unoptimized build.");
+    if(!html.includes(original))throw new Error("The downloader code did not match the expected version.");
     html=html.replace(original,optimized);
+    html=html.replace(
+      '      item.path!==".DS_Store"&&\n      !/(^|\\/)(Thumbs\\.db|desktop\\.ini)$/i.test(item.path));',
+      '      !/(^|\\/)(\\.DS_Store|Thumbs\\.db|desktop\\.ini)$/i.test(item.path)&&\n      !/(^|\\/)\\._[^/]*$/i.test(item.path));'
+    );
+
+    const workerOpen='<script type="text/plain" id="vc-worker">';
+    const workerStart=html.indexOf(workerOpen);
+    const workerEnd=html.indexOf("</scr"+"ipt>",workerStart);
+    if(workerStart<0||workerEnd<0)throw new Error("Could not locate the embedded import worker.");
+    const payloadStart=workerStart+workerOpen.length;
+    const encoded=html.slice(payloadStart,workerEnd).trim();
+    const workerBytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));
+    let worker=new TextDecoder().decode(workerBytes);
+    const streamSource=String.raw`let streamSource=null;
+function createStreamSource(manifest){
+ const info=new Map(),blobs=new Map(),waiters=new Map();
+ let finished=false,finishError=null,finishResolve,finishReject;
+ const finishedPromise=new Promise((resolve,reject)=>{finishResolve=resolve;finishReject=reject});finishedPromise.catch(()=>{});
+ const key=path=>String(path||"").replace(/\\/g,"/").toLowerCase();
+ for(const item of manifest||[])info.set(key(item.path),{path:item.path,size:Number(item.size)||0});
+ function provide(path,file){
+  const k=key(path);
+  if(finished||!info.has(k))return;
+  blobs.set(k,file);
+  const pending=waiters.get(k);
+  if(pending){waiters.delete(k);for(const waiter of pending)waiter.resolve(file)}
+ }
+ function finish(error){
+  if(finished)return;
+  finished=true;finishError=error||null;
+  if(error){finishReject(error);for(const pending of waiters.values())for(const waiter of pending)waiter.reject(error)}
+  else{finishResolve();for(const [k,pending] of waiters){for(const waiter of pending)waiter.reject(new Error("Downloaded file is missing: "+(info.get(k)?.path||k)))}}
+  waiters.clear();
+ }
+ function get(path){
+  const k=key(path);
+  if(blobs.has(k))return Promise.resolve(blobs.get(k));
+  if(finished)return Promise.reject(finishError||new Error("Downloaded file is missing: "+(info.get(k)?.path||path)));
+  return new Promise((resolve,reject)=>{const pending=waiters.get(k)||[];pending.push({resolve,reject});waiters.set(k,pending)});
+ }
+ return {
+  paths:[...info.values()].map(item=>item.path),
+  size:path=>info.get(key(path))?.size||0,
+  read:async path=>new Uint8Array(await (await get(path)).arrayBuffer()),
+  readRange:async(path,offset,size)=>new Uint8Array(await (await get(path)).slice(offset,offset+size).arrayBuffer()),
+  provide,finish,waitFinished:()=>finishedPromise
+ };
+}
+`;
+    const workerOriginal='async function Po(o){';
+    if(!worker.includes(workerOriginal))throw new Error("The importer worker version was not recognized.");
+    worker=worker.replace(workerOriginal,streamSource+workerOriginal);
+    const sourceOriginal='y=o.kind==="zip"?await T1(o.file,b,E1(n=>p({type:"progress",phase:"unpacking",file:n.split("/").pop()}))):R1(o.entries)';
+    const sourceOptimized='y=o.kind==="zip"?await T1(o.file,b,E1(n=>p({type:"progress",phase:"unpacking",file:n.split("/").pop()}))):o.kind==="stream"?streamSource:R1(o.entries)';
+    if(!worker.includes(sourceOriginal))throw new Error("Could not patch the importer source.");
+    worker=worker.replace(sourceOriginal,sourceOptimized);
+    const finishOriginal='onProgress(n,w){n===w?p({type:"progress",phase:"converting",done:n,total:w}):c(n,w)}}),await L.flush(),await f.close()}';
+    const finishOptimized='onProgress(n,w){n===w?p({type:"progress",phase:"converting",done:n,total:w}):c(n,w)}}),o.kind==="stream"&&await streamSource.waitFinished(),await L.flush(),await f.close()}';
+    if(!worker.includes(finishOriginal))throw new Error("Could not patch the importer completion step.");
+    worker=worker.replace(finishOriginal,finishOptimized);
+    const tailOriginal='self.onmessage=async o=>{let p=setInterval(()=>self.postMessage({type:"heartbeat"}),1e4);try{await Po(o.data)}catch(b){console.error("[convert]",b),b instanceof Ke?self.postMessage({type:"error",code:b.code,...b.details}):b.name==="QuotaExceededError"?self.postMessage({type:"error",code:"storage"}):self.postMessage({type:"error",code:"generic",message:b.message});try{await Le(Ce)}catch{}}finally{clearInterval(p)}};})();';
+    const tailOptimized='self.onmessage=async o=>{let d=o.data||{};if(d.type==="stream-file"){streamSource?.provide(d.path,d.file);return}if(d.type==="stream-finished"){streamSource?.finish();return}if(d.type==="stream-error"){streamSource?.finish(new Error(d.message||"Repository download failed"));return}let p=setInterval(()=>self.postMessage({type:"heartbeat"}),1e4);try{if(d.kind==="stream")streamSource=createStreamSource(d.manifest);await Po(d)}catch(b){console.error("[convert]",b),b instanceof Ke?self.postMessage({type:"error",code:b.code,...b.details}):b.name==="QuotaExceededError"?self.postMessage({type:"error",code:"storage"}):self.postMessage({type:"error",code:"generic",message:b.message});try{await Le(Ce)}catch{}}finally{clearInterval(p)}};})();';
+    if(!worker.includes(tailOriginal))throw new Error("Could not patch the importer message handler.");
+    worker=worker.replace(tailOriginal,tailOptimized);
+    const bytes=new TextEncoder().encode(worker);
+    let binary="";
+    for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+    const workerB64=btoa(binary);
+    html=html.slice(0,payloadStart)+workerB64+html.slice(workerEnd);
+
+    const runnerOriginal='let A=M.createImportWorker(),C,V=()=>{clearTimeout(C),x(!1),A.terminate()},q=Z=>{if(clearTimeout(C),A.terminate(),console.warn(`[import] ${Z}, attempt ${L+1}`),L<N){R(h,L+1);return}';
+    const runnerOptimized='let A=M.createImportWorker(),C;window.__gtaRepoImportWorker=A;let V=()=>{clearTimeout(C),x(!1),A.terminate(),window.__gtaRepoImportWorker===A&&(window.__gtaRepoImportWorker=null)},q=Z=>{if(clearTimeout(C),A.terminate(),window.__gtaRepoImportWorker===A&&(window.__gtaRepoImportWorker=null),console.warn(`[import] ${Z}, attempt ${L+1}`),h.kind!=="stream"&&L<N){R(h,L+1);return}';
+    if(!html.includes(runnerOriginal))throw new Error("Could not patch the import worker controller.");
+    html=html.replace(runnerOriginal,runnerOptimized);
+    const progressOriginal='if(Q(),w.type==="progress"){';
+    const progressOptimized='if(Q(),w.type==="progress"){if(h.kind==="stream"&&window.__gtaRepoDownloading)return;';
+    if(!html.includes(progressOriginal))throw new Error("Could not patch import progress handling.");
+    html=html.replace(progressOriginal,progressOptimized);
+
+    const autoStart=html.indexOf("async function autoDownloadRepo(){");
+    const blockStart=html.indexOf("    const entries=new Array(files.length);",autoStart);
+    const blockEndMarker='    I("GTA-VC",entries);';
+    const blockEnd=html.indexOf(blockEndMarker,blockStart);
+    if(autoStart<0||blockStart<0||blockEnd<0)throw new Error("Could not locate the repository download pipeline.");
+    const replacement=String.raw`    // Start the importer immediately. Files are streamed to its worker as each
+    // request finishes, so download and conversion overlap instead of running
+    // as two separate multi-gigabyte passes.
+    await M.prepareImport();
+    R({kind:"stream",manifest:files.map(item=>({path:"GTA-VC/"+item.path,size:item.size||0}))});
+    if(!window.__gtaRepoImportWorker)throw new Error("The game importer could not be started.");
+    window.__gtaRepoDownloading=true;
+
+    let next=0,done=0,bytes=0,downloadFailed=false;
+    function updateProgress(){
+      const pct=total>0?Math.min(100,Math.floor(bytes/total*100)):Math.floor(done/files.length*100);
+      o.style.width=pct+"%";d.textContent=pct+"%";
+      z(l,"progress.converting",{done,total:files.length});
+    }
+    async function worker(){
+      while(true){
+        if(downloadFailed)return;
+        const index=next++;
+        if(index>=files.length)return;
+        const item=files[index];
+        const url=raw+branch.split("/").map(encodeURIComponent).join("/")+"/"+item.path.split("/").map(encodeURIComponent).join("/");
+        let blob;
+        try{
+          blob=await githubRequestWithRetry(url,"blob");
+          if(item.size!=null&&blob.size!==item.size)throw new Error("Size mismatch for "+item.path+": expected "+item.size+", got "+blob.size);
+          const importer=window.__gtaRepoImportWorker;
+          if(!importer)throw new Error("The importer stopped before downloads completed.");
+          importer.postMessage({type:"stream-file",path:repo.split("/")[1]+"/"+item.path,file:blob});
+        }catch(error){
+          downloadFailed=true;
+          throw error;
+        }
+        done++;bytes+=blob.size;
+        updateProgress();
+        if(done%50===0||done===files.length){
+          console.info("[repo] Downloaded "+done+"/"+files.length+" files ("+(bytes/1048576).toFixed(1)+" / "+(total/1048576).toFixed(1)+" MiB)");
+        }
+      }
+    }
+    const results=await Promise.allSettled(Array.from({length:concurrency},()=>worker()));
+    const failed=results.find(result=>result.status==="rejected");
+    if(failed)throw failed.reason;
+    window.__gtaRepoDownloading=false;
+    const importer=window.__gtaRepoImportWorker;
+    if(!importer)throw new Error("The importer stopped before the download finished.");
+    importer.postMessage({type:"stream-finished"});
+    console.info("[repo] Download complete. Importing was running concurrently with downloads.");`;
+    html=html.slice(0,blockStart)+replacement+html.slice(blockEnd+blockEndMarker.length);
+
+    const catchOriginal='  }catch(err){\n    console.error("[repo] Automatic download/import failed:",err);\n    v("errors.generic",{message:"Automatic GitHub download failed: "+(err&&err.message||err)});\n    x(false);r.style.display="none";\n  }\n}';
+    const catchOptimized=String.raw`  }catch(err){
+    window.__gtaRepoDownloading=false;
+    console.error("[repo] Automatic download/import failed:",err);
+    const importer=window.__gtaRepoImportWorker;
+    if(importer)importer.postMessage({type:"stream-error",message:"Automatic GitHub download failed: "+(err&&err.message||err)});
+    else{
+      v("errors.generic",{message:"Automatic GitHub download failed: "+(err&&err.message||err)});
+      x(false);r.style.display="none";
+    }
+  }
+}`;
+    if(!html.includes(catchOriginal))throw new Error("Could not patch repository error handling.");
+    html=html.replace(catchOriginal,catchOptimized);
 
     const marker='const total=files.reduce((sum,file)=>sum+(file.size||0),0);';
     if(!html.includes(marker))throw new Error("Could not verify the optimized download list.");
-    html=html.replace(marker,marker+'\n    console.info("[performance] Skipping 51 non-game artwork files (about 107 MiB); all runtime folders remain enabled.");');
+    html=html.replace(marker,marker+'\n    console.info("[performance] Skipping repository artwork and streaming downloads into the importer.");');
 
     document.open();
     document.write(html);
     document.close();
-  }catch(error){
-    status.textContent="Unable to start the optimized loader";
-    status.style.color="#ff657a";
-    detail.textContent=error&&error.message?error.message:String(error);
-    console.error("[VC optimized wrapper]",error);
-  }
+  }catch(error){fail(error)}
 })();
 </script>
 </body>
