@@ -1607,8 +1607,10 @@ function back() {
 
 async function launchInRunner(game) {
 
+  openPlayer(game);
+
   log("info", [
-    "Runner mode: downloading dedicated loader."
+    "Cuphead: preparing the isolated game loader inside the collection player."
   ]);
 
   log("info", ["Game URL:", game.url]);
@@ -1648,7 +1650,17 @@ async function launchInRunner(game) {
       })
     );
 
-    location.replace(blobUrl);
+    // Keep the collection document and its player controls alive.
+    // The Runner document executes inside the existing game iframe.
+    frame.onload = () => {
+      log("info", ["Cuphead loader opened inside the collection player."]);
+    };
+
+    frame.onerror = () => {
+      log("error", ["Cuphead loader failed to open in the collection player."]);
+    };
+
+    frame.src = blobUrl;
 
   } catch (error) {
 
