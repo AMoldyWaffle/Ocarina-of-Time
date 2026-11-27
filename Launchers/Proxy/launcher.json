@@ -1,0 +1,6 @@
+{
+  "id": "proxy",
+  "label": "Proxy",
+  "description": "Loads the original game page inside the collection player.",
+  "mode": "query-frame"
+}
