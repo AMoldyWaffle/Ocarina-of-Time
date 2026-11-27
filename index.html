@@ -1682,57 +1682,99 @@ async function launchInRunner(game) {
 async function launchCuphead(game) {
   openPlayer(game);
 
-  log("info", ["Cuphead: loading with the GN-Math iframe method."]);
-  log("info", ["Fetching game document:", game.url]);
+  log("info", ["Cuphead: loading the GN-Math-style iframe document."]);
+  log("info", ["Fetching Cuphead HTML:", game.url]);
 
-  const sources = [
+  const htmlSources = [
     "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Games/Cuphead/index.html",
     game.url
   ];
 
+  const loaderSources = [
+    "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Cuphead@main/Build/UnityLoader.js",
+    "https://raw.githubusercontent.com/AMoldyWaffle/Cuphead/main/Build/UnityLoader.js"
+  ];
+
+  let html = null;
   let lastError = null;
 
-  for (const source of sources) {
+  for (const source of htmlSources) {
     try {
       const response = await fetch(source + (source.includes("?") ? "&" : "?") + "t=" + Date.now(), {
         cache: "no-store"
       });
-
-      if (!response.ok) {
-        throw new Error("HTTP " + response.status + " from " + source);
-      }
-
-      const html = await response.text();
-
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      html = await response.text();
       if (!html || !/<html[\s>]/i.test(html) || !/Cuphead/i.test(html)) {
-        throw new Error("The response was not the Cuphead HTML document.");
+        throw new Error("Response was not the Cuphead HTML document.");
       }
-
-      // Match GN-Math: write the fetched HTML into a same-origin iframe.
-      // Do not navigate to a Blob URL; that gives the document an opaque
-      // origin and triggers Fuze's cross-origin SharedWorker restriction.
-      frame.onload = null;
-      frame.onerror = null;
-      frame.removeAttribute("src");
-
-      const target = frame.contentDocument;
-      target.open();
-      target.write(html);
-      target.close();
-
-      log("info", ["Cuphead document loaded into the collection player."]);
-      return;
+      log("info", ["Cuphead HTML fetched."]);
+      break;
     } catch (error) {
       lastError = error;
-      log("warn", ["Cuphead source failed:", source, error.message || error]);
+      log("warn", ["Cuphead HTML source failed:", source, error.message || error]);
     }
   }
 
-  log("error", ["Cuphead failed to load:", lastError && lastError.message]);
-  statusNode.textContent = "Cuphead failed to load: " +
-    (lastError && lastError.message ? lastError.message : "Unknown error");
-}
+  if (!html) {
+    statusNode.textContent = "Cuphead HTML failed to load: " +
+      (lastError && lastError.message ? lastError.message : "Unknown error");
+    return;
+  }
 
+  let unityLoader = null;
+
+  for (const source of loaderSources) {
+    try {
+      const response = await fetch(source + "?t=" + Date.now(), {
+        cache: "no-store"
+      });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      unityLoader = await response.text();
+      if (!unityLoader || !/UnityLoader/.test(unityLoader)) {
+        throw new Error("Response did not contain UnityLoader code.");
+      }
+      log("info", ["UnityLoader.js fetched; embedding it directly in the game document."]);
+      break;
+    } catch (error) {
+      lastError = error;
+      log("warn", ["UnityLoader source failed:", source, error.message || error]);
+    }
+  }
+
+  if (!unityLoader) {
+    statusNode.textContent = "UnityLoader.js failed to load: " +
+      (lastError && lastError.message ? lastError.message : "Unknown error");
+    return;
+  }
+
+  // Replace the external script tag with inline code. Some proxy contexts
+  // prevent external scripts inserted by document.write from executing,
+  // leaving UnityLoader undefined even though the HTML itself loaded.
+  const loaderTag = /<script\b[^>]*src=["'][^"']*UnityLoader\.js(?:\?[^"']*)?["'][^>]*>\s*<\/script>/i;
+  if (!loaderTag.test(html)) {
+    statusNode.textContent = "Cuphead HTML is missing its UnityLoader.js script tag.";
+    return;
+  }
+
+  const safeLoader = unityLoader.replace(/<\/script/gi, "<\\/script");
+  html = html.replace(loaderTag, "<script>\\n" + safeLoader + "\\n<\\/script>");
+
+  frame.onload = null;
+  frame.onerror = null;
+  frame.removeAttribute("src");
+
+  try {
+    const target = frame.contentDocument;
+    target.open();
+    target.write(html);
+    target.close();
+    log("info", ["Cuphead document written into the collection player."]);
+  } catch (error) {
+    log("error", ["Could not write Cuphead document:", error.message || error]);
+    statusNode.textContent = "Cuphead failed to open: " + (error.message || error);
+  }
+}
 // ==================================================
 // LAUNCH GAME
 // ==================================================
