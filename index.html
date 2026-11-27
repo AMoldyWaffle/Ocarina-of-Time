@@ -1068,7 +1068,7 @@ const gamesNode = $("games");
 const newGamesNode = $("newGames");
 const newSection = $("newSection");
 const statusNode = $("status");
-const frame = $("gameframe");
+let frame = $("gameframe");
 const consoleNode = $("consolelog");
 
 let games = [];
@@ -1587,12 +1587,27 @@ function openPlayer(game) {
 
 function back() {
 
-  frame.onload = null;
-  frame.onerror = null;
+  // Destroy the entire game browsing context, not just hide the player.
+  // Replacing the iframe releases its document, scripts, workers, timers,
+  // media elements, WebGL context, and any blob URLs owned by that page.
+  const oldFrame = frame;
 
-  frame.src = "about:blank";
+  oldFrame.onload = null;
+  oldFrame.onerror = null;
+  oldFrame.removeAttribute("src");
+  oldFrame.replaceWith(oldFrame.cloneNode(false));
+
+  // Keep a reference to the fresh, empty iframe for the next game.
+  frame = $("gameframe");
 
   currentGame = null;
+
+  // Clear game-specific telemetry and reset the console for the next launch.
+  consoleNode.replaceChildren();
+  consoleVisible = false;
+  $("consolebox").classList.add("collapsed");
+  $("toggleconsole").textContent = "SHOW CONSOLE";
+  $("playing").textContent = "No game selected";
 
   $("player").style.display = "none";
   $("library").style.display = "block";
@@ -1717,6 +1732,9 @@ function launch(game) {
 // ==================================================
 
 window.addEventListener("message", event => {
+
+  // Ignore messages from a game iframe after its session has been destroyed.
+  if (event.source !== frame.contentWindow) return;
 
   if (event.data && event.data.__gameConsole) {
 
