@@ -660,6 +660,8 @@ footer{
 .settings-label{margin:0 0 3px;color:#f0efff;font-size:13px;font-weight:700}
 .settings-description{margin:0;color:#929bbd;font-size:11px}
 .settings-select{width:min(230px,45%);min-width:125px;padding:10px 12px;border:1px solid rgba(169,154,255,.65);border-radius:9px;background:#171a36;color:#fff;color-scheme:dark}
+#fallbackRow.is-disabled{opacity:.45}
+.settings-select:disabled{cursor:not-allowed}
 .settings-switch{position:relative;flex:0 0 46px;width:46px;height:26px}
 .settings-switch input{position:absolute;opacity:0;width:1px;height:1px}
 .settings-switch span{position:absolute;inset:0;border:1px solid rgba(164,164,232,.35);border-radius:20px;background:#242640;cursor:pointer}
@@ -770,6 +772,12 @@ footer{
       <div class="settings-row">
         <div class="settings-copy"><p class="settings-label">Launcher type</p><p class="settings-description" id="launcherDescription">Discovering available launchers…</p></div>
         <select class="settings-select" id="launcherType" aria-label="Launcher type">
+          <option value="">Discovering launchers…</option>
+        </select>
+      </div>
+      <div class="settings-row" id="fallbackRow">
+        <div class="settings-copy"><p class="settings-label">Fallback</p><p class="settings-description" id="fallbackDescription">Used when Auto cannot find a game's requested launcher. Defaults to Proxy.</p></div>
+        <select class="settings-select" id="fallbackType" aria-label="Fallback launcher" disabled>
           <option value="">Discovering launchers…</option>
         </select>
       </div>
@@ -950,6 +958,7 @@ applySiteSettings();
 // ==================================================
 const SETTINGS_KEY = "AMW_SITE_SETTINGS_V1";
 const LAUNCHER_KEY = "AMW_LAUNCHER_TYPE";
+const FALLBACK_KEY = "AMW_LAUNCHER_FALLBACK";
 const settingsModal = $("settingsModal");
 const settingsStatus = $("settingsStatus");
 const settingControls = {
@@ -965,18 +974,40 @@ function readSitePreferences() {
   return preferences;
 }
 
-function syncLauncherSelection() {
-  const select = $("launcherType");
+function syncFallbackSelection() {
+  const select = $("fallbackType");
   let saved = "proxy";
-  try { saved = localStorage.getItem(LAUNCHER_KEY) || "proxy"; } catch (_) {}
+  try { saved = localStorage.getItem(FALLBACK_KEY) || "proxy"; } catch (_) {}
   if (!launcherRegistry.has(saved)) saved = launcherRegistry.has("proxy")
     ? "proxy"
     : (launcherRegistry.keys().next().value || "");
   select.value = saved;
   const selected = launcherRegistry.get(saved);
-  $("launcherDescription").textContent = selected
-    ? selected.description
-    : "No compatible launchers were found.";
+  $("fallbackDescription").textContent = selected
+    ? "Used when Auto cannot find a game's requested launcher. Current fallback: " + selected.label + "."
+    : "No fallback launcher is available.";
+}
+
+function updateFallbackControl() {
+  const automatic = $("launcherType").value === "auto";
+  $("fallbackType").disabled = !automatic;
+  $("fallbackRow").classList.toggle("is-disabled", !automatic);
+}
+
+function syncLauncherSelection() {
+  const select = $("launcherType");
+  let saved = "proxy";
+  try { saved = localStorage.getItem(LAUNCHER_KEY) || "proxy"; } catch (_) {}
+  if (saved !== "auto" && !launcherRegistry.has(saved)) saved = launcherRegistry.has("proxy")
+    ? "proxy"
+    : (launcherRegistry.keys().next().value || "");
+  select.value = saved;
+  const selected = launcherRegistry.get(saved);
+  $("launcherDescription").textContent = saved === "auto"
+    ? "Automatically uses a game's requested launcher. Games without a matching request use Fallback."
+    : (selected ? selected.description : "No compatible launchers were found.");
+  syncFallbackSelection();
+  updateFallbackControl();
 }
 
 let launcherRegistry = new Map();
@@ -998,6 +1029,7 @@ async function discoverLaunchers() {
       return {
         id: config.id,
         label: config.label || folder.name,
+        folderName: folder.name,
         description: config.description || "Custom game launcher.",
         mode: config.mode,
         pagesUrl: PAGES_BASE + "Launchers/" + folder.name + "/index.html",
@@ -1005,12 +1037,17 @@ async function discoverLaunchers() {
       };
     }));
     launcherRegistry = new Map(discovered.filter(Boolean).map(item => [item.id, item]));
+    const launchers = [...launcherRegistry.values()].sort((a,b) => a.label.localeCompare(b.label));
     const select = $("launcherType");
-    const options = [...launcherRegistry.values()].sort((a,b) => a.label.localeCompare(b.label))
-      .map(item => new Option(item.label, item.id));
-    select.replaceChildren(...options);
-    if (!options.length) {
-      select.add(new Option("No launchers found", ""));
+    select.replaceChildren(
+      new Option("Auto", "auto"),
+      ...launchers.map(item => new Option(item.label, item.id))
+    );
+    const fallback = $("fallbackType");
+    fallback.replaceChildren(...launchers.map(item => new Option(item.label, item.id)));
+    if (!launchers.length) {
+      select.replaceChildren(new Option("No launchers found", ""));
+      fallback.replaceChildren(new Option("No launchers found", ""));
       $("launcherDescription").textContent = "No launcher folders with a valid launcher.json were found.";
     } else {
       syncLauncherSelection();
@@ -1020,6 +1057,7 @@ async function discoverLaunchers() {
     launcherDiscoveryPromise = null;
     $("launcherDescription").textContent = "Could not discover launchers: " + error.message;
     $("launcherType").replaceChildren(new Option("Launcher discovery failed", ""));
+    $("fallbackType").replaceChildren(new Option("Launcher discovery failed", ""));
     throw error;
   });
   return launcherDiscoveryPromise;
@@ -1068,14 +1106,30 @@ for (const control of Object.values(settingControls)) {
   control.addEventListener("change", saveSitePreferences);
 }
 $("launcherType").addEventListener("change", () => {
-  const selected = launcherRegistry.get($("launcherType").value);
-  if (!selected) return;
+  const id = $("launcherType").value;
+  const selected = launcherRegistry.get(id);
   try {
-    localStorage.setItem(LAUNCHER_KEY, selected.id);
-    $("launcherDescription").textContent = selected.description;
-    settingsStatus.textContent = "Launcher preference saved: " + selected.label + ".";
+    localStorage.setItem(LAUNCHER_KEY, id);
+    $("launcherDescription").textContent = id === "auto"
+      ? "Automatically uses a game's requested launcher. Games without a matching request use Fallback."
+      : (selected ? selected.description : "No compatible launchers were found.");
+    updateFallbackControl();
+    settingsStatus.textContent = "Launcher preference saved: " + (id === "auto" ? "Auto" : (selected ? selected.label : id)) + ".";
   } catch (error) {
     settingsStatus.textContent = "Could not save launcher preference: " + error.message;
+  }
+});
+
+$("fallbackType").addEventListener("change", () => {
+  const selected = launcherRegistry.get($("fallbackType").value);
+  if (!selected) return;
+  try {
+    localStorage.setItem(FALLBACK_KEY, selected.id);
+    $("fallbackDescription").textContent =
+      "Used when Auto cannot find a game's requested launcher. Current fallback: " + selected.label + ".";
+    settingsStatus.textContent = "Fallback launcher saved: " + selected.label + ".";
+  } catch (error) {
+    settingsStatus.textContent = "Could not save fallback launcher: " + error.message;
   }
 });
 
@@ -1348,7 +1402,9 @@ async function scan(forceRefresh = false) {
           covers: [],
           beta: false,
           isNew: false,
-          criticalError: false
+          criticalError: false,
+          customFile: "",
+          runner: ""
         };
 
         folders.set(folderName, folder);
@@ -1364,9 +1420,13 @@ async function scan(forceRefresh = false) {
         continue;
       }
 
-      // Marker files.
+      // Marker files and per-game custom launcher metadata.
 
       const marker = relativePath.toLowerCase();
+
+      if (!relativePath.includes("/") && /^custom(?:\.txt)?$/i.test(relativePath)) {
+        folder.customFile = path;
+      }
 
       if (marker === "beta" || marker === "beta.txt") {
         folder.beta = true;
@@ -1394,6 +1454,23 @@ async function scan(forceRefresh = false) {
         }
       }
     }
+
+    // Read only custom metadata files that were actually found in game folders.
+    // This keeps the normal scan lightweight while allowing each game to request
+    // a launcher by its configured ID, display label, or folder name.
+    await Promise.all([...folders.values()].filter(folder => folder.customFile).map(async folder => {
+      try {
+        const rawUrl = "https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/" + BRANCH + "/" +
+          folder.customFile.split("/").map(encodeURIComponent).join("/");
+        const customResponse = await fetch(rawUrl, { cache: forceRefresh ? "reload" : "no-cache" });
+        if (!customResponse.ok) return;
+        const customText = await customResponse.text();
+        const match = customText.match(/^\s*Runner\s*:\s*(?:"([^"]+)"|'([^']+)'|(.+?))\s*$/im);
+        folder.runner = (match && (match[1] || match[2] || match[3]) || "").trim();
+      } catch (error) {
+        log("warn", ["Could not read custom launcher metadata:", folder.customFile, error.message || error]);
+      }
+    }));
 
     // Construct the final catalog.
 
@@ -1433,7 +1510,8 @@ async function scan(forceRefresh = false) {
         url: pagesUrl(gamePath),
         beta: folder.beta,
         isNew: folder.isNew,
-        criticalError: folder.criticalError
+        criticalError: folder.criticalError,
+        runner: folder.runner
       });
     }
 
@@ -1742,15 +1820,49 @@ async function launchInRunner(game, loaderUrl = RUNNER_LOADER_RAW) {
 // LAUNCH GAME
 // ==================================================
 
+function findLauncherByRequest(request) {
+  const wanted = String(request || "").trim().toLowerCase();
+  if (!wanted) return null;
+  for (const launcher of launcherRegistry.values()) {
+    if ([launcher.id, launcher.label, launcher.folderName].some(value =>
+      String(value || "").trim().toLowerCase() === wanted
+    )) return launcher;
+  }
+  return null;
+}
+
 async function launch(game) {
-  let selectedId = "proxy";
-  try { selectedId = localStorage.getItem(LAUNCHER_KEY) || "proxy"; } catch (_) {}
   try {
     await discoverLaunchers();
   } catch (error) {
     log("error", ["Could not discover launchers:", error.message || error]);
   }
-  const launcher = launcherRegistry.get(selectedId) || launcherRegistry.get("proxy");
+
+  let selectedId = "proxy";
+  let fallbackId = "proxy";
+  try {
+    selectedId = localStorage.getItem(LAUNCHER_KEY) || "proxy";
+    fallbackId = localStorage.getItem(FALLBACK_KEY) || "proxy";
+  } catch (_) {}
+
+  let launcher;
+  if (selectedId === "auto") {
+    launcher = findLauncherByRequest(game.runner);
+    if (launcher) {
+      log("info", ["Auto matched game launcher request:", game.runner]);
+    } else {
+      launcher = launcherRegistry.get(fallbackId) || launcherRegistry.get("proxy");
+      log("info", [
+        game.runner
+          ? "Auto could not find requested launcher '" + game.runner + "'. Using fallback."
+          : "Game has no custom Runner setting. Using fallback.",
+        launcher ? launcher.label : "No fallback available."
+      ]);
+    }
+  } else {
+    launcher = launcherRegistry.get(selectedId) || launcherRegistry.get("proxy");
+  }
+
   if (!launcher) {
     log("error", ["No usable launcher is available."]);
     statusNode.textContent = "No usable launcher was found. Check the Launchers folder.";
