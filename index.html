@@ -1676,6 +1676,64 @@ async function launchInRunner(game) {
 }
 
 // ==================================================
+// CUPHEAD — GN-MATH STYLE DOCUMENT-WRITE LOADER
+// ==================================================
+
+async function launchCuphead(game) {
+  openPlayer(game);
+
+  log("info", ["Cuphead: loading with the GN-Math iframe method."]);
+  log("info", ["Fetching game document:", game.url]);
+
+  const sources = [
+    "https://cdn.jsdelivr.net/gh/AMoldyWaffle/Ocarina-of-Time@main/Games/Cuphead/index.html",
+    game.url
+  ];
+
+  let lastError = null;
+
+  for (const source of sources) {
+    try {
+      const response = await fetch(source + (source.includes("?") ? "&" : "?") + "t=" + Date.now(), {
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status + " from " + source);
+      }
+
+      const html = await response.text();
+
+      if (!html || !/<html[\s>]/i.test(html) || !/Cuphead/i.test(html)) {
+        throw new Error("The response was not the Cuphead HTML document.");
+      }
+
+      // Match GN-Math: write the fetched HTML into a same-origin iframe.
+      // Do not navigate to a Blob URL; that gives the document an opaque
+      // origin and triggers Fuze's cross-origin SharedWorker restriction.
+      frame.onload = null;
+      frame.onerror = null;
+      frame.removeAttribute("src");
+
+      const target = frame.contentDocument;
+      target.open();
+      target.write(html);
+      target.close();
+
+      log("info", ["Cuphead document loaded into the collection player."]);
+      return;
+    } catch (error) {
+      lastError = error;
+      log("warn", ["Cuphead source failed:", source, error.message || error]);
+    }
+  }
+
+  log("error", ["Cuphead failed to load:", lastError && lastError.message]);
+  statusNode.textContent = "Cuphead failed to load: " +
+    (lastError && lastError.message ? lastError.message : "Unknown error");
+}
+
+// ==================================================
 // LAUNCH GAME
 // ==================================================
 
@@ -1689,12 +1747,14 @@ function launch(game) {
     }
   })();
 
-  // Cuphead must use the top-level Runner document. The Proxy launcher
-  // document-writes the game into the proxied page, where Fuze's injected
-  // SharedWorker hits the cross-origin restriction. Runner fetches the game
-  // HTML and opens it through a Blob URL instead, preserving HTML execution
-  // and the game's relative asset base.
-  if (game.name.toLowerCase() === "cuphead" || launcherType === "runner") {
+  // Cuphead uses the GN-Math-style same-origin iframe document writer.
+  // Other games retain their existing launcher selection.
+  if (game.name.toLowerCase() === "cuphead") {
+    launchCuphead(game);
+    return;
+  }
+
+  if (launcherType === "runner") {
     launchInRunner(game);
     return;
   }
