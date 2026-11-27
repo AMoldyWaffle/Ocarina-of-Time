@@ -768,10 +768,9 @@ footer{
     <section class="settings-section">
       <h3 class="settings-section-title">Game launcher</h3>
       <div class="settings-row">
-        <div class="settings-copy"><p class="settings-label">Launcher type</p><p class="settings-description">Proxy loads inside the library; Runner opens a standalone game page.</p></div>
+        <div class="settings-copy"><p class="settings-label">Launcher type</p><p class="settings-description" id="launcherDescription">Discovering available launchers…</p></div>
         <select class="settings-select" id="launcherType" aria-label="Launcher type">
-          <option value="proxy">Proxy</option>
-          <option value="runner">Runner</option>
+          <option value="">Discovering launchers…</option>
         </select>
       </div>
     </section>
@@ -924,11 +923,10 @@ const RUNNER_MODE =
 const RUNNER_LOADER_RAW =
   "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Launchers/Runner/index.html";
 
-// Cuphead gets a dedicated iframe-based runner to keep its Unity page on its own origin.
-const CUPHEAD_RUNNER_URL =
-  PAGES_BASE + "Launchers/Cuphead/index.html";
-
-const PROXY_LOADER_URL = PAGES_BASE + "Launchers/Proxy/index.html";
+const LAUNCHERS_API_URL =
+  "https://api.github.com/repos/" + OWNER + "/" + REPO + "/contents/Launchers?ref=" + BRANCH;
+const LAUNCHERS_RAW_ROOT =
+  "https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/" + BRANCH + "/Launchers/";
 
 const CACHE_KEY = "AMW_GAME_LIBRARY_V3";
 
@@ -967,22 +965,76 @@ function readSitePreferences() {
   return preferences;
 }
 
+function syncLauncherSelection() {
+  const select = $("launcherType");
+  let saved = "proxy";
+  try { saved = localStorage.getItem(LAUNCHER_KEY) || "proxy"; } catch (_) {}
+  if (!launcherRegistry.has(saved)) saved = launcherRegistry.has("proxy")
+    ? "proxy"
+    : (launcherRegistry.keys().next().value || "");
+  select.value = saved;
+  const selected = launcherRegistry.get(saved);
+  $("launcherDescription").textContent = selected
+    ? selected.description
+    : "No compatible launchers were found.";
+}
+
+let launcherRegistry = new Map();
+let launcherDiscoveryPromise = null;
+
+async function discoverLaunchers() {
+  if (launcherDiscoveryPromise) return launcherDiscoveryPromise;
+  launcherDiscoveryPromise = (async () => {
+    const response = await fetch(LAUNCHERS_API_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error("Launcher directory request failed (HTTP " + response.status + ").");
+    const entries = await response.json();
+    const folders = entries.filter(item => item.type === "dir" && /^[a-z0-9_-]+$/i.test(item.name));
+    const discovered = await Promise.all(folders.map(async folder => {
+      const configResponse = await fetch(LAUNCHERS_RAW_ROOT + folder.name + "/launcher.json", { cache: "no-store" });
+      if (!configResponse.ok) return null;
+      const config = await configResponse.json();
+      if (!config || !/^[a-z0-9_-]+$/i.test(config.id || "") ||
+          !["query-frame", "template-blob"].includes(config.mode)) return null;
+      return {
+        id: config.id,
+        label: config.label || folder.name,
+        description: config.description || "Custom game launcher.",
+        mode: config.mode,
+        pagesUrl: PAGES_BASE + "Launchers/" + folder.name + "/index.html",
+        rawUrl: LAUNCHERS_RAW_ROOT + folder.name + "/index.html"
+      };
+    }));
+    launcherRegistry = new Map(discovered.filter(Boolean).map(item => [item.id, item]));
+    const select = $("launcherType");
+    const options = [...launcherRegistry.values()].sort((a,b) => a.label.localeCompare(b.label))
+      .map(item => new Option(item.label, item.id));
+    select.replaceChildren(...options);
+    if (!options.length) {
+      select.add(new Option("No launchers found", ""));
+      $("launcherDescription").textContent = "No launcher folders with a valid launcher.json were found.";
+    } else {
+      syncLauncherSelection();
+    }
+    return launcherRegistry;
+  })().catch(error => {
+    launcherDiscoveryPromise = null;
+    $("launcherDescription").textContent = "Could not discover launchers: " + error.message;
+    $("launcherType").replaceChildren(new Option("Launcher discovery failed", ""));
+    throw error;
+  });
+  return launcherDiscoveryPromise;
+}
+
 function openSettings() {
   const preferences = readSitePreferences();
   for (const [key, control] of Object.entries(settingControls)) {
     control.checked = preferences[key] !== false;
   }
   settingControls.compactCards.checked = preferences.compactCards === true;
-
-  try {
-    $("launcherType").value = localStorage.getItem(LAUNCHER_KEY) || "proxy";
-  } catch (_) {
-    $("launcherType").value = "proxy";
-  }
-
   settingsModal.hidden = false;
   document.body.style.overflow = "hidden";
   $("closeSettings").focus();
+  discoverLaunchers().catch(error => console.error("[Launcher discovery]", error));
 }
 
 function closeSettings() {
@@ -1016,13 +1068,18 @@ for (const control of Object.values(settingControls)) {
   control.addEventListener("change", saveSitePreferences);
 }
 $("launcherType").addEventListener("change", () => {
+  const selected = launcherRegistry.get($("launcherType").value);
+  if (!selected) return;
   try {
-    localStorage.setItem(LAUNCHER_KEY, $("launcherType").value);
-    settingsStatus.textContent = "Launcher preference saved.";
+    localStorage.setItem(LAUNCHER_KEY, selected.id);
+    $("launcherDescription").textContent = selected.description;
+    settingsStatus.textContent = "Launcher preference saved: " + selected.label + ".";
   } catch (error) {
     settingsStatus.textContent = "Could not save launcher preference: " + error.message;
   }
 });
+
+discoverLaunchers().catch(error => console.error("[Launcher discovery]", error));
 $("resetSettings").addEventListener("click", () => {
   settingControls.backgroundEffects.checked = true;
   settingControls.animations.checked = true;
@@ -1685,62 +1742,35 @@ async function launchInRunner(game, loaderUrl = RUNNER_LOADER_RAW) {
 // LAUNCH GAME
 // ==================================================
 
-function launch(game) {
-
-  // Cuphead uses its isolated runner INSIDE the existing player iframe.
-  // The collection URL, Back button, console, and player UI remain untouched.
-  if (game.title && game.title.toLowerCase() === "cuphead") {
-    openPlayer(game);
-    log("info", ["Using isolated Cuphead runner inside the collection player."]);
-    log("info", ["Game URL:", game.url]);
-    frame.onload = () => log("info", ["Cuphead runner loaded."]);
-    frame.onerror = () => log("error", ["Cuphead runner navigation failed."]);
-    frame.src = CUPHEAD_RUNNER_URL + "?game=" + encodeURIComponent(game.url);
+async function launch(game) {
+  let selectedId = "proxy";
+  try { selectedId = localStorage.getItem(LAUNCHER_KEY) || "proxy"; } catch (_) {}
+  try {
+    await discoverLaunchers();
+  } catch (error) {
+    log("error", ["Could not discover launchers:", error.message || error]);
+  }
+  const launcher = launcherRegistry.get(selectedId) || launcherRegistry.get("proxy");
+  if (!launcher) {
+    log("error", ["No usable launcher is available."]);
+    statusNode.textContent = "No usable launcher was found. Check the Launchers folder.";
     return;
   }
 
-  const launcherType = (() => {
-    try {
-      return localStorage.getItem("AMW_LAUNCHER_TYPE") || "proxy";
-    } catch (_) {
-      return "proxy";
-    }
-  })();
+  log("info", ["Using launcher:", launcher.label]);
+  log("info", ["Game URL:", game.url]);
 
-  // Runner uses its own top-level blob loader; Proxy stays inside the player.
-  if (launcherType === "runner") {
-    launchInRunner(game);
+  if (launcher.mode === "template-blob") {
+    launchInRunner(game, launcher.rawUrl);
     return;
-  }
-
-  if (launcherType !== "proxy") {
-    log("error", ["Unknown launcher type:", launcherType, "- using Proxy."]);
   }
 
   openPlayer(game);
-
-  log("info", [
-    "Using dedicated proxy loader."
-  ]);
-
-  log("info", ["Game URL:", game.url]);
-
-  const loaderUrl =
-    PROXY_LOADER_URL +
+  frame.onload = () => log("info", [launcher.label + " loaded."]);
+  frame.onerror = () => log("error", [launcher.label + " navigation failed."]);
+  frame.src = launcher.pagesUrl +
     "?game=" + encodeURIComponent(game.url) +
     "&title=" + encodeURIComponent(game.title);
-
-  frame.onload = () => {
-    log("info", ["Proxy loader loaded."]);
-  };
-
-  frame.onerror = () => {
-    log("error", [
-      "Proxy loader navigation failed."
-    ]);
-  };
-
-  frame.src = loaderUrl;
 }
 
 // ==================================================
