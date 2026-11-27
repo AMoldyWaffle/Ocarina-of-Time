@@ -1,0 +1,6 @@
+{
+  "id": "runner",
+  "label": "Runner",
+  "description": "Loads the game using the standalone-template runner.",
+  "mode": "template-blob"
+}
