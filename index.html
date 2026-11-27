@@ -1757,8 +1757,8 @@ async function launchCuphead(game) {
     return;
   }
 
-  const safeLoader = unityLoader.replace(/<\/script/gi, "<\\/script");
-  html = html.replace(loaderTag, "<script>\\n" + safeLoader + "\\n<\\/script>");
+  const safeLoader = unityLoader.replace(/<\\/script/gi, "<\\/script");
+  html = html.replace(loaderTag, "<script>\n" + safeLoader + "\n<\\/script>");
 
   frame.onload = null;
   frame.onerror = null;
