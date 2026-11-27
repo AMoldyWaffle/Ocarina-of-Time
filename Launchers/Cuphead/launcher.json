@@ -1,0 +1,6 @@
+{
+  "id": "cuphead",
+  "label": "Cuphead",
+  "description": "Uses Cuphead's isolated nested-frame runner inside the collection player.",
+  "mode": "query-frame"
+}
