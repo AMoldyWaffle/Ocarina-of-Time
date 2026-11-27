@@ -5,4 +5,8 @@ Beta V0.8.5
 
 -Optimized GTA: Vice City Downloading
 
+-Attempt to Cure Cuphead of SharedWorker
+
 -Updated Favicon
+
+-Settings now Says "Settings"
