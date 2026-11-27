@@ -925,8 +925,8 @@ const RUNNER_LOADER_RAW =
   "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Launchers/Runner/index.html";
 
 // Cuphead gets a dedicated iframe-based runner to keep its Unity page on its own origin.
-const CUPHEAD_RUNNER_RAW =
-  "https://raw.githubusercontent.com/AMoldyWaffle/Ocarina-of-Time/main/Launchers/Cuphead/index.html";
+const CUPHEAD_RUNNER_URL =
+  PAGES_BASE + "Launchers/Cuphead/index.html";
 
 const PROXY_LOADER_URL = PAGES_BASE + "Launchers/Proxy/index.html";
 
@@ -1687,10 +1687,15 @@ async function launchInRunner(game, loaderUrl = RUNNER_LOADER_RAW) {
 
 function launch(game) {
 
-  // Cuphead needs a real GitHub Pages document origin for Unity/worker compatibility.
-  // All other games continue using the selected launcher.
+  // Cuphead uses its isolated runner INSIDE the existing player iframe.
+  // The collection URL, Back button, console, and player UI remain untouched.
   if (game.title && game.title.toLowerCase() === "cuphead") {
-    launchInRunner(game, CUPHEAD_RUNNER_RAW);
+    openPlayer(game);
+    log("info", ["Using isolated Cuphead runner inside the collection player."]);
+    log("info", ["Game URL:", game.url]);
+    frame.onload = () => log("info", ["Cuphead runner loaded."]);
+    frame.onerror = () => log("error", ["Cuphead runner navigation failed."]);
+    frame.src = CUPHEAD_RUNNER_URL + "?game=" + encodeURIComponent(game.url);
     return;
   }
 
