@@ -209,7 +209,10 @@
       const urlProxySafe = 'URL=new Proxy(URL,{construct:(t,e,r)=>{let a=String(e[0]??""),b=String(e[1]??"");if(b.startsWith("blob:")||b.startsWith("data:"))e[1]="https://example.com/_framework/";if(a.endsWith(".js")){let n=a.split("/").pop().split("?")[0],u=netfiles.get(n);if(u)return Reflect.construct(t,[u],r)}return Reflect.construct(t,e,r)}})';
       const directEvalImport = 'let wasm=await eval(`import("${netfiles.get("dotnet.js")}")`)';
       const keyboardLockOriginal = 'null!=navigator.keyboard?navigator.keyboard.lock():console.log("navigation null")';
-      const keyboardLockSafe = 'if(navigator.keyboard\u003f.lock){try{await navigator.keyboard.lock()}catch(error){console.warn("[Terrarium] Keyboard lock unavailable in embedded launcher; continuing with normal keyboard input.",error)}}';
+      // Keyboard.lock() is forbidden inside Fuze's iframe. Keep it as a guarded
+      // expression (not an if statement) because the original minified code
+      // places this call inside a comma-separated expression list.
+      const keyboardLockSafe = 'navigator.keyboard?.lock?.().catch(error=>console.warn("[Terrarium] Keyboard lock unavailable in embedded launcher; continuing with normal keyboard input.",error))';
       const dataModuleImport = 'let wasm=await import(netfiles.get("dotnet.js"))';
       if (!source.includes(urlProxyVulnerable) || !source.includes(directEvalImport) || !source.includes(keyboardLockOriginal)) {
         throw new Error('Expected original Terrarium URL/runtime/keyboard bootstrap was not found; refusing to run an unpatched loader.');
@@ -226,7 +229,7 @@
       source = source.replace(directEvalImport, dataModuleImport);
       source = source.replace(keyboardLockOriginal, keyboardLockSafe);
       source = source.replace(startMarker, 'updateProgress("Initializing .NET runtime...");'+prepareRuntimeModules+';URL=new Proxy(URL,');
-      console.log('[Terrarium loader] Prepared extracted .NET ESM modules, installed a non-recursive URL compatibility proxy, and made Keyboard.lock optional in embedded contexts.');
+      console.log('[Terrarium loader] Prepared extracted .NET ESM modules, installed a non-recursive URL compatibility proxy, and made iframe keyboard locking optional.');
 
       // Execute as an inline script instead of a blob: script URL. Fuze's
       // direct-eval rewriter was recursively rewriting import("blob:...")
