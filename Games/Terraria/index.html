@@ -211,13 +211,20 @@
       const forwardVulnerable = 'Reflect.construct(t,e,r)';
       const forwardSafe = 'Reflect.construct(t,e.length>1?e:[e[0],document.baseURI],r)';
       const rewrittenJsVulnerable = 'new t(netfiles.get(e[0].split("/").pop()))';
+      // Fuze's direct-eval rewriter recursively processes the dynamic import
+      // string containing dotnet.js's blob URL and overflows its stack. The
+      // eval body is only a module import and needs no local lexical scope, so
+      // use indirect eval to execute it in global scope without Fuze's direct-
+      // eval rewriting path.
+      const directEvalImport = 'await eval(`import("${netfiles.get("dotnet.js")}")`)';
+      const indirectEvalImport = 'await (0,eval)(`import("${netfiles.get("dotnet.js")}")`)';
       // Do not pass blob: URLs into Fuze's own URL proxy. Fuze attempts to
       // rewrite blob-backed dynamic imports and can recurse until stack overflow.
       // Use the synthetic framework URL instead; window.fetch below maps it to
       // the already-downloaded blob in netfiles.
       const rewrittenJsSafe = 'Reflect.construct(t,["https://example.com/_framework/"+e[0].split("/").pop(),document.baseURI],r)';
-      if (!source.includes(vulnerable) || !source.includes(forwardVulnerable) || !source.includes(rewrittenJsVulnerable)) {
-        throw new Error('The expected main.js URL compatibility code was not found; refusing to run an unpatched loader.');
+      if (!source.includes(vulnerable) || !source.includes(forwardVulnerable) || !source.includes(rewrittenJsVulnerable) || !source.includes(directEvalImport)) {
+        throw new Error('Expected main.js compatibility/import code was not found; refusing to run an unpatched loader.');
       }
       source = source.replace(vulnerable, safe);
       // Fuze wraps URL with its own constructor Proxy. Forwarding a one-arg
@@ -225,7 +232,8 @@
       // Supply the document base URL only when the caller omitted its base.
       source = source.replace(forwardVulnerable, forwardSafe);
       source = source.replace(rewrittenJsVulnerable, rewrittenJsSafe);
-      console.log('[Terrarium loader] Applied URL argument compatibility patches; rewritten JS now uses the synthetic /_framework/ URL instead of blob URLs.');
+      source = source.replace(directEvalImport, indirectEvalImport);
+      console.log('[Terrarium loader] Applied URL argument, framework URL, and indirect-import patches.');
 
       // Execute as an inline script instead of a blob: script URL. Fuze's
       // direct-eval rewriter was recursively rewriting import("blob:...")
