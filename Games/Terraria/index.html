@@ -17,6 +17,14 @@
     #restore-file { display: none; }
     #save-status { position: fixed; z-index: 20001; top: 58px; right: 10px; max-width: min(360px, calc(100vw - 20px)); padding: 8px 11px; border-radius: 8px; background: #17171b; color: #fff; font: 12px/1.4 system-ui, sans-serif; box-shadow: 0 3px 14px #0008; display: none; }
     #loader-error { position: fixed; z-index: 30000; inset: auto 12px 12px; display: none; max-height: 35vh; overflow: auto; padding: 12px; border: 1px solid #a33; border-radius: 8px; background: #210d0d; color: #ffdede; font: 12px/1.45 monospace; white-space: pre-wrap; }
+    #debug-console { position: fixed; z-index: 25000; left: 10px; bottom: 10px; width: min(760px, calc(100vw - 20px)); height: min(34vh, 300px); min-height: 130px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #59616d; border-radius: 9px; background: rgba(9,12,17,.94); color: #dce5ef; box-shadow: 0 4px 24px #000b; font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    #debug-console.collapsed { height: 34px; min-height: 34px; }
+    #debug-console-head { display:flex; align-items:center; gap:7px; min-height:33px; padding:4px 7px; background:#202833; border-bottom:1px solid #46505c; font:600 12px system-ui,sans-serif; }
+    #debug-console-head button { border:1px solid #586474; border-radius:5px; padding:3px 7px; background:#303b49; color:#fff; cursor:pointer; font:11px system-ui,sans-serif; }
+    #debug-console-head .spacer { flex:1; }
+    #debug-console-output { flex:1; overflow:auto; margin:0; padding:7px 9px; white-space:pre-wrap; overflow-wrap:anywhere; }
+    #debug-console-output .error { color:#ff9999; } #debug-console-output .warn { color:#ffd27a; }
+    @media (max-width:520px) { #debug-console { width:calc(100vw - 12px); left:6px; bottom:6px; height:30vh; } }
     @media (max-width: 520px) { #game-tools { gap: 5px; } #game-tools button { padding: 9px 10px; font-size: 12px; } }
   </style>
 </head>
@@ -31,9 +39,53 @@
   </div>
   <div id="save-status" role="status" aria-live="polite"></div>
   <pre id="loader-error"></pre>
+  <section id="debug-console" aria-label="Terrarium debug console">
+    <div id="debug-console-head"><span>Terrarium Console</span><span id="console-count">0 messages</span><span class="spacer"></span><button id="console-clear" type="button">Clear</button><button id="console-copy" type="button">Copy</button><button id="console-toggle" type="button">Hide</button></div>
+    <pre id="debug-console-output"></pre>
+  </section>
   <script>
   (() => {
     const errorBox = document.getElementById('loader-error');
+    const consolePanel = document.getElementById('debug-console');
+    const consoleOutput = document.getElementById('debug-console-output');
+    const consoleCount = document.getElementById('console-count');
+    let messageCount = 0;
+    const captured = [];
+    const nativeConsole = {};
+    for (const level of ['log', 'info', 'warn', 'error', 'debug']) {
+      nativeConsole[level] = console[level] ? console[level].bind(console) : () => {};
+      console[level] = (...args) => {
+        nativeConsole[level](...args);
+        const line = `[${new Date().toLocaleTimeString()}] [${level.toUpperCase()}] ` + args.map(value => {
+          if (value instanceof Error) return value.stack || value.message;
+          if (typeof value === 'string') return value;
+          try { return JSON.stringify(value); } catch (_) { return String(value); }
+        }).join(' ');
+        captured.push(line);
+        messageCount++;
+        const row = document.createElement('div');
+        if (level === 'error' || level === 'warn') row.className = level;
+        row.textContent = line;
+        consoleOutput.appendChild(row);
+        consoleCount.textContent = `${messageCount} messages`;
+        while (consoleOutput.childNodes.length > 1200) consoleOutput.removeChild(consoleOutput.firstChild);
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+      };
+    }
+    document.getElementById('console-clear').addEventListener('click', () => {
+      captured.length = 0; messageCount = 0; consoleOutput.textContent = ''; consoleCount.textContent = '0 messages';
+    });
+    document.getElementById('console-copy').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(captured.join('\n')); console.log('[Terrarium console] Log copied.'); }
+      catch (error) { console.error('[Terrarium console] Could not copy log:', error); }
+    });
+    document.getElementById('console-toggle').addEventListener('click', event => {
+      const collapsed = consolePanel.classList.toggle('collapsed');
+      event.currentTarget.textContent = collapsed ? 'Show' : 'Hide';
+    });
+    window.addEventListener('error', event => console.error('[Browser error]', event.message, event.filename, `${event.lineno}:${event.colno}`, event.error || ''));
+    window.addEventListener('unhandledrejection', event => console.error('[Unhandled promise rejection]', event.reason));
+    console.log('[Terrarium] Diagnostic console initialized.');
     // Pin every asset to one verified repository revision. Using "main" can
     // briefly expose mismatched files while GitHub/CDN caches are updating.
     const REVISION = 'b21008030f8df70195697d4f41535b0eb5084d16';
@@ -156,10 +208,20 @@
 
       const vulnerable = 'e[1].startsWith("blob:")';
       const safe = 'String(e[1] || "").startsWith("blob:")';
-      if (!source.includes(vulnerable)) {
+      const forwardVulnerable = 'Reflect.construct(t,e,r)';
+      const forwardSafe = 'Reflect.construct(t,e.length>1?e:[e[0],document.baseURI],r)';
+      const rewrittenJsVulnerable = 'new t(netfiles.get(e[0].split("/").pop()))';
+      const rewrittenJsSafe = 'Reflect.construct(t,[netfiles.get(e[0].split("/").pop()),document.baseURI],r)';
+      if (!source.includes(vulnerable) || !source.includes(forwardVulnerable) || !source.includes(rewrittenJsVulnerable)) {
         throw new Error('The expected main.js URL compatibility code was not found; refusing to run an unpatched loader.');
       }
       source = source.replace(vulnerable, safe);
+      // Fuze wraps URL with its own constructor Proxy. Forwarding a one-arg
+      // call into that Proxy reproduces the startsWith(undefined) crash.
+      // Supply the document base URL only when the caller omitted its base.
+      source = source.replace(forwardVulnerable, forwardSafe);
+      source = source.replace(rewrittenJsVulnerable, rewrittenJsSafe);
+      console.log('[Terrarium loader] Applied URL argument compatibility patches (normal and rewritten-JS URLs).');
 
       await new Promise((resolve, reject) => {
         const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
