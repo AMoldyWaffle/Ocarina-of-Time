@@ -131,6 +131,54 @@
       await Promise.all(workers);
     }
 
+    async function loadPatchedMain() {
+      let lastError = 'unknown network error';
+      let source = null;
+
+      // main.js contains a URL Proxy that assumes every URL constructor call
+      // has a second argument. .NET legitimately calls new URL(value) with
+      // only one argument, which triggers the reported startsWith error.
+      for (const base of bases) {
+        const url = base + 'main.js';
+        try {
+          console.log('[Terrarium loader] Fetching main.js for compatibility patch:', url);
+          const response = await fetch(url, { cache: 'no-store' });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          source = await response.text();
+          break;
+        } catch (error) {
+          lastError = `${url}: ${error && error.message ? error.message : error}`;
+          console.warn('[Terrarium loader] main.js mirror failed; trying next mirror:', lastError);
+        }
+      }
+
+      if (source === null) throw new Error('Could not fetch main.js. Last error: ' + lastError);
+
+      const vulnerable = 'e[1].startsWith("blob:")';
+      const safe = 'String(e[1] || "").startsWith("blob:")';
+      if (!source.includes(vulnerable)) {
+        throw new Error('The expected main.js URL compatibility code was not found; refusing to run an unpatched loader.');
+      }
+      source = source.replace(vulnerable, safe);
+
+      await new Promise((resolve, reject) => {
+        const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+        const script = document.createElement('script');
+        script.dataset.terrariumManaged = 'true';
+        script.onload = () => {
+          URL.revokeObjectURL(blobUrl);
+          console.log('[Terrarium loader] Loaded patched main.js');
+          resolve();
+        };
+        script.onerror = () => {
+          URL.revokeObjectURL(blobUrl);
+          reject(new Error('Patched main.js was downloaded but the browser could not execute it.'));
+        };
+        script.src = blobUrl;
+        document.head.appendChild(script);
+      });
+    }
+
     async function boot() {
       try {
         await loadScript('data/_shim.js');
@@ -156,14 +204,14 @@
           !window.__E || !Object.prototype.hasOwnProperty.call(window.__E, name)
         );
         if (missing.length) throw new Error('Resource scripts loaded, but did not register these assets: ' + missing.join(', '));
-        await loadScript('main.js');
+        await loadPatchedMain();
         // A successful boot must never leave an old/recovered loader warning visible.
         errorBox.style.display = 'none';
         errorBox.textContent = '';
       } catch (error) {
         errorBox.style.display = 'block';
         errorBox.textContent = 'Terrarium could not start:\n' + (error && error.stack ? error.stack : String(error)) +
-          '\n\nThe loader tried eight mirrors pinned to the same verified revision. The large mast.bin.js file is downloaded separately with a longer timeout. Check the network connection and reload.';
+          '\n\nThe loader tried eight mirrors pinned to the same verified revision. Check the network connection and reload.';
         console.error('[Terrarium loader]', error);
       }
     }
