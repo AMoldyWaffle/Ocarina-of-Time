@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <base href="https://cdn.jsdelivr.net/gh/AMoldyWaffle/SmallGames@main/Terraria/" />
+  <title>Terrarium</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+    #app, #game-container, canvas { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+    #canvas { z-index: 1; }
+    #game-tools { position: fixed; z-index: 20000; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); display: flex; gap: 8px; }
+    #game-tools button { appearance: none; border: 1px solid rgba(255,255,255,.24); border-radius: 9px; background: rgba(20,20,24,.88); color: #fff; padding: 10px 13px; font: 600 13px/1.1 system-ui, sans-serif; cursor: pointer; box-shadow: 0 3px 14px #0008; backdrop-filter: blur(8px); }
+    #game-tools button:hover { background: rgba(55,55,65,.96); }
+    #game-tools button:disabled { opacity: .55; cursor: wait; }
+    #restore-file { display: none; }
+    #save-status { position: fixed; z-index: 20001; top: 58px; right: 10px; max-width: min(360px, calc(100vw - 20px)); padding: 8px 11px; border-radius: 8px; background: #17171b; color: #fff; font: 12px/1.4 system-ui, sans-serif; box-shadow: 0 3px 14px #0008; display: none; }
+    #loader-error { position: fixed; z-index: 30000; inset: auto 12px 12px; display: none; max-height: 35vh; overflow: auto; padding: 12px; border: 1px solid #a33; border-radius: 8px; background: #210d0d; color: #ffdede; font: 12px/1.45 monospace; white-space: pre-wrap; }
+    @media (max-width: 520px) { #game-tools { gap: 5px; } #game-tools button { padding: 9px 10px; font-size: 12px; } }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <canvas id="canvas"></canvas>
+  <div id="game-tools">
+    <button id="save-game" type="button">Save</button>
+    <button id="load-game" type="button">Load</button>
+    <button id="fullscreen-game" type="button">Fullscreen</button>
+    <input id="restore-file" type="file" accept=".terrarium-save,.json,application/json" />
+  </div>
+  <div id="save-status" role="status" aria-live="polite"></div>
+  <pre id="loader-error"></pre>
+  <script>
+  (() => {
+    const errorBox = document.getElementById('loader-error');
+    // Pin every asset to one verified repository revision. Using "main" can
+    // briefly expose mismatched files while GitHub/CDN caches are updating.
+    const REVISION = 'b21008030f8df70195697d4f41535b0eb5084d16';
+    const bases = [
+      // jsDelivr's independent delivery domains.
+      `https://gcore.jsdelivr.net/gh/AMoldyWaffle/SmallGames@${REVISION}/Terraria/`,
+      `https://testingcf.jsdelivr.net/gh/AMoldyWaffle/SmallGames@${REVISION}/Terraria/`,
+      `https://fastly.jsdelivr.net/gh/AMoldyWaffle/SmallGames@${REVISION}/Terraria/`,
+      `https://cdn.jsdelivr.net/gh/AMoldyWaffle/SmallGames@${REVISION}/Terraria/`,
+
+      // GitHub and alternate raw-content gateways.
+      `https://raw.githubusercontent.com/AMoldyWaffle/SmallGames/${REVISION}/Terraria/`,
+      `https://github.com/AMoldyWaffle/SmallGames/raw/${REVISION}/Terraria/`,
+      `https://raw.githack.com/AMoldyWaffle/SmallGames/${REVISION}/Terraria/`,
+      `https://cdn.statically.io/gh/AMoldyWaffle/SmallGames/${REVISION}/Terraria/`
+    ];
+    const resources = [
+      'data/atlas1.txt.js', 'data/atlas1.webp.js',
+      'data/atlas2.txt.js', 'data/atlas2.webp.js',
+      'data/atlas3.txt.js', 'data/atlas3.webp.js',
+      'data/atlas4.txt.js', 'data/atlas4.webp.js',
+      'data/atlas5.txt.js', 'data/atlas5.webp.js',
+      'data/atlas6.txt.js', 'data/atlas6.webp.js',
+      'data/atlas7.txt.js', 'data/atlas7.webp.js',
+      'data/atlas8.txt.js', 'data/atlas8.webp.js',
+      'data/atlas9.txt.js', 'data/atlas9.webp.js',
+      'data/main.wasm.js', 'data/mast.bin.js'
+    ];
+
+    function loadScript(path) {
+      return new Promise((resolve, reject) => {
+        let attempt = 0;
+        let lastError = 'unknown network error';
+        // mast.bin.js is about 23 MB, so allow a slower Chromebook connection
+        // substantially longer before switching to another host.
+        const timeoutMs = path === 'data/mast.bin.js' ? 240000 : 60000;
+
+        const tryNext = () => {
+          if (attempt >= bases.length) {
+            reject(new Error(
+              `Could not load ${path} from ${bases.length} mirrors. Last error: ${lastError}`
+            ));
+            return;
+          }
+
+          const url = bases[attempt++] + path;
+          const script = document.createElement('script');
+          // Resource failures are handled here by trying the next mirror.
+          // Mark them so the global error overlay does not mistake a recovered
+          // mirror failure for a fatal game error.
+          script.dataset.terrariumManaged = 'true';
+          let settled = false;
+          const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            script.remove();
+            lastError = `Timed out after ${timeoutMs / 1000}s: ${url}`;
+            console.warn('[Terrarium loader] Resource timeout; trying next mirror:', path, url);
+            tryNext();
+          }, timeoutMs);
+
+          script.async = true;
+          script.src = url;
+          script.onload = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(path);
+          };
+          script.onerror = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            script.remove();
+            lastError = `Network/script error: ${url}`;
+            console.warn('[Terrarium loader] Mirror failed; trying next mirror:', path, url);
+            tryNext();
+          };
+          document.head.appendChild(script);
+        };
+
+        tryNext();
+      });
+    }
+
+    async function loadInParallel(paths, concurrency = 4) {
+      let next = 0;
+      const workers = Array.from({ length: Math.min(concurrency, paths.length) }, async () => {
+        while (next < paths.length) {
+          const path = paths[next++];
+          await loadScript(path);
+          console.log('[Terrarium loader] Loaded', path);
+        }
+      });
+      await Promise.all(workers);
+    }
+
+    async function boot() {
+      try {
+        await loadScript('data/_shim.js');
+
+        // Load the smaller atlases and wasm bootstrap first. Keep the large
+        // 23 MB mast asset out of the parallel queue so it gets the available
+        // bandwidth instead of competing with other downloads.
+        const mastIndex = resources.indexOf('data/mast.bin.js');
+        const smallerResources = resources.filter(path => path !== 'data/mast.bin.js');
+        await loadInParallel(smallerResources, 3);
+        if (mastIndex !== -1) {
+          console.log('[Terrarium loader] Downloading large mast.bin.js asset separately…');
+          await loadScript('data/mast.bin.js');
+          console.log('[Terrarium loader] Loaded data/mast.bin.js');
+        }
+
+        const expectedAssets = [
+          ...Array.from({ length: 9 }, (_, i) => `atlas${i + 1}.webp`),
+          ...Array.from({ length: 9 }, (_, i) => `atlas${i + 1}.txt`),
+          'main.wasm', 'mast.bin'
+        ];
+        const missing = expectedAssets.filter(name =>
+          !window.__E || !Object.prototype.hasOwnProperty.call(window.__E, name)
+        );
+        if (missing.length) throw new Error('Resource scripts loaded, but did not register these assets: ' + missing.join(', '));
+        await loadScript('main.js');
+        // A successful boot must never leave an old/recovered loader warning visible.
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+      } catch (error) {
+        errorBox.style.display = 'block';
+        errorBox.textContent = 'Terrarium could not start:\n' + (error && error.stack ? error.stack : String(error)) +
+          '\n\nThe loader tried eight mirrors pinned to the same verified revision. The large mast.bin.js file is downloaded separately with a longer timeout. Check the network connection and reload.';
+        console.error('[Terrarium loader]', error);
+      }
+    }
+    boot();
+  })();
+  </script>
+  <script>
+  (() => {
+    const status = document.getElementById('save-status');
+    const errorBox = document.getElementById('loader-error');
+    const saveButton = document.getElementById('save-game');
+    const loadButton = document.getElementById('load-game');
+    const fileInput = document.getElementById('restore-file');
+    const fullButton = document.getElementById('fullscreen-game');
+
+    function message(text, duration = 4500) {
+      status.textContent = text;
+      status.style.display = 'block';
+      clearTimeout(message.timer);
+      message.timer = setTimeout(() => status.style.display = 'none', duration);
+    }
+    function getFS() {
+      const fs = window.wasm && window.wasm.Module && window.wasm.Module.FS;
+      if (!fs) throw new Error('The game is not ready yet. Wait until Terraria finishes loading.');
+      return fs;
+    }
+    function toBase64(bytes) {
+      let binary = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk)
+        binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+      return btoa(binary);
+    }
+    function fromBase64(value) {
+      const binary = atob(value);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    }
+    function walkFiles(fs, path, output) {
+      for (const name of fs.readdir(path)) {
+        if (name === '.' || name === '..') continue;
+        const full = path === '/' ? '/' + name : path + '/' + name;
+        const stat = fs.stat(full);
+        if (fs.isDir(stat.mode)) walkFiles(fs, full, output);
+        else if (fs.isFile(stat.mode)) output.push({ path: full, data: toBase64(fs.readFile(full)) });
+      }
+    }
+    function ensureDirectory(fs, path) {
+      const parts = path.split('/').filter(Boolean);
+      let current = '';
+      for (const part of parts) {
+        current += '/' + part;
+        try { fs.mkdir(current); } catch (error) {
+          if (!fs.analyzePath(current).exists) throw error;
+        }
+      }
+    }
+    function syncFS(fs, populate) {
+      return new Promise((resolve, reject) => fs.syncfs(populate, error => error ? reject(error) : resolve()));
+    }
+
+    saveButton.addEventListener('click', async () => {
+      saveButton.disabled = true;
+      try {
+        const fs = getFS();
+        message('Preparing save file…', 30000);
+        await syncFS(fs, false);
+        const files = [];
+        if (fs.analyzePath('/libsdl').exists) walkFiles(fs, '/libsdl', files);
+        const save = { format: 'terrarium-save', version: 1, created: new Date().toISOString(), files };
+        const blob = new Blob([JSON.stringify(save)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Terrarium-World-Backup.terrarium-save';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+        message(`Save exported: ${files.length} file(s). Keep this file somewhere safe.`);
+      } catch (error) {
+        message('Save failed: ' + (error && error.message ? error.message : error), 9000);
+      } finally { saveButton.disabled = false; }
+    });
+
+    loadButton.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      loadButton.disabled = true;
+      try {
+        const save = JSON.parse(await file.text());
+        if (!save || save.format !== 'terrarium-save' || save.version !== 1 || !Array.isArray(save.files))
+          throw new Error('That file is not a supported Terrarium save backup.');
+        const fs = getFS();
+        message('Restoring save files…', 30000);
+        ensureDirectory(fs, '/libsdl');
+        for (const item of save.files) {
+          if (!item || typeof item.path !== 'string' || !item.path.startsWith('/libsdl/') || typeof item.data !== 'string')
+            throw new Error('The backup contains an invalid file entry.');
+          const slash = item.path.lastIndexOf('/');
+          ensureDirectory(fs, item.path.slice(0, slash));
+          fs.writeFile(item.path, fromBase64(item.data));
+        }
+        await syncFS(fs, false);
+        message(`Restored ${save.files.length} file(s). Reload the game to ensure every save is reloaded.`, 10000);
+      } catch (error) {
+        message('Restore failed: ' + (error && error.message ? error.message : error), 10000);
+      } finally { loadButton.disabled = false; fileInput.value = ''; }
+    });
+
+    fullButton.addEventListener('click', async () => {
+      try {
+        if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+        else await document.exitFullscreen();
+      } catch (error) { message('Fullscreen was blocked by the browser. Try the browser fullscreen shortcut.'); }
+    });
+    document.addEventListener('fullscreenchange', () => {
+      fullButton.textContent = document.fullscreenElement ? 'Exit Fullscreen' : 'Fullscreen';
+    });
+
+    window.addEventListener('error', event => {
+      if (event.target && event.target !== window && event.target.tagName === 'SCRIPT') {
+        // loadScript() owns retry/fallback handling for these script elements.
+        // Its intermediate onerror events are expected and are not fatal.
+        if (event.target.dataset && event.target.dataset.terrariumManaged === 'true') return;
+        errorBox.style.display = 'block';
+        errorBox.textContent = 'A game resource failed to load:\n' + (event.target.src || 'unknown script') + '\nCheck that the CDN is reachable, then reload.';
+      } else if (event.message) {
+        errorBox.style.display = 'block';
+        errorBox.textContent = 'Game startup error:\n' + event.message + (event.filename ? '\n' + event.filename + ':' + event.lineno : '');
+      }
+    }, true);
+    window.addEventListener('unhandledrejection', event => {
+      errorBox.style.display = 'block';
+      const reason = event.reason;
+      errorBox.textContent = 'Game startup promise failed:\n' + (reason && reason.stack ? reason.stack : String(reason));
+    });
+  })();
+  </script>
+</body>
+</html>
