@@ -137,6 +137,7 @@
           // Mark them so the global error overlay does not mistake a recovered
           // mirror failure for a fatal game error.
           script.dataset.terrariumManaged = 'true';
+      script.dataset.terrariumBuild = 'v9';
           let settled = false;
           const timer = setTimeout(() => {
             if (settled) return;
@@ -206,13 +207,13 @@
       if (source === null) throw new Error('Could not fetch main.js. Last error: ' + lastError);
 
       const urlProxyVulnerable = 'URL=new Proxy(URL,{construct:(t,e,r)=>(e[1].startsWith("blob:")&&(e[1]="https://example.com/_framework/"),e[0].endsWith(".js")?new t(netfiles.get(e[0].split("/").pop())):Reflect.construct(t,e,r))})';
-      const urlProxySafe = 'URL=new Proxy(URL,{construct:(t,e,r)=>{let a=String(e[0]??""),b=String(e[1]??"");if(b.startsWith("blob:")||b.startsWith("data:"))e[1]="https://example.com/_framework/";if(a.endsWith(".js")){let n=a.split("/").pop().split("?")[0],u=netfiles.get(n);if(u)return Reflect.construct(t,[u],r)}return Reflect.construct(t,e,r)}})';
+      const urlProxySafe = 'URL=new Proxy(URL,{construct:(t,e)=>{let a=String(e[0]??""),b=String(e[1]??"");if(a.endsWith(".js")){let n=a.split("/").pop().split("?")[0],u=netfiles.get(n);if(u)return Reflect.construct(t,[u],t)}if(b.startsWith("blob:")||b.startsWith("data:"))e[1]="https://example.com/_framework/";return Reflect.construct(t,e,t)}})';
       const directEvalImport = 'let wasm=await eval(`import("${netfiles.get("dotnet.js")}")`)';
       const keyboardLockOriginal = 'null!=navigator.keyboard?navigator.keyboard.lock():console.log("navigation null")';
       // Keyboard.lock() is forbidden inside Fuze's iframe. Keep it as a guarded
       // expression (not an if statement) because the original minified code
       // places this call inside a comma-separated expression list.
-      const keyboardLockSafe = 'navigator.keyboard?.lock?.().catch(error=>console.warn("[Terrarium] Keyboard lock unavailable in embedded launcher; continuing with normal keyboard input.",error))';
+      const keyboardLockSafe = 'console.debug("[Terrarium] Skipping Keyboard.lock() because the game is embedded in Fuze.")';
       const dataModuleImport = 'let wasm=await import(netfiles.get("dotnet.js"))';
       if (!source.includes(urlProxyVulnerable) || !source.includes(directEvalImport) || !source.includes(keyboardLockOriginal)) {
         throw new Error('Expected original Terrarium URL/runtime/keyboard bootstrap was not found; refusing to run an unpatched loader.');
@@ -229,7 +230,7 @@
       source = source.replace(directEvalImport, dataModuleImport);
       source = source.replace(keyboardLockOriginal, keyboardLockSafe);
       source = source.replace(startMarker, 'updateProgress("Initializing .NET runtime...");'+prepareRuntimeModules+';URL=new Proxy(URL,');
-      console.log('[Terrarium loader] Prepared extracted .NET ESM modules, installed a non-recursive URL compatibility proxy, and made iframe keyboard locking optional.');
+      console.log('[Terrarium loader] Prepared extracted .NET ESM modules, installed a URL proxy with the native constructor as newTarget, and skipped iframe keyboard locking. Build v9.');
 
       // Execute as an inline script instead of a blob: script URL. Fuze's
       // direct-eval rewriter was recursively rewriting import("blob:...")
@@ -237,6 +238,7 @@
       // Inline execution avoids creating a blob script URL altogether.
       const script = document.createElement('script');
       script.dataset.terrariumManaged = 'true';
+      script.dataset.terrariumBuild = 'v9';
       script.textContent = source + '\n//# sourceURL=terrarium-patched-main.js';
       document.head.appendChild(script);
       console.log('[Terrarium loader] Executed patched main.js inline (no blob script URL).');
