@@ -187,9 +187,8 @@
       let lastError = 'unknown network error';
       let source = null;
 
-      // main.js contains a URL Proxy that assumes every URL constructor call
-      // has a second argument. .NET legitimately calls new URL(value) with
-      // only one argument, which triggers the reported startsWith error.
+      // The original main.js URL Proxy assumes a second URL argument and passes Blob
+      // module URLs through Fuze. Patch both without reading proxied document properties.
       for (const base of bases) {
         const url = base + 'main.js';
         try {
@@ -206,31 +205,25 @@
 
       if (source === null) throw new Error('Could not fetch main.js. Last error: ' + lastError);
 
-      const vulnerable = 'e[1].startsWith("blob:")';
-      const safe = 'String(e[1] || "").startsWith("blob:")';
-      const forwardVulnerable = 'Reflect.construct(t,e,r)';
-      const forwardSafe = 'Reflect.construct(t,e.length>1?e:[e[0],document.baseURI],r)';
-      const rewrittenJsVulnerable = 'new t(netfiles.get(e[0].split("/").pop()))';
-      // The .NET bootstrap is stored in the downloaded archive as a Blob URL.
-      // Fuze cannot reliably fetch dynamically imported blob: modules. Convert
-      // the already-downloaded module source to a data: module instead. Its
-      // import.meta.url is rewritten to the synthetic framework base so any
-      // runtime files it locates still use the existing netfiles/fetch bridge.
+      const urlProxyVulnerable = 'URL=new Proxy(URL,{construct:(t,e,r)=>(e[1].startsWith("blob:")&&(e[1]="https://example.com/_framework/"),e[0].endsWith(".js")?new t(netfiles.get(e[0].split("/").pop())):Reflect.construct(t,e,r))})';
+      const urlProxySafe = 'URL=new Proxy(URL,{construct:(t,e,r)=>{let a=String(e[0]??""),b=String(e[1]??"");if(b.startsWith("blob:")||b.startsWith("data:"))e[1]="https://example.com/_framework/";if(a.endsWith(".js")){let n=a.split("/").pop().split("?")[0],u=netfiles.get(n);if(u)return Reflect.construct(t,[u],r)}return Reflect.construct(t,e,r)}})';
       const directEvalImport = 'let wasm=await eval(`import("${netfiles.get("dotnet.js")}")`)';
-      const dataModuleImport = 'let dotnetSource=await (await fetch(netfiles.get("dotnet.js"))).text(),dotnetSourcePatched=dotnetSource.replaceAll("import.meta.url",\'"https://example.com/_framework/dotnet.js"\'),dotnetDataUrl="data:text/javascript;charset=utf-8,"+encodeURIComponent(dotnetSourcePatched),wasm=await import(dotnetDataUrl)';
-      // Keep .NET's dynamically imported runtime chunks as real Blob URLs.
-      // A fetch() shim cannot service import() requests: module loading bypasses
-      // window.fetch. Returning the extracted Blob URL lets the browser's module
-      // loader fetch the actual archive member instead of example.com.
-      const rewrittenJsSafe = 'new t(netfiles.get(e[0].split("/").pop()))';
-      if (!source.includes(vulnerable) || !source.includes(forwardVulnerable) || !source.includes(rewrittenJsVulnerable) || !source.includes(directEvalImport)) {
-        throw new Error('Expected main.js compatibility/import code was not found; refusing to run an unpatched loader.');
+      const dataModuleImport = 'let wasm=await import(netfiles.get("dotnet.js"))';
+      if (!source.includes(urlProxyVulnerable) || !source.includes(directEvalImport)) {
+        throw new Error('Expected original Terrarium URL/runtime bootstrap was not found; refusing to run an unpatched loader.');
       }
-      source = source.replace(vulnerable, safe);
-      source = source.replace(forwardVulnerable, forwardSafe);
-      source = source.replace(rewrittenJsVulnerable, rewrittenJsSafe);
+      // .NET 9 dynamically imports fingerprinted runtime modules. The original
+      // build extracts them to Blob URLs, but Fuze rewrites Blob module URLs.
+      // Convert the extracted ESM files to data: URLs before the runtime starts.
+      // This reads only the already-downloaded local Blob objects; it adds no
+      // network requests and leaves WASM/asset files untouched.
+      const prepareRuntimeModules = 'for(let [name,blobUrl] of netfiles){if(name.endsWith(".js")&&!name.includes("worker")){let response=await realfetch(blobUrl);if(!response.ok)throw new Error("Could not read extracted runtime module "+name);let moduleSource=await response.text();netfiles.set(name,"data:text/javascript;charset=utf-8,"+encodeURIComponent(moduleSource))}}';
+      const startMarker = 'updateProgress("Initializing .NET runtime..."),URL=new Proxy(URL,';
+      if (!source.includes(startMarker)) throw new Error('Could not locate the original Terrarium runtime startup sequence.');
+      source = source.replace(urlProxyVulnerable, urlProxySafe);
       source = source.replace(directEvalImport, dataModuleImport);
-      console.log('[Terrarium loader] Patched URL handling; .NET bootstrap uses a data module and runtime chunks resolve to extracted Blob URLs.');
+      source = source.replace(startMarker, 'updateProgress("Initializing .NET runtime...");'+prepareRuntimeModules+';URL=new Proxy(URL,');
+      console.log('[Terrarium loader] Prepared extracted .NET ESM modules as data URLs and installed a non-recursive URL compatibility proxy.');
 
       // Execute as an inline script instead of a blob: script URL. Fuze's
       // direct-eval rewriter was recursively rewriting import("blob:...")
